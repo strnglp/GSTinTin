@@ -117,10 +117,15 @@
     #local {_end} {0};
     #math {_end} {$_now + $_secs};
     #nop -- Compute total duration from value pct: total = remaining * 100 / pct --;
-    #nop -- Server value reflects pct of max possible duration for this spell --;
+    #nop -- Only on first see or refresh (value=0 at low pct causes bar to fill 100%) --;
     #local {_total} {$_secs};
     #if {$gstin[_ep_val] > 0} {
         #math {_total} {$_secs * 100 / $gstin[_ep_val]};
+    };
+    #if {&gstin[effects_raw][$_cat][$gstin[_ep_name]][duration]} {
+        #if {$gstin[effects_raw][$_cat][$gstin[_ep_name]][duration] > $_total} {
+            #local {_total} {$gstin[effects_raw][$_cat][$gstin[_ep_name]][duration]};
+        };
     };
     #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][end_time]} {$_end};
     #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][value]} {$gstin[_ep_val]};
