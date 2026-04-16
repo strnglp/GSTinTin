@@ -517,6 +517,7 @@
     #if {$gstin[_mapper_ready] == 0} {
         #regexp {$_line} {Map loaded} {
             #variable {gstin[_mapper_ready]} {1};
+            #variable {gstin[_dirty][border]} {1};
             gstin_request_render;
         };
     };
@@ -620,6 +621,7 @@
     };
     #regexp {$_line} {<popStream} {
         #if {"$gstin[stream][current]" == "room"} {
+            #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
         #variable {gstin[stream][current]} {};
@@ -647,73 +649,121 @@
         #variable {gstin[room][desc]} {&1};
     };
     #regexp {$_line} {<component id='room objs'></component>} {
-        #variable {gstin[room][objects]} {};
-        gstin_request_render;
+        #if {"$gstin[room][objects]" != ""} {
+            #variable {gstin[room][objects]} {};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id="room objs"></component>} {
-        #variable {gstin[room][objects]} {};
-        gstin_request_render;
+        #if {"$gstin[room][objects]" != ""} {
+            #variable {gstin[room][objects]} {};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id='room players'></component>} {
-        #variable {gstin[room][players]} {};
-        gstin_request_render;
+        #if {"$gstin[room][players]" != ""} {
+            #variable {gstin[room][players]} {};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id="room players"></component>} {
-        #variable {gstin[room][players]} {};
-        gstin_request_render;
+        #if {"$gstin[room][players]" != ""} {
+            #variable {gstin[room][players]} {};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id='room objs'>{.+}</component>} {
+        #local {_prev_objs} {$gstin[room][objects]};
         #variable {gstin[room][objects]} {&1};
         gstin_strip_xml_colored {gstin[room][objects]};
         gstin_consolidate_objects;
-        gstin_request_render;
+        #if {"$gstin[room][objects]" != "$_prev_objs"} {
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id="room objs">{.+}</component>} {
+        #local {_prev_objs} {$gstin[room][objects]};
         #variable {gstin[room][objects]} {&1};
         gstin_strip_xml_colored {gstin[room][objects]};
         gstin_consolidate_objects;
-        gstin_request_render;
+        #if {"$gstin[room][objects]" != "$_prev_objs"} {
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id='room players'>{.+}</component>} {
+        #local {_prev_players} {$gstin[room][players]};
         #variable {gstin[room][players]} {&1};
         gstin_strip_xml_colored {gstin[room][players]};
-        gstin_request_render;
+        #if {"$gstin[room][players]" != "$_prev_players"} {
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id="room players">{.+}</component>} {
+        #local {_prev_players} {$gstin[room][players]};
         #variable {gstin[room][players]} {&1};
         gstin_strip_xml_colored {gstin[room][players]};
-        gstin_request_render;
+        #if {"$gstin[room][players]" != "$_prev_players"} {
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id='room exits'>{.+}</component>} {
+        #local {_prev_exits} {$gstin[room][exits]};
         #variable {gstin[room][exits]} {&1};
         gstin_strip_xml_colored {gstin[room][exits]} {exits};
-        gstin_request_render;
+        #if {"$gstin[room][exits]" != "$_prev_exits"} {
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<component id="room exits">{.+}</component>} {
+        #local {_prev_exits} {$gstin[room][exits]};
         #variable {gstin[room][exits]} {&1};
         gstin_strip_xml_colored {gstin[room][exits]} {exits};
-        gstin_request_render;
+        #if {"$gstin[room][exits]" != "$_prev_exits"} {
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
 
     #nop -- Hands (parsed early: hand tags appear on lines with pushStream inv) --;
     #nop -- Attributed tags (exist=) take priority over plain tags --;
     #nop -- Pattern uses exist= and </right> or </left> to anchor precisely --;
     #regexp {$_line} {exist={[^>]+}>{[^<]+}</right>} {
-        #variable {gstin[hands][right]} {&2};
-        gstin_request_render;
+        #if {"&2" != "$gstin[hands][right]"} {
+            #variable {gstin[hands][right]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     } {
         #regexp {$_line} {<right>{[^<]+}</right>} {
-            #variable {gstin[hands][right]} {&1};
-            gstin_request_render;
+            #if {"&1" != "$gstin[hands][right]"} {
+                #variable {gstin[hands][right]} {&1};
+                #variable {gstin[_dirty][status]} {1};
+                gstin_request_render;
+            };
         };
     };
     #regexp {$_line} {exist={[^>]+}>{[^<]+}</left>} {
-        #variable {gstin[hands][left]} {&2};
-        gstin_request_render;
+        #if {"&2" != "$gstin[hands][left]"} {
+            #variable {gstin[hands][left]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     } {
         #regexp {$_line} {<left>{[^<]+}</left>} {
-            #variable {gstin[hands][left]} {&1};
-            gstin_request_render;
+            #if {"&1" != "$gstin[hands][left]"} {
+                #variable {gstin[hands][left]} {&1};
+                #variable {gstin[_dirty][status]} {1};
+                gstin_request_render;
+            };
         };
     };
 
@@ -741,39 +791,60 @@
         gstin_start_rt_countdown;
     };
 
-    #nop -- Vitals --;
+    #nop -- Vitals (per-vital dedup: only flag dirty + render if value changed) --;
     #regexp {$_line} {<progressBar id='health' value='{[0-9]+}' text='health {[0-9]+}/{[0-9]+}'} {
-        #variable {gstin[vitals][health][value]} {&1};
-        #variable {gstin[vitals][health][current]} {&2};
-        #variable {gstin[vitals][health][max]} {&3};
+        #if {&1 != $gstin[vitals][health][value]} {
+            #variable {gstin[vitals][health][value]} {&1};
+            #variable {gstin[vitals][health][current]} {&2};
+            #variable {gstin[vitals][health][max]} {&3};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<progressBar id='mana' value='{[0-9]+}' text='mana {[0-9]+}/{[0-9]+}'} {
-        #variable {gstin[vitals][mana][value]} {&1};
-        #variable {gstin[vitals][mana][current]} {&2};
-        #variable {gstin[vitals][mana][max]} {&3};
+        #if {&1 != $gstin[vitals][mana][value]} {
+            #variable {gstin[vitals][mana][value]} {&1};
+            #variable {gstin[vitals][mana][current]} {&2};
+            #variable {gstin[vitals][mana][max]} {&3};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<progressBar id='spirit' value='{[0-9]+}' text='spirit {[0-9]+}/{[0-9]+}'} {
-        #variable {gstin[vitals][spirit][value]} {&1};
-        #variable {gstin[vitals][spirit][current]} {&2};
-        #variable {gstin[vitals][spirit][max]} {&3};
+        #if {&1 != $gstin[vitals][spirit][value]} {
+            #variable {gstin[vitals][spirit][value]} {&1};
+            #variable {gstin[vitals][spirit][current]} {&2};
+            #variable {gstin[vitals][spirit][max]} {&3};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<progressBar id='stamina' value='{[0-9]+}' text='stamina {[0-9]+}/{[0-9]+}'} {
-        #variable {gstin[vitals][stamina][value]} {&1};
-        #variable {gstin[vitals][stamina][current]} {&2};
-        #variable {gstin[vitals][stamina][max]} {&3};
+        #if {&1 != $gstin[vitals][stamina][value]} {
+            #variable {gstin[vitals][stamina][value]} {&1};
+            #variable {gstin[vitals][stamina][current]} {&2};
+            #variable {gstin[vitals][stamina][max]} {&3};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
     #nop -- pbarStance parsed later (handles both prompt and dialogData lines) --;
     #regexp {$_line} {<progressBar id='mindState' value='{[0-9]+}' text='{[^']+}'} {
-        #variable {gstin[vitals][mind][value]} {&1};
-        #variable {gstin[vitals][mind][text]} {&2};
+        #if {&1 != $gstin[vitals][mind][value]} {
+            #variable {gstin[vitals][mind][value]} {&1};
+            #variable {gstin[vitals][mind][text]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<progressBar id='encumlevel' value='{[0-9]+}' text='{[^']+}'} {
-        #variable {gstin[vitals][encumbrance][value]} {&1};
-        #variable {gstin[vitals][encumbrance][text]} {&2};
+        #if {&1 != $gstin[vitals][encumbrance][value]} {
+            #variable {gstin[vitals][encumbrance][value]} {&1};
+            #variable {gstin[vitals][encumbrance][text]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
-
-    #nop -- Request render if any vital was on this line --;
-    #regexp {$_line} {<progressBar } {gstin_request_render};
 
     #nop -- Room title from streamWindow subtitle (data only, no render) --;
     #nop -- Subtitle has raw lich IDs so roomName drives border updates --;
@@ -785,12 +856,16 @@
     #nop -- Spell --;
     #nop -- Attribute chars must be inside {} for PCRE (gotcha 6) --;
     #regexp {$_line} {<spell{[^>]*}>{[^<]*}</spell>} {
-        #variable {gstin[spell]} {&2};
-        gstin_request_render;
+        #if {"&2" != "$gstin[spell]"} {
+            #variable {gstin[spell]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
 
     #nop -- Compass --;
     #regexp {$_line} {<compass>} {
+        #local {_csnap} {$gstin[compass][n]$gstin[compass][ne]$gstin[compass][e]$gstin[compass][se]$gstin[compass][s]$gstin[compass][sw]$gstin[compass][w]$gstin[compass][nw]$gstin[compass][up]$gstin[compass][down]$gstin[compass][out]};
         #variable {gstin[compass][n]}    {0};
         #variable {gstin[compass][ne]}   {0};
         #variable {gstin[compass][e]}    {0};
@@ -824,10 +899,17 @@
         #regexp {$_line} {value='down'/>} {#variable {gstin[compass][down]} {1}};
         #regexp {$_line} {value="out"/>}  {#variable {gstin[compass][out]}  {1}};
         #regexp {$_line} {value='out'/>}  {#variable {gstin[compass][out]}  {1}};
-        gstin_request_render;
+        #local {_csnap2} {$gstin[compass][n]$gstin[compass][ne]$gstin[compass][e]$gstin[compass][se]$gstin[compass][s]$gstin[compass][sw]$gstin[compass][w]$gstin[compass][nw]$gstin[compass][up]$gstin[compass][down]$gstin[compass][out]};
+        #if {"$_csnap" != "$_csnap2"} {
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
 
-    #nop -- Indicators --;
+    #nop -- Indicators (snapshot before/after for dedup) --;
+    #regexp {$_line} {<indicator } {
+        #variable {gstin[_isnap]} {$gstin[indicators][STUNNED]$gstin[indicators][BLEEDING]$gstin[indicators][POISONED]$gstin[indicators][DISEASED]$gstin[indicators][STANDING]$gstin[indicators][KNEELING]$gstin[indicators][SITTING]$gstin[indicators][PRONE]$gstin[indicators][JOINED]$gstin[indicators][HIDDEN]$gstin[indicators][INVISIBLE]$gstin[indicators][DEAD]$gstin[indicators][WEBBED]};
+    };
     #regexp {$_line} {<indicator id='IconSTUNNED' visible='{[^']*}'/>} {
         #variable {gstin[indicators][STUNNED]} {&1};
         #if {"&1" == "y"} {
@@ -927,9 +1009,13 @@
         #variable {gstin[indicators][WEBBED]} {&1};
     };
 
-    #nop -- Request render if any indicator was on this line --;
+    #nop -- Request render only if any indicator actually changed --;
     #regexp {$_line} {<indicator } {
-        gstin_request_render;
+        #local {_isnap2} {$gstin[indicators][STUNNED]$gstin[indicators][BLEEDING]$gstin[indicators][POISONED]$gstin[indicators][DISEASED]$gstin[indicators][STANDING]$gstin[indicators][KNEELING]$gstin[indicators][SITTING]$gstin[indicators][PRONE]$gstin[indicators][JOINED]$gstin[indicators][HIDDEN]$gstin[indicators][INVISIBLE]$gstin[indicators][DEAD]$gstin[indicators][WEBBED]};
+        #if {"$gstin[_isnap]" != "$_isnap2"} {
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
 
     #nop -- Prompt time sync + flag extraction --;
@@ -970,11 +1056,13 @@
         #regexp {$_line} {">{[^<]*H[^<]*}</prompt>} {
             #if {"$gstin[indicators][HIDDEN]" != "y"} {
                 #variable {gstin[indicators][HIDDEN]} {y};
+                #variable {gstin[_dirty][status]} {1};
                 gstin_request_render;
             };
         } {
             #if {"$gstin[indicators][HIDDEN]" != "n"} {
                 #variable {gstin[indicators][HIDDEN]} {n};
+                #variable {gstin[_dirty][status]} {1};
                 gstin_request_render;
             };
         };
@@ -984,11 +1072,13 @@
     #regexp {$_line} {roomName" />{.+}} {
         #variable {gstin[room][title]} {&1};
         gstin_strip_xml {gstin[room][title]};
+        #variable {gstin[_dirty][border]} {1};
         gstin_request_render;
     };
     #regexp {$_line} {roomName' />{.+}} {
         #variable {gstin[room][title]} {&1};
         gstin_strip_xml {gstin[room][title]};
+        #variable {gstin[_dirty][border]} {1};
         gstin_request_render;
     };
     #regexp {$_line} {roomDesc"/>{.+}} {
@@ -1108,40 +1198,53 @@
     #regexp {$_line} {^Also here: {.+}} {
         #variable {gstin[room][players]} {Also here: &1};
         gstin_strip_xml_colored {gstin[room][players]};
+        #variable {gstin[_dirty][room]} {1};
         gstin_request_render;
     };
     #regexp {$_line} {You also see {.+}} {
         #variable {gstin[room][objects]} {  You also see &1};
         gstin_strip_xml_colored {gstin[room][objects]};
         gstin_consolidate_objects;
+        #variable {gstin[_dirty][room]} {1};
         gstin_request_render;
     };
     #regexp {$_line} {^Obvious paths: {.+}} {
         #variable {gstin[room][exits]} {Obvious paths: &1};
         gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        #variable {gstin[_dirty][room]} {1};
         gstin_request_render;
     };
     #regexp {$_line} {^Obvious exits: {.+}} {
         #variable {gstin[room][exits]} {Obvious exits: &1};
         gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        #variable {gstin[_dirty][room]} {1};
         gstin_request_render;
     };
 
     #nop -- Extract data from XML lines before gagging --;
     #variable {gstin[_gag_line]} {$_line};
     #regexp {$_line} {pbarStance' value='{[0-9]+}'} {
-        #variable {gstin[vitals][stance][value]} {&1};
-        gstin_request_render;
+        #if {&1 != $gstin[vitals][stance][value]} {
+            #variable {gstin[vitals][stance][value]} {&1};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
 
     #nop -- Injuries (migrated from xml_parser.tin #action) --;
     #regexp {$_line} {<image id='{[^']+}' name='{[^']*}'/>} {
-        #variable {gstin[injuries][&1]} {&2};
-        gstin_request_render;
+        #if {"&2" != "$gstin[injuries][&1]"} {
+            #variable {gstin[injuries][&1]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
     #regexp {$_line} {<image id="{[^"]+}" name="{[^"]*}"/>} {
-        #variable {gstin[injuries][&1]} {&2};
-        gstin_request_render;
+        #if {"&2" != "$gstin[injuries][&1]"} {
+            #variable {gstin[injuries][&1]} {&2};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
     };
 
     #nop -- Generic XML gag: strip tags, show any remaining game text, gag line --;

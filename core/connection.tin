@@ -35,7 +35,7 @@
         #nop -- Request room state: init burst has vitals but no room data --;
         #delay {gstin_init_look} {#send {look}} {1};
         #nop -- Force a full redraw after init burst --;
-        #delay {gstin_init_redraw} {gstin_render_all} {3};
+        #delay {gstin_init_redraw} {gstin_dirty_all;gstin_render_all} {3};
         #showme {$gstin[colors][system][status]--- GSTinTin: Connected (detachable) to lich-5<099>};
     } {
         #send {/FE:STORMFRONT /VERSION:1.0.1.26 /P:LINUX /XML};

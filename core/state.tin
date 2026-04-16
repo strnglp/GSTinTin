@@ -113,6 +113,16 @@
 #nop -- Render pending flag (prevents effects/full render race) --;
 #variable {gstin[_render_pending]} {0}
 
+#nop -- Section dirty flags (set by parsers, checked by gstin_render_all) --;
+#variable {gstin[_dirty][room]}   {0}
+#variable {gstin[_dirty][status]} {0}
+#variable {gstin[_dirty][spells]} {0}
+#variable {gstin[_dirty][chat]}   {0}
+#variable {gstin[_dirty][border]} {0}
+
+#nop -- Indicator snapshot for dedup (set before parsing, compared after) --;
+#variable {gstin[_isnap]} {}
+
 #nop -- Story showme re-entry guard (prevents RECEIVED LINE loop) --;
 #variable {gstin[_showing_story]} {0}
 

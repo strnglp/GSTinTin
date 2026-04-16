@@ -62,6 +62,7 @@ gstin_calc_status_layout;
         #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
         #variable {gstin[_split_needed]} {1};
         #variable {gstin[_prev_rbar]} {};
+        gstin_dirty_all;
         gstin_request_render;
     };
 }
@@ -83,6 +84,7 @@ gstin_calc_status_layout;
         #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
         #variable {gstin[_split_needed]} {1};
         #variable {gstin[_prev_rbar]} {};
+        gstin_dirty_all;
         gstin_request_render;
     };
 }
@@ -436,7 +438,9 @@ gstin_calc_status_layout;
     #if {$gstin[_split_needed] == 1} {
         #split {$gstin[ui][top_size]} 1 {$gstin[ui][left_w]} {$gstin[ui][right_w]} 1;
         #variable {gstin[_split_needed]} {0};
-        #nop -- Invalidate prev-state cache so all components redraw after split --;
+        #nop -- Invalidate prev-state cache and dirty all sections after split --;
+        gstin_dirty_all;
+        #variable {gstin[_prev_rbar]} {};
         #variable {gstin[_prev][header]}     {0};
         #variable {gstin[_prev][body]}       {_};
         #variable {gstin[_prev][vitals]}     {_};
@@ -948,19 +952,58 @@ gstin_calc_status_layout;
     #nop -- prev_rbar cache now tracks per-row state --;
 }
 
+#nop -- Mark all sections dirty (for resize, init, force redraw) --;
+#alias {gstin_dirty_all} {
+    #variable {gstin[_dirty][room]}   {1};
+    #variable {gstin[_dirty][status]} {1};
+    #variable {gstin[_dirty][spells]} {1};
+    #variable {gstin[_dirty][chat]}   {1};
+    #variable {gstin[_dirty][border]} {1};
+}
+
 #nop -- Master redraw --;
-#nop -- Cursor hide/show wraps all draws to prevent cursor flicker --;
+#nop -- Only renders sections whose dirty flag is set --;
 #alias {gstin_render_all} {
     #variable {gstin[_render_pending]} {0};
-    #undelay {gstin_effects_tick};
-    gstin_prepare_room_info;
+    #if {$gstin[_dirty][spells] == 1} {
+        #undelay {gstin_effects_tick};
+    };
+    #if {$gstin[_dirty][room] == 1} {
+        gstin_prepare_room_info;
+    };
     gstin_apply_resize;
-    #screen cursor hide;
-    gstin_render_room_info;
-    #if {$gstin[ui][right_active] == 1} {gstin_render_spells};
-    gstin_render_status;
-    gstin_render_chat;
-    gstin_redraw_top_border;
+    #variable {gstin[_draw_count]} {0};
+    #if {$gstin[_dirty][room] == 1} {
+        #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+        gstin_render_room_info;
+        #variable {gstin[_dirty][room]} {0};
+        #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+    };
+    #if {$gstin[_dirty][spells] == 1 && $gstin[ui][right_active] == 1} {
+        gstin_render_spells;
+        #variable {gstin[_dirty][spells]} {0};
+    };
+    #if {$gstin[_dirty][status] == 1} {
+        #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+        gstin_render_status;
+        #variable {gstin[_dirty][status]} {0};
+        #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+    };
+    #if {$gstin[_dirty][chat] == 1} {
+        #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+        gstin_render_chat;
+        #variable {gstin[_dirty][chat]} {0};
+        #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+    };
+    #if {$gstin[_dirty][border] == 1} {
+        #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+        gstin_redraw_top_border;
+        #variable {gstin[_dirty][border]} {0};
+    } {
+        #if {$gstin[_draw_count] > 0} {
+            #screen cursor show;
+        };
+    };
 }
 
 #nop -- Request a render (coalesced — multiple requests = one render) --;
@@ -1020,6 +1063,7 @@ gstin_calc_status_layout;
         gstin_chat_rewrap;
         #variable {gstin[_chat_dirty]} {1};
         #variable {gstin[_prev_rbar]} {};
+        gstin_dirty_all;
         gstin_render_all;
         #buffer end;
     } {0.2};

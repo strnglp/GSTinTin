@@ -7,6 +7,8 @@
 #class {gstin_room_stream} {open}
 
 #alias {gstin_update_room_display} {
+    #variable {gstin[_dirty][room]} {1};
+    #variable {gstin[_dirty][border]} {1};
     gstin_request_render;
 }
 
