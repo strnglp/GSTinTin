@@ -1171,13 +1171,21 @@
     #regexp {$_line} {</{component|right|left|inv|compass|spell}>} {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
     #if {$gstin[_xml_gag] == 1} {#line gag; #return};
 
-    #nop -- Prompt: gag here (AFTER spacing logic at line 592 already ran) --;
+    #nop -- Prompt: gag and capture prompt text for echo detection --;
     #nop -- Must return to prevent end-of-event flag resets from undoing spacing --;
-    #nop -- Extract prompt text since #line gag blocks the xml_parser.tin #action --;
+    #nop -- Prompt text captured by stripping tags (nested #regexp &1 is broken) --;
     #regexp {$_line} {<prompt } {
-        #regexp {$_line} {>{[^<]*}</prompt>} {
-            #variable {gstin[prompt][text]} {&1};
-        };
+        #local {_ptxt} {$_line};
+        #replace {_ptxt} {<prompt{[^>]*}>} {};
+        #replace {_ptxt} {</prompt>} {};
+        #replace {_ptxt} {<{[^>]+}>} {};
+        #format {_ptxt} {%p} {$_ptxt};
+        #replace {_ptxt} {GSAMPMARK}  {&&};
+        #replace {_ptxt} {GSGTMARK}   {>};
+        #replace {_ptxt} {GSLTMARK}   {<};
+        #replace {_ptxt} {GSQUOTMARK} {"};
+        #replace {_ptxt} {GSAPOSMARK} {'};
+        #variable {gstin[prompt][text]} {$_ptxt};
         #line gag;
         #return;
     };
@@ -1202,6 +1210,17 @@
         #line gag;
         #return;
     };
+    #nop -- Gag prompt character echo (lich sends prompt char as separate line) --;
+    #nop -- After <prompt> gag sets _has_content=0, lich echoes the prompt text --;
+    #nop -- (e.g. >, H>, STUNNED>) as a standalone line. Match against captured text --;
+    #if {"$_vis" == "$gstin[prompt][text]" && $gstin[_has_content] == 0} {
+        #if {$gstin[_spacelog] == 1} {
+            #line log {/tmp/gstin_space.log} {GAG-PROMPTECHO: vis=$_vis};
+        };
+        #line gag;
+        #return;
+    };
+
     #nop -- Line survived all processing and will display in main scroll --;
     #nop -- Reset spacing flag so next prompt can insert a separator --;
     #variable {gstin[_prompt_space]} {0};
