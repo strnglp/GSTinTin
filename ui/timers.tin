@@ -39,7 +39,8 @@
         #variable {gstin[timers][stun_remaining]} {0};
     };
 
-    #showme {\e[?2026h} {0};
+    #screen cursor hide;
+    #showme {\e[?2026h} {1} {1};
     #variable {gstin[_sync_active]} {1};
     gstin_render_bottom;
     gstin_redraw_top_border;

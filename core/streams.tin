@@ -1083,7 +1083,8 @@
                 #return;
             };
             gstin_chat_add {$gstin[colors][stream][$_stream]} {$_line};
-            #showme {\e[?2026h} {0};
+            #screen cursor hide;
+            #showme {\e[?2026h} {1} {1};
             #variable {gstin[_sync_active]} {1};
             gstin_render_chat;
             gstin_redraw_top_border;

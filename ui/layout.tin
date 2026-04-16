@@ -109,7 +109,6 @@ gstin_calc_status_layout;
     #local {_endcol} {0};
     #math {_endcol} {$_col + $_w - 1};
     #if {$_endcol > $gstin[ui][cols] || $_row > $gstin[ui][rows]} {#return};
-    #screen clear square {$_row} {$_col} {$_row} {$_endcol};
     #format {_txt} {%-${_w}.${_w}s} {$_txt};
     #showme {${_txt}<099>} {${_row}} {${_col}};
 }
@@ -610,10 +609,11 @@ gstin_calc_status_layout;
     #nop -- End synchronized output if sync block is active --;
     #nop -- Appended to border showme so it goes to row 1 (not {0} which clears row 1) --;
     #if {$gstin[_sync_active] == 1} {
-        #showme {$gstin[_cached_border]\e[?2026l} {1};
+        #showme {$gstin[_cached_border]\e[?2026l} {1} {1};
         #variable {gstin[_sync_active]} {0};
+        #screen cursor show;
     } {
-        #showme {$gstin[_cached_border]} {1};
+        #showme {$gstin[_cached_border]} {1} {1};
     };
 }
 
@@ -941,7 +941,9 @@ gstin_calc_status_layout;
     #nop -- Apply resize BEFORE sync block (split forces full repaint) --;
     gstin_apply_resize;
     #nop -- Now render atomically --;
-    #showme {\e[?2026h} {0};
+    #nop -- Hide cursor to prevent flicker, sync output for atomic repaint --;
+    #screen cursor hide;
+    #showme {\e[?2026h} {1} {1};
     #variable {gstin[_sync_active]} {1};
     gstin_render_room_info;
     #if {$gstin[ui][right_active] == 1} {gstin_render_spells};
@@ -972,7 +974,8 @@ gstin_calc_status_layout;
             #return;
         };
         #if {$gstin[_render_pending] != 1} {
-            #showme {\e[?2026h} {0};
+            #screen cursor hide;
+            #showme {\e[?2026h} {1} {1};
             #variable {gstin[_sync_active]} {1};
             gstin_render_spells;
             gstin_redraw_top_border;

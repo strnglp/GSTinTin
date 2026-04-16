@@ -457,7 +457,11 @@
 #nop -- 0-delay ensures it fires after TinTin++ finishes input processing --;
 #event {SENT OUTPUT} {
     #variable {gstin[_prev][bottom]} {_};
-    #delay {gstin_bottom_repaint} {gstin_render_bottom} {0};
+    #delay {gstin_bottom_repaint} {
+        #screen cursor hide;
+        gstin_render_bottom;
+        #screen cursor show;
+    } {0};
 }
 
 #class {gstin_vitals} {close}
