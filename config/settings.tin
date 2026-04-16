@@ -1,0 +1,32 @@
+#nop =========================================================================;
+#nop  GSTinTin - User Settings
+#nop  Customize connection, colors, and preferences here.
+#nop =========================================================================;
+
+#class {gstin_settings} {open}
+
+#nop -- Connection settings --;
+#nop -- Override before calling gstin_connect if needed --;
+#nop #variable {gstin[connection][host]} {127.0.0.1}
+#nop #variable {gstin[connection][port]} {8000}
+
+#nop -- Character name (for terminal title, logging) --;
+#variable {gstin[config][char_name]} {Eleazzar}
+
+#nop -- Logging: set to 1 to enable session logging --;
+#variable {gstin[config][log_enabled]} {0}
+#variable {gstin[config][log_dir]} {logs}
+
+#nop -- Theme: dark or light --;
+#variable {gstin[config][theme]} {dark}
+
+#nop -- Compact mode: 1 = no extra spacing, 0 = blank line between messages --;
+#variable {gstin[config][compact]} {0}
+
+#nop -- Chat column width limits --;
+#nop -- Chat flexes with terminal width (cols/4) but clamps to this range --;
+#nop -- Hard minimum is 31 regardless of chat_min_width setting --;
+#variable {gstin[config][chat_min_width]} {31}
+#variable {gstin[config][chat_max_width]} {50}
+
+#class {gstin_settings} {close}

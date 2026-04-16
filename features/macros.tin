@@ -1,0 +1,165 @@
+#nop =========================================================================;
+#nop  GSTinTin - Macros and Key Bindings
+#nop  Numpad directions, combat shortcuts, and utility commands.
+#nop =========================================================================;
+
+#class {gstin_macros} {open}
+
+#nop ---- Numpad directional macros (matching ProfanityFE layout) --;
+#macro {\eOq} {sw\n}
+#macro {\eOr} {s\n}
+#macro {\eOs} {se\n}
+#macro {\eOt} {w\n}
+#macro {\eOu} {out\n}
+#macro {\eOv} {e\n}
+#macro {\eOw} {nw\n}
+#macro {\eOx} {n\n}
+#macro {\eOy} {ne\n}
+
+#nop -- Numpad + for look --;
+#macro {\eOk} {look\n}
+#nop -- Numpad - for up --;
+#macro {\eOm} {up\n}
+#nop -- Numpad * for down --;
+#macro {\eOj} {down\n}
+
+#nop ---- Chat scroll macros --;
+#nop -- Ctrl+PageUp: scroll chat up --;
+#macro {\e[5;5~} {gstin_chat_scroll_up};
+#nop -- Ctrl+PageDown: scroll chat down --;
+#macro {\e[6;5~} {gstin_chat_scroll_down};
+
+#alias {gstin_chat_scroll_up} {
+    #local {_page} {0};
+    #math {_page} {($gstin[ui][bar_bot] - 9 - $gstin[ui][bar_top] + 1) / 2};
+    #if {$_page < 1} {#local {_page} {1}};
+    #math {gstin[chat][scroll]} {$gstin[chat][scroll] + $_page};
+    #variable {gstin[_chat_dirty]} {1};
+    gstin_request_render;
+}
+
+#alias {gstin_chat_scroll_down} {
+    #if {$gstin[chat][scroll] > 0} {
+        #local {_page} {0};
+        #math {_page} {($gstin[ui][bar_bot] - 9 - $gstin[ui][bar_top] + 1) / 2};
+        #if {$_page < 1} {#local {_page} {1}};
+        #math {gstin[chat][scroll]} {$gstin[chat][scroll] - $_page};
+        #if {$gstin[chat][scroll] < 0} {
+            #variable {gstin[chat][scroll]} {0};
+        };
+        #variable {gstin[_chat_dirty]} {1};
+        gstin_request_render;
+    };
+}
+
+#nop ---- Game command aliases ----;
+
+#nop -- Quick stance switching --;
+#alias {def} {stance defensive}
+#alias {off} {stance offensive}
+
+#nop -- Quick look at self --;
+#alias {gs} {look at my self}
+
+#nop -- Lich convenience --;
+#alias {,%0} {#send {;%0}}
+
+#nop ---- GSTinTin utility commands ----;
+
+#nop -- Show current game state --;
+#alias {gstin_state} {
+    #showme {$gstin[colors][system][status]--- GSTinTin State ---<099>};
+    #showme {HP: $gstin[vitals][health][current]/$gstin[vitals][health][max]  MN: $gstin[vitals][mana][current]/$gstin[vitals][mana][max]};
+    #showme {ST: $gstin[vitals][stamina][current]/$gstin[vitals][stamina][max]  SP: $gstin[vitals][spirit][current]/$gstin[vitals][spirit][max]};
+    #showme {Stance: $gstin[vitals][stance][value]  Mind: $gstin[vitals][mind][text]  Load: $gstin[vitals][encumbrance][text]};
+    #showme {L: $gstin[hands][left]  R: $gstin[hands][right]  Spell: $gstin[spell]};
+    #showme {Room: $gstin[room][title]};
+    #showme {Prompt: $gstin[prompt][text]  TimeOffset: $gstin[time][offset]};
+}
+
+#nop -- Show experience --;
+#alias {gstin_exp} {
+    #showme {$gstin[colors][system][status]--- Experience ---<099>};
+    #foreach {*gstin[exp][]} {_skill} {
+        #showme {  $_skill: $gstin[exp][$_skill]};
+    };
+}
+
+#nop -- Show injuries --;
+#alias {gstin_injuries} {
+    #showme {$gstin[colors][system][status]--- Injuries ---<099>};
+    #foreach {*gstin[injuries][]} {_part} {
+        #if {"$gstin[injuries][$_part]" != ""} {
+            #showme {  $_part: $gstin[injuries][$_part]};
+        };
+    };
+}
+
+#nop -- Toggle compact mode (message spacing) --;
+#alias {compact} {
+    #math {gstin[config][compact]} {!$gstin[config][compact]};
+    #if {$gstin[config][compact] == 1} {
+        #showme {$gstin[colors][system][status]--- Compact mode: ON<099>};
+    } {
+        #showme {$gstin[colors][system][status]--- Compact mode: OFF<099>};
+    };
+}
+
+#nop -- Reload theme: kill palette class, reload palette + semantic colors, refresh UI --;
+#alias {gstin_load_theme} {
+    #class {gstin_palette} {kill};
+    #read {config/palette_$gstin[config][theme].tin};
+    #class {gstin_colors} {kill};
+    #read {config/colors.tin};
+    gstin_apply_highlights;
+    #variable {gstin[_prev][header]}     {0};
+    #variable {gstin[_prev][body]}       {_};
+    #variable {gstin[_prev][vitals]}     {_};
+    #variable {gstin[_prev][mind]}       {_};
+    #variable {gstin[_prev][enc]}        {_};
+    #variable {gstin[_prev][conditions]} {_};
+    #variable {gstin[_prev][spell]}      {_};
+    #variable {gstin[_prev][hands]}      {_};
+    #variable {gstin[_prev][bottom]}     {_};
+    #variable {gstin[_chat_dirty]} {1};
+    gstin_request_render;
+}
+
+#nop -- Toggle dark/light theme --;
+#alias {theme} {
+    #if {"$gstin[config][theme]" == "dark"} {
+        #variable {gstin[config][theme]} {light};
+    } {
+        #variable {gstin[config][theme]} {dark};
+    };
+    gstin_load_theme;
+    #showme {$gstin[colors][system][status]--- Theme: $gstin[config][theme]<099>};
+}
+
+#nop -- Toggle raw XML logging to /tmp/gstin_raw.log --;
+#alias {gstin_rawlog} {
+    #math {gstin[rawlog]} {!$gstin[rawlog]};
+    #if {$gstin[rawlog] == 1} {
+        #showme {$gstin[colors][system][status]--- Raw logging: ON (/tmp/gstin_raw.log)<099>};
+    } {
+        #showme {$gstin[colors][system][status]--- Raw logging: OFF<099>};
+    };
+}
+
+#nop -- Toggle spacing debug log to /tmp/gstin_space.log --;
+#alias {gstin_spacelog} {
+    #math {gstin[_spacelog]} {!$gstin[_spacelog]};
+    #if {$gstin[_spacelog] == 1} {
+        #showme {$gstin[colors][system][status]--- Space logging: ON (/tmp/gstin_space.log)<099>};
+    } {
+        #showme {$gstin[colors][system][status]--- Space logging: OFF<099>};
+    };
+}
+
+#nop -- Force redraw status area --;
+#alias {gstin_redraw} {
+    gstin_render_all;
+    #showme {$gstin[colors][system][status]--- UI redrawn<099>};
+}
+
+#class {gstin_macros} {close}

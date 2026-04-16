@@ -1,0 +1,13 @@
+#nop =========================================================================;
+#nop  GSTinTin - Room Stream Display
+#nop  Room state is parsed by xml_parser.tin into gstin[room][...]
+#nop  This triggers room info and status bar redraws when data changes.
+#nop =========================================================================;
+
+#class {gstin_room_stream} {open}
+
+#alias {gstin_update_room_display} {
+    gstin_request_render;
+}
+
+#class {gstin_room_stream} {close}

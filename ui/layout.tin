@@ -1,0 +1,1018 @@
+#nop =========================================================================;
+#nop  GSTinTin - Layout
+#nop  3-column split: chat+vitals (left), game scroll (center), spells (right)
+#nop  Top bar: 10 rows (title in row 1 border, word-wrapped content on 2-9).
+#nop
+#nop  #split {top} {bottom} {left} {right} {input}
+#nop =========================================================================;
+
+#class {gstin_layout} {open}
+
+#nop -- Calculate screen dimensions --;
+#screen get rows gstin[ui][rows];
+#screen get cols gstin[ui][cols];
+
+#math {gstin[ui][left_w]}    {$gstin[ui][cols] / 4};
+#nop -- Clamp to configured range (hard minimum 31) --;
+#local {_cmin} {$gstin[config][chat_min_width]};
+#if {$_cmin < 31} {#local {_cmin} {31}};
+#if {$gstin[ui][left_w] < $_cmin} {#variable {gstin[ui][left_w]} {$_cmin}};
+#if {$gstin[config][chat_max_width] > 0 && $gstin[ui][left_w] > $gstin[config][chat_max_width]} {
+    #variable {gstin[ui][left_w]} {$gstin[config][chat_max_width]};
+};
+#nop -- Right sidebar starts hidden (no spells/effects yet) --;
+#variable {gstin[ui][right_w]} {0};
+#variable {gstin[ui][right_col]} {0};
+#variable {gstin[ui][right_active]} {0};
+#variable {gstin[ui][top_size]} {10};
+#math {gstin[ui][bar_top]}   {11};
+#math {gstin[ui][bar_bot]}   {$gstin[ui][rows] - 2};
+
+#split 10 1 {$gstin[ui][left_w]} 0 1;
+
+#nop -- Calculate status area column positions --;
+#alias {gstin_calc_status_layout} {
+    #math {gstin[ui][status_row]} {$gstin[ui][bar_bot] - 8};
+    #nop -- Bar zone: icon + overlay bar pinned to right edge --;
+    #nop -- Reserve 13 cols from right: 2 icon + 1 space + bar --;
+    #math {gstin[ui][bar_icon_col]} {$gstin[ui][left_w] - 13};
+    #if {$gstin[ui][bar_icon_col] < 21} {#variable {gstin[ui][bar_icon_col]} {21}};
+    #math {gstin[ui][bar_val_col]} {$gstin[ui][bar_icon_col] + 2};
+    #math {gstin[ui][bar_end_col]} {$gstin[ui][left_w] - 2};
+    #nop -- Left bar end (same width as right vitals bars) --;
+    #math {gstin[ui][lbar_end]} {3 + $gstin[ui][bar_end_col] - $gstin[ui][bar_val_col] + 1};
+    #nop -- Body zone: paperdoll (6 cols: body_col-1 to body_col+4) --;
+    #nop -- centered between left bar end and bar_icon_col with 1 col padding --;
+    #math {gstin[ui][body_col]} {$gstin[ui][lbar_end] + 2 + ($gstin[ui][bar_icon_col] - $gstin[ui][lbar_end] - 8) / 2 + 1};
+    #if {$gstin[ui][body_col] < $gstin[ui][lbar_end] + 3} {
+        #math {gstin[ui][body_col]} {$gstin[ui][lbar_end] + 3};
+    };
+}
+
+gstin_calc_status_layout;
+
+#nop -- Show right sidebar (called when first spell/effect arrives) --;
+#nop -- Defers #split to render phase so chat/status repaint immediately after --;
+#alias {gstin_show_right_sidebar} {
+    #if {$gstin[ui][right_active] == 0} {
+        #variable {gstin[ui][right_active]} {1};
+        #variable {gstin[ui][right_w]} {32};
+        #math {gstin[ui][right_col]} {$gstin[ui][cols] - 32 + 1};
+        #math {gstin[ui][bar_top]} {$gstin[ui][top_size] + 1};
+        #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
+        #variable {gstin[_split_needed]} {1};
+        gstin_request_render;
+    };
+}
+
+#nop -- Hide right sidebar (called when all spells/effects clear) --;
+#nop -- Defers #split to render phase so chat/status repaint immediately after --;
+#alias {gstin_hide_right_sidebar} {
+    #if {$gstin[ui][right_active] == 1} {
+        #nop -- Clear the right pane content before collapsing --;
+        #local {_cr} {$gstin[ui][bar_top]};
+        #while {$_cr <= $gstin[ui][bar_bot]} {
+            gstin_drawright {$_cr} {};
+            #math {_cr} {$_cr + 1};
+        };
+        #variable {gstin[ui][right_active]} {0};
+        #variable {gstin[ui][right_w]} {0};
+        #variable {gstin[ui][right_col]} {0};
+        #math {gstin[ui][bar_top]} {$gstin[ui][top_size] + 1};
+        #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
+        #variable {gstin[_split_needed]} {1};
+        gstin_request_render;
+    };
+}
+
+#nop -- Helper: draw text in left sidebar at given row --;
+#nop -- Truncates text and erases only left_w-1 cols to preserve the split bar --;
+#alias {gstin_drawleft} {
+    #local {_row} {%1};
+    #local {_txt} {%2};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][left_w] - 1};
+    #format {_txt} {%-${_w}.${_w}s} {$_txt};
+    #showme {${_txt}\e[0m} {${_row}} {1};
+}
+
+#nop -- Helper: draw text in right sidebar at given row --;
+#nop -- Starts 1 col inside the border and truncates to preserve the split bar --;
+#alias {gstin_drawright} {
+    #if {$gstin[ui][right_w] < 4 || $gstin[ui][right_col] < 1} {#return};
+    #local {_row} {%1};
+    #local {_txt} {%2};
+    #local {_col} {0};
+    #math {_col} {$gstin[ui][right_col] + 1};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][right_w] - 2};
+    #local {_endcol} {0};
+    #math {_endcol} {$_col + $_w - 1};
+    #if {$_endcol > $gstin[ui][cols] || $_row > $gstin[ui][rows]} {#return};
+    #screen clear square {$_row} {$_col} {$_row} {$_endcol};
+    #format {_txt} {%-${_w}.${_w}s} {$_txt};
+    #showme {${_txt}<099>} {${_row}} {${_col}};
+}
+
+#nop -- Helper: draw text on full-width row using {row} parameter --;
+#alias {gstin_drawrow} {
+    #local {_row} {%1};
+    #local {_txt} {%2};
+    #showme {${_txt}} {$_row};
+}
+
+#nop -- Helper: draw text on a top-bar row --;
+#nop -- Uses {N} split row targeting, no side borders --;
+#alias {gstin_drawtop} {
+    #local {_row} {%1};
+    #local {_txt} {%2};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][cols] - 2};
+    #format {_txt} {%-${_w}.${_w}s} {$_txt};
+    #showme {${_txt}\e[0m} {${_row}} {2};
+}
+
+#nop -- Word-wrap text to a given visible width --;
+#nop -- Splits on spaces, stores wrapped lines in gstin[_wrap_result] as a list --;
+#nop -- Find the last color code in a string, store in gstin[_last_color] --;
+#alias {gstin_find_last_color} {
+    #local {_str} {%1};
+    #variable {gstin[_last_color]} {};
+    #nop -- Replace all <abc> color codes with a semicolon-delimited marker --;
+    #local {_scan} {$_str};
+    #replace {_scan} {<{[a-z0-9][a-z0-9][a-z0-9]}>} {;GXCOL&1;};
+    #foreach {$_scan} {_part} {
+        #regexp {$_part} {GXCOL{[a-z0-9][a-z0-9][a-z0-9]}} {
+            #variable {gstin[_last_color]} {<&1>};
+        };
+    };
+}
+
+#alias {gstin_wordwrap} {
+    #local {_text} {%1};
+    #local {_width} {%2};
+    #variable {gstin[_wrap_result]} {};
+
+    #local {_words} {$_text};
+    #replace {_words} { } {;};
+
+    #local {_line} {};
+    #local {_line_len} {0};
+    #local {_carry_color} {};
+
+    #foreach {$_words} {_word} {
+        #local {_wlen} {0};
+        #format {_wlen} {%L} {$_word};
+
+        #if {$_line_len == 0} {
+            #if {"$_carry_color" != "" && "$_carry_color" != "<099>"} {
+                #local {_line} {$_carry_color$_word};
+            } {
+                #local {_line} {$_word};
+            };
+            #local {_line_len} {$_wlen};
+        } {
+            #local {_new_len} {0};
+            #math {_new_len} {$_line_len + 1 + $_wlen};
+            #if {$_new_len > $_width} {
+                #nop -- Line full: find last color for carry-over --;
+                gstin_find_last_color {$_line};
+                #local {_carry_color} {$gstin[_last_color]};
+                #list {gstin[_wrap_result]} {add} {$_line};
+                #if {"$_carry_color" != "" && "$_carry_color" != "<099>"} {
+                    #local {_line} {$_carry_color$_word};
+                } {
+                    #local {_line} {$_word};
+                };
+                #local {_line_len} {$_wlen};
+            } {
+                #local {_line} {$_line $_word};
+                #local {_line_len} {$_new_len};
+            };
+        };
+    };
+
+    #if {$_line_len > 0} {
+        #list {gstin[_wrap_result]} {add} {$_line};
+    };
+}
+
+#nop -- Strip XML tags from a variable (same pattern as chat stripping) --;
+#alias {gstin_strip_xml} {
+    #local {_varname} {%1};
+    #replace {$_varname} {<{[^>]+}>} {};
+}
+
+#nop -- Draw word-wrapped text into the top bar --;
+#nop -- Data is already processed (XML stripped, colors injected at capture time) --;
+#nop -- Uses gstin[_toprow] for current row (caller must set before, reads after) --;
+#alias {gstin_drawtop_wrapped} {
+    #local {_text} {%1};
+    #local {_w} {%2};
+    #local {_max_row} {%3};
+
+    #if {"$_text" != ""} {
+        gstin_wordwrap {$_text} {$_w};
+        #local {_sz} {0};
+        #list {gstin[_wrap_result]} {size} {_sz};
+        #local {_i} {1};
+        #local {_carry} {};
+        #while {$_i <= $_sz && $gstin[_toprow] <= $_max_row} {
+            #local {_line} {${_carry}$gstin[_wrap_result][$_i]};
+            gstin_find_last_color {$_line};
+            #local {_carry} {$gstin[_last_color]};
+            #if {"$_carry" == "<099>"} {#local {_carry} {}};
+            #if {$_i > 1} {
+                gstin_drawtop {$gstin[_toprow]} {  ${_line}<099>};
+            } {
+                gstin_drawtop {$gstin[_toprow]} {${_line}<099>};
+            };
+            #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+            #math {_i} {$_i + 1};
+        };
+    };
+}
+
+#nop -- Consolidate duplicate items in room objects list --;
+#nop -- Runs AFTER gstin_strip_xml_colored (works on color-coded text) --;
+#nop -- Step 1: gstin_cons_split splits items into gstin[_co] list --;
+#nop -- Step 2: gstin_cons_count deduplicates --;
+#nop -- Step 3: gstin_cons_build rebuilds the string --;
+
+#alias {gstin_cons_split} {
+    #local {_body} {$gstin[room][objects]};
+    #replace {_body} {You also see } {};
+    #replace {_body} {.} {};
+    #replace {_body} {, and } {, };
+    #replace {_body} { and } {, };
+    #replace {_body} {, } {;};
+    #variable {gstin[_co_items]} {$_body};
+}
+
+#alias {gstin_cons_count} {
+    #variable {gstin[_cc]} {};
+    #variable {gstin[_cf]} {};
+    #variable {gstin[_co]} {};
+    #foreach {$gstin[_co_items]} {_item} {
+        #local {_key} {};
+        #format {_key} {%p} {$_item};
+        #replace {_key} { } {_};
+        #if {"$_key" != ""} {
+            #if {&gstin[_cc][$_key]} {
+                #math {gstin[_cc][$_key]} {$gstin[_cc][$_key] + 1};
+            } {
+                #variable {gstin[_cc][$_key]} {1};
+                #variable {gstin[_cf][$_key]} {$_item};
+                #list {gstin[_co]} {add} {$_key};
+            };
+        };
+    };
+}
+
+#alias {gstin_cons_build} {
+    #local {_result} {};
+    #local {_sz} {0};
+    #list {gstin[_co]} {size} {_sz};
+    #local {_i} {1};
+    #while {$_i <= $_sz} {
+        #local {_k} {$gstin[_co][$_i]};
+        #if {$_i > 1} {
+            #local {_result} {$_result, };
+        };
+        #if {$gstin[_cc][$_k] > 1} {
+            #local {_result} {$_result$gstin[_cf][$_k] ($gstin[_cc][$_k])};
+        } {
+            #local {_result} {$_result$gstin[_cf][$_k]};
+        };
+        #math {_i} {$_i + 1};
+    };
+    #if {"$_result" != ""} {
+        #variable {gstin[room][objects]} {You also see $_result.};
+    };
+}
+
+#alias {gstin_consolidate_objects} {
+    gstin_cons_split;
+    gstin_cons_count;
+    gstin_cons_build;
+}
+
+#nop -- Strip XML from text, injecting color codes for semantic tags --;
+#nop -- Mirrors the #substitute pipeline so room window matches main scroll --;
+#nop -- Takes a variable NAME (not value), modifies in place --;
+#alias {gstin_strip_xml_colored} {
+    #local {_vn} {%1};
+    #local {_ctx} {%2};
+
+    #nop -- Entity unescaping (before XML stripping so < > dont form false tags) --;
+    #replace {$_vn} {&amp;} {GXAMP};
+    #replace {$_vn} {&gt;} {GXEGT};
+    #replace {$_vn} {&lt;} {GXELT};
+    #replace {$_vn} {&quot;} {GXQUO};
+    #replace {$_vn} {&apos;} {GXAPO};
+
+    #nop -- Strip semantic tags to placeholders (no action suffix colorizing) --;
+    #replace {$_vn} {</a>}          {GXRST};
+    #replace {$_vn} {<a %*>}        {GXNAM};
+    #replace {$_vn} {<pushBold/>}   {GXCRS};
+    #replace {$_vn} {<popBold/>}    {GXCRE};
+    #replace {$_vn} {<d cmd='%*'>}  {GXDIR};
+    #replace {$_vn} {<d cmd="%*">}  {GXDIR};
+    #replace {$_vn} {<d>}           {GXDIR};
+    #replace {$_vn} {</d>}          {GXDRE};
+    #nop -- Preset tags (speech, whisper, thought, etc.) --;
+    #replace {$_vn} {<preset id='speech'>}   {GXSPC};
+    #replace {$_vn} {<preset id="speech">}   {GXSPC};
+    #replace {$_vn} {<preset id='whisper'>}  {GXWSP};
+    #replace {$_vn} {<preset id="whisper">}  {GXWSP};
+    #replace {$_vn} {<preset id='thought'>}  {GXTHT};
+    #replace {$_vn} {<preset id="thought">}  {GXTHT};
+    #nop -- Dont reset on </preset> - let speech color extend to end of line --;
+    #replace {$_vn} {</preset>}              {};
+
+    #nop -- Collapse nested pushBold/popBold (server sends arbitrary depth) --;
+    #replace {$_vn} {GXCRSGXCRS} {GXCRS};
+    #replace {$_vn} {GXCRSGXCRS} {GXCRS};
+    #replace {$_vn} {GXCREGXCRE} {GXCRE};
+    #replace {$_vn} {GXCREGXCRE} {GXCRE};
+
+    #nop -- Creature overrides: pushBold trumps entity <a> color --;
+    #nop -- GXCRS{article}GXNAM -> GXCRS{article}GXCRS (article never contains G) --;
+    #replace {$_vn} {GXCRS{[^G]+}GXNAM} {GXCRS&1GXCRS};
+    #replace {$_vn} {GXCRSGXNAM} {GXCRSGXCRS};
+    #nop -- Suppress entity reset inside creature span --;
+    #replace {$_vn} {GXRSTGXCRE} {GXCRE};
+
+    #nop -- Preset base color: GXRST resets to preset color, not default --;
+    #nop -- This layers semantic colors (names, creatures) over channel color --;
+    #nop -- Within a preset span, resets return to the preset color --;
+    #replace {$_vn} {GXSPC%*GXRST} {GXSPC&1GXSPC};
+    #replace {$_vn} {GXSPC%*GXRST} {GXSPC&1GXSPC};
+    #replace {$_vn} {GXSPC%*GXRST} {GXSPC&1GXSPC};
+    #replace {$_vn} {GXWSP%*GXRST} {GXWSP&1GXWSP};
+    #replace {$_vn} {GXWSP%*GXRST} {GXWSP&1GXWSP};
+    #replace {$_vn} {GXWSP%*GXRST} {GXWSP&1GXWSP};
+    #replace {$_vn} {GXTHT%*GXRST} {GXTHT&1GXTHT};
+    #replace {$_vn} {GXTHT%*GXRST} {GXTHT&1GXTHT};
+    #replace {$_vn} {GXTHT%*GXRST} {GXTHT&1GXTHT};
+    #nop -- Any remaining GXRST (no preset) becomes default reset --;
+    #replace {$_vn} {GXRST} {GXDFT};
+
+    #nop -- Strip all remaining XML --;
+    #replace {$_vn} {<{[^>]+}>} {};
+
+    #nop -- Strip lich unique room IDs and mapper number from display --;
+    #replace {$_vn} { (u{[0-9]+})} {};
+    #replace {$_vn} {] ({[0-9]+})} {]};
+    #replace {$_vn} { - {[0-9]+}]} {]};
+
+    #nop -- Context-dependent coloring (safe to insert <abc> after catch-all strip) --;
+    #replace {$_vn} {the body of GXNAM} {$gstin[colors][highlight][personal_danger]the body of<099> GXNAM};
+    #replace {$_vn} {The body of GXNAM} {$gstin[colors][highlight][personal_danger]The body of<099> GXNAM};
+
+    #nop -- Placeholders -> color codes --;
+    #if {"$_ctx" == "exits"} {
+        #replace {$_vn} {Obvious paths: } {};
+        #replace {$_vn} {Obvious exits: } {};
+        #replace {$_vn} {GXNAM} {$gstin[colors][highlight][direction]};
+    } {
+        #replace {$_vn} {GXNAM} {$gstin[colors][highlight][player_name]};
+    };
+    #replace {$_vn} {GXDFT} {<099>};
+    #replace {$_vn} {GXCRS} {$gstin[colors][highlight][creature]};
+    #replace {$_vn} {GXCRE} {$gstin[colors][highlight][creature_end]};
+    #replace {$_vn} {GXDIR} {$gstin[colors][highlight][direction]};
+    #replace {$_vn} {GXDRE} {$gstin[colors][highlight][direction_end]};
+    #replace {$_vn} {GXSPC} {$gstin[colors][stream][speech]};
+    #replace {$_vn} {GXWSP} {$gstin[colors][stream][whisper]};
+    #replace {$_vn} {GXTHT} {$gstin[colors][stream][thoughts]};
+
+    #nop -- Resolve entity placeholders --;
+    #replace {$_vn} {GXAMP} {&};
+    #replace {$_vn} {GXEGT} {>};
+    #replace {$_vn} {GXELT} {<};
+    #replace {$_vn} {GXQUO} {"};
+    #replace {$_vn} {GXAPO} {'};
+}
+
+#nop -- Count wrapped lines needed for a text string --;
+#alias {gstin_count_wrapped_lines} {
+    #local {_text} {%1};
+    #local {_w} {%2};
+    #if {"$_text" != ""} {
+        gstin_wordwrap {$_text} {$_w};
+        #local {_sz} {0};
+        #list {gstin[_wrap_result]} {size} {_sz};
+        #math {gstin[_wrap_line_count]} {$gstin[_wrap_line_count] + $_sz};
+    };
+}
+
+#nop -- Calculate needed top split size from room content --;
+#nop -- Returns result in gstin[_resize_needed] (0=no change, else new size) --;
+#alias {gstin_calc_top_size} {
+    #local {_needed} {%1};
+    #local {_min} {5};
+    #local {_max} {0};
+    #math {_max} {$gstin[ui][rows] / 2};
+
+    #nop -- Add 2: row 1 for TinTin++ border, last row for bottom border --;
+    #math {_needed} {$_needed + 2};
+
+    #if {$_needed < $_min} {#local {_needed} {$_min}};
+    #if {$_needed > $_max} {#local {_needed} {$_max}};
+
+    #if {$_needed != $gstin[ui][top_size]} {
+        #variable {gstin[_resize_needed]} {$_needed};
+    } {
+        #variable {gstin[_resize_needed]} {0};
+    };
+}
+
+#nop -- Apply pending layout changes (must be called OUTSIDE sync block) --;
+#nop -- Consolidates top resize and sidebar show/hide into a single #split call --;
+#alias {gstin_apply_resize} {
+    #if {$gstin[_resize_needed] != 0} {
+        #variable {gstin[ui][top_size]} {$gstin[_resize_needed]};
+        #math {gstin[ui][bar_top]} {$gstin[_resize_needed] + 1};
+        #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
+        #variable {gstin[_resize_needed]} {0};
+        #variable {gstin[_split_needed]} {1};
+    };
+    #if {$gstin[_split_needed] == 1} {
+        #split {$gstin[ui][top_size]} 1 {$gstin[ui][left_w]} {$gstin[ui][right_w]} 1;
+        #variable {gstin[_split_needed]} {0};
+        #nop -- Invalidate prev-state cache so all components redraw after split --;
+        #variable {gstin[_prev][header]}     {0};
+        #variable {gstin[_prev][body]}       {_};
+        #variable {gstin[_prev][vitals]}     {_};
+        #variable {gstin[_prev][mind]}       {_};
+        #variable {gstin[_prev][enc]}        {_};
+        #variable {gstin[_prev][conditions]} {_};
+        #variable {gstin[_prev][spell]}      {_};
+        #variable {gstin[_prev][hands]}      {_};
+        #variable {gstin[_prev][bottom]}     {_};
+        #nop -- Rewrap chat at new width and mark dirty --;
+        gstin_chat_rewrap;
+        #variable {gstin[_chat_dirty]} {1};
+        #buffer end;
+    };
+}
+
+#nop -- Prepare room display data and calculate resize need --;
+#nop -- Builds display text once, word-wraps once, caches everything --;
+#nop -- Called BEFORE sync block so #split can happen outside sync --;
+#alias {gstin_prepare_room_info} {
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][cols] - 2};
+    #variable {gstin[_room_w]} {$_w};
+
+    #nop -- Build display copies with icon prefixes (always show icons) --;
+    #local {_exits} {$gstin[room][exits]};
+    #local {_players} {$gstin[room][players]};
+    #local {_objects} {$gstin[room][objects]};
+    #if {"$_exits" != ""} {
+        #local {_exits} {󰀹 $_exits};
+    } {
+        #local {_exits} {󰀹};
+    };
+    #if {"$_players" != ""} {
+        #replace {_players} {Also here: } {};
+        #local {_players} {󰡉 $_players};
+    } {
+        #local {_players} {󰡉};
+    };
+    #if {"$_objects" != ""} {
+        #replace {_objects} {You also see } {};
+        #local {_objects} {󰈈 $_objects};
+    } {
+        #local {_objects} {󰈈};
+    };
+
+    #nop -- Word-wrap each section ONCE, cache results for draw phase --;
+    #nop -- Use w-2 because gstin_draw_cached_wrap indents continuation lines by 2 --;
+    #variable {gstin[_wrap_line_count]} {0};
+    #local {_ww} {0};
+    #math {_ww} {$_w - 2};
+
+    gstin_wordwrap {$_exits} {$_ww};
+    #variable {gstin[_room_wrap_exits]} {$gstin[_wrap_result]};
+    #local {_sz} {0};
+    #list {gstin[_room_wrap_exits]} {size} {_sz};
+    #math {gstin[_wrap_line_count]} {$gstin[_wrap_line_count] + $_sz};
+
+    gstin_wordwrap {$_players} {$_ww};
+    #variable {gstin[_room_wrap_players]} {$gstin[_wrap_result]};
+    #list {gstin[_room_wrap_players]} {size} {_sz};
+    #math {gstin[_wrap_line_count]} {$gstin[_wrap_line_count] + $_sz};
+
+    gstin_wordwrap {$_objects} {$_ww};
+    #variable {gstin[_room_wrap_objects]} {$gstin[_wrap_result]};
+    #list {gstin[_room_wrap_objects]} {size} {_sz};
+    #math {gstin[_wrap_line_count]} {$gstin[_wrap_line_count] + $_sz};
+
+    #nop -- Calculate resize need (gstin_apply_resize does the actual #split) --;
+    gstin_calc_top_size {$gstin[_wrap_line_count]};
+}
+
+#nop -- Draw a cached word-wrap list into the top bar --;
+#nop -- Takes a gstin variable NAME containing pre-wrapped lines --;
+#nop -- Uses gstin[_toprow] for current row (caller sets before, reads after) --;
+#alias {gstin_draw_cached_wrap} {
+    #local {_varname} {%1};
+    #local {_max_row} {%2};
+    #local {_sz} {0};
+    #list {$_varname} {size} {_sz};
+    #if {$_sz > 0} {
+        #local {_i} {1};
+        #local {_carry} {};
+        #while {$_i <= $_sz && $gstin[_toprow] <= $_max_row} {
+            #local {_item} {};
+            #list {$_varname} {get} {$_i} {_item};
+            #local {_line} {${_carry}${_item}};
+            gstin_find_last_color {$_line};
+            #local {_carry} {$gstin[_last_color]};
+            #if {"$_carry" == "<099>"} {#local {_carry} {}};
+            #if {$_i > 1} {
+                gstin_drawtop {$gstin[_toprow]} {  ${_line}<099>};
+            } {
+                gstin_drawtop {$gstin[_toprow]} {${_line}<099>};
+            };
+            #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+            #math {_i} {$_i + 1};
+        };
+    };
+}
+
+#nop -- Draw room info from cached pre-wrapped data --;
+#nop -- Row 1: room title (bold) --;
+#nop -- Rows 2 to top_size-1: exits, players, objects --;
+#alias {gstin_render_room_info} {
+    #variable {gstin[_toprow]} {2};
+    #local {_max_row} {0};
+    #math {_max_row} {$gstin[ui][top_size] - 1};
+
+    gstin_draw_cached_wrap {gstin[_room_wrap_exits]} {$_max_row};
+    gstin_draw_cached_wrap {gstin[_room_wrap_players]} {$_max_row};
+    gstin_draw_cached_wrap {gstin[_room_wrap_objects]} {$_max_row};
+
+    #nop -- Clear leftover rows (content shrank) --;
+    #while {$gstin[_toprow] <= $_max_row} {
+        gstin_drawtop {$gstin[_toprow]} {};
+        #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+    };
+}
+
+#nop -- Redraw the top border at row 1 --;
+#nop -- Redraws the top border (row 1) with room title --;
+#alias {gstin_redraw_top_border} {
+    #local {_inner_w} {0};
+    #math {_inner_w} {$gstin[ui][cols] - 2};
+    #local {_title} {$gstin[room][title]};
+
+        #if {"$_title" != ""} {
+            #local {_name} {$_title};
+            #nop -- Strip lich IDs from border display --;
+            #replace {_name} { (u%d)} {};
+            #replace {_name} { (%d)} {};
+            #nop -- Extract room number only after map is loaded --;
+            #local {_roomnum} {};
+            #if {$gstin[_mapper_ready] == 1} {
+                #variable {gstin[_tmp_roomnum]} {};
+                #regexp {$_name} { - {[0-9]+}} {
+                    #variable {gstin[_tmp_roomnum]} {&1};
+                };
+                #local {_roomnum} {$gstin[_tmp_roomnum]};
+                #if {"$_roomnum" != ""} {
+                    #replace {_name} { - $_roomnum} {};
+                };
+            };
+
+            #local {_nlen} {0};
+            #format {_nlen} {%L} {$_name};
+            #local {_rlen} {0};
+            #format {_rlen} {%L} {$_roomnum};
+
+            #local {_htc} {$gstin[colors][ui][header_text]};
+            #local {_fill} {0};
+            #math {_fill} {$_inner_w - $_nlen - 4};
+            #if {$_rlen > 0} {#math {_fill} {$_fill - $_rlen - 4}};
+            #if {$_fill < 1} {#local {_fill} {1}};
+            #local {_pad} {};
+            #format {_pad} {%${_fill}s} {};
+            #replace {_pad} { } {─};
+            #if {$_rlen > 0} {
+                #variable {gstin[_cached_border]} {┌─ ${_htc}${_name}\e[0m ${_pad} ${_htc}[${_roomnum}]\e[0m ─┐};
+            } {
+                #variable {gstin[_cached_border]} {┌─ ${_htc}${_name}\e[0m ${_pad}─┐};
+            };
+        } {
+            #local {_pad} {};
+            #format {_pad} {%${_inner_w}s} {};
+            #replace {_pad} { } {─};
+            #variable {gstin[_cached_border]} {┌${_pad}┐};
+        };
+    #nop -- End synchronized output if sync block is active --;
+    #nop -- Appended to border showme so it goes to row 1 (not {0} which clears row 1) --;
+    #if {$gstin[_sync_active] == 1} {
+        #showme {$gstin[_cached_border]\e[?2026l} {1};
+        #variable {gstin[_sync_active]} {0};
+    } {
+        #showme {$gstin[_cached_border]} {1};
+    };
+}
+
+#nop -- Redraw the bottom border of the room box --;
+#alias {gstin_redraw_bottom_border} {
+    #local {_pad} {};
+    #format {_pad} {%$gstin[ui][cols]s} {};
+    #replace {_pad} { } {─};
+    #showme {$_pad} {$gstin[ui][top_size]};
+}
+
+#nop -- Add a chat message: store raw, strip/colorize, rewrap --;
+#alias {gstin_chat_add} {
+    #local {_color} {%1};
+    #local {_text} {%2};
+
+    #nop -- Colorize once and store in raw buffer --;
+    #variable {gstin[_chat_temp]} {$_text};
+    gstin_strip_xml_colored {gstin[_chat_temp]};
+    #replace {gstin[_chat_temp]} {<099>} {$_color};
+    #list {gstin[chat][raw]} {add} {${_color}|$gstin[_chat_temp]};
+
+    #nop -- Trim raw buffer to a reasonable max --;
+    #local {_rsz} {0};
+    #list {gstin[chat][raw]} {size} {_rsz};
+    #while {$_rsz > 200} {
+        #list {gstin[chat][raw]} {delete} {1};
+        #math {_rsz} {$_rsz - 1};
+    };
+
+    #variable {gstin[_chat_dirty]} {1};
+
+    #nop -- Track line count before rewrap so scrolled-up view stays pinned --;
+    #local {_old_sz} {0};
+    #list {gstin[chat][lines]} {size} {_old_sz};
+
+    gstin_chat_rewrap;
+
+    #if {$gstin[chat][scroll] > 0} {
+        #local {_new_sz} {0};
+        #list {gstin[chat][lines]} {size} {_new_sz};
+        #local {_added} {0};
+        #math {_added} {$_new_sz - $_old_sz};
+        #if {$_added > 0} {
+            #math {gstin[chat][scroll]} {$gstin[chat][scroll] + $_added};
+        };
+    };
+}
+
+#nop -- Rebuild wrapped chat lines from raw buffer at current width --;
+#alias {gstin_chat_rewrap} {
+    #variable {gstin[chat][lines]} {};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][left_w] - 2};
+    #if {$_w < 10} {#local {_w} {10}};
+
+    #local {_rsz} {0};
+    #list {gstin[chat][raw]} {size} {_rsz};
+    #local {_ri} {1};
+    #while {$_ri <= $_rsz} {
+        #local {_entry} {$gstin[chat][raw][$_ri]};
+        #nop -- Split color|text on first pipe --;
+        #local {_color} {};
+        #local {_text} {};
+        #regexp {$_entry} {{[^|]+}|{.*}} {
+            #variable {gstin[_chat_color]} {&1};
+            #variable {gstin[_chat_text]} {&2};
+        };
+        #local {_color} {$gstin[_chat_color]};
+        #local {_text} {$gstin[_chat_text]};
+
+        gstin_wordwrap {$_text} {$_w};
+
+        #local {_sz} {0};
+        #list {gstin[_wrap_result]} {size} {_sz};
+        #local {_i} {1};
+        #while {$_i <= $_sz} {
+            #if {$_i == 1} {
+                #list {gstin[chat][lines]} {add} {${_color}$gstin[_wrap_result][$_i]};
+            } {
+                #list {gstin[chat][lines]} {add} {${_color} $gstin[_wrap_result][$_i]};
+            };
+            #math {_i} {$_i + 1};
+        };
+        #math {_ri} {$_ri + 1};
+    };
+}
+
+#nop -- Helper: draw one effect bar in the right sidebar --;
+#nop -- Args: row, col_start, col_end, effect_id --;
+#nop -- Category colors determined by ID prefix (spell/buff/debuff/cooldown) --;
+#nop -- Urgency overrides: warning (expiring soon) and expired (nearly gone) --;
+#alias {gstin_draw_effect_bar} {
+    #local {_row} {%1};
+    #local {_col} {%2};
+    #local {_ce} {%3};
+    #local {_id} {%4};
+    #local {_emax} {$gstin[effects][$_id][max]};
+    #local {_ecur} {$gstin[effects][$_id][current]};
+    #local {_label} {$gstin[effects][$_id][label]};
+    #local {_colors} {$gstin[effects][$_id][colors]};
+
+    #nop -- Default to spell category --;
+    #local {_bg} {$gstin[colors][effects][spell_bg]};
+    #local {_fg} {$gstin[colors][effects][spell_fg]};
+
+    #nop -- Determine category from ID prefix --;
+    #local {_pfx} {};
+    #format {_pfx} {%-.4s} {$_id};
+    #if {"$_pfx" == "buff"} {
+        #local {_bg} {$gstin[colors][effects][buff_bg]};
+        #local {_fg} {$gstin[colors][effects][buff_fg]};
+    };
+    #if {"$_pfx" == "debu"} {
+        #local {_bg} {$gstin[colors][effects][debuff_bg]};
+        #local {_fg} {$gstin[colors][effects][debuff_fg]};
+    };
+    #if {"$_pfx" == "cool"} {
+        #local {_bg} {$gstin[colors][effects][cooldown_bg]};
+        #local {_fg} {$gstin[colors][effects][cooldown_fg]};
+    };
+
+    #nop -- Urgency overrides from color hints --;
+    #local {_c6} {};
+    #format {_c6} {%-.6s} {$_colors};
+    #if {"$_c6" == "767339"} {
+        #local {_bg} {$gstin[colors][effects][warning_bg]};
+        #local {_fg} {$gstin[colors][effects][warning_fg]};
+    };
+    #if {"$_c6" == "8c4665"} {
+        #local {_bg} {$gstin[colors][effects][expired_bg]};
+        #local {_fg} {$gstin[colors][effects][expired_fg]};
+    };
+
+    gstin_draw_bar {$_row} {$_col} {$_ce} {$_ecur} {$_emax} {$_bg} {$_label} {$gstin[colors][effects][empty_bg]} {$_fg} {$gstin[colors][effects][empty_fg]};
+}
+
+#nop -- Helper: draw a section header in the right sidebar --;
+#nop -- Args: row, label (e.g. "Spells"). Draws ├─ [Label] ──── with connector --;
+#nop -- Returns: nothing (caller manages row position) --;
+#alias {gstin_draw_right_header} {
+    #local {_row} {%1};
+    #local {_label} {%2};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][right_w] - 2};
+    #local {_htc} {$gstin[colors][ui][header_text]};
+    #local {_shc} {$gstin[colors][ui][section_header]};
+    #local {_hdr_text} {├─ ${_htc}[${_label}]${_shc} };
+    #local {_hlen} {0};
+    #format {_hlen} {%L} {$_hdr_text};
+    #local {_hdr_w} {0};
+    #math {_hdr_w} {$_w + 1};
+    #local {_fill_w} {0};
+    #math {_fill_w} {$_hdr_w - $_hlen};
+    #if {$_fill_w < 1} {#local {_fill_w} {1}};
+    #local {_fill} {};
+    #loop {1} {$_fill_w} {_fi} {
+        #local {_fill} {${_fill}─};
+    };
+    gstin_status_at {$_row} {$gstin[ui][right_col]} {$gstin[colors][ui][section_header]${_hdr_text}${_fill}\e[0m};
+}
+
+#nop -- Render effects (from dialogData) in right sidebar --;
+#nop -- Dynamic sections: each category (spell/buff/debuff/cooldown) gets its own --;
+#nop -- header and bars, only shown when that category has active entries --;
+#alias {gstin_render_spells} {
+    #if {$gstin[ui][right_active] == 0} {#return};
+    #nop -- Bounds check: skip if right sidebar would exceed terminal width --;
+    #local {_actual_cols} {0};
+    #screen get cols _actual_cols;
+    #if {$gstin[ui][right_col] > $_actual_cols} {#return};
+    #local {_row} {$gstin[ui][bar_top]};
+    #local {_max_row} {$gstin[ui][bar_bot]};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][right_w] - 2};
+
+    #local {_col} {0};
+    #math {_col} {$gstin[ui][right_col] + 1};
+    #local {_ce} {0};
+    #math {_ce} {$_col + $_w - 1};
+
+    #nop -- Redraw border column as │ (clears stale ├ from removed headers) --;
+    #local {_br} {$_row};
+    #while {$_br <= $_max_row} {
+        gstin_status_at {$_br} {$gstin[ui][right_col]} {│};
+        #math {_br} {$_br + 1};
+    };
+
+    #nop -- Split effects_order into 4 category lists --;
+    #variable {gstin[_cat_spell]} {};
+    #variable {gstin[_cat_buff]} {};
+    #variable {gstin[_cat_debuff]} {};
+    #variable {gstin[_cat_cooldown]} {};
+    #local {_sz} {0};
+    #list {gstin[effects_order]} {size} {_sz};
+    #local {_i} {1};
+    #while {$_i <= $_sz} {
+        #local {_id} {$gstin[effects_order][$_i]};
+        #local {_pfx} {};
+        #format {_pfx} {%-.4s} {$_id};
+        #if {"$_pfx" == "spel"} {
+            #list {gstin[_cat_spell]} {add} {$_id};
+        };
+        #if {"$_pfx" == "buff"} {
+            #list {gstin[_cat_buff]} {add} {$_id};
+        };
+        #if {"$_pfx" == "debu"} {
+            #list {gstin[_cat_debuff]} {add} {$_id};
+        };
+        #if {"$_pfx" == "cool"} {
+            #list {gstin[_cat_cooldown]} {add} {$_id};
+        };
+        #math {_i} {$_i + 1};
+    };
+
+    #nop -- Count rows needed for bottom-anchored categories (never truncated) --;
+    #local {_non_spell_rows} {0};
+    #local {_cnt} {0};
+    #list {gstin[_cat_buff]} {size} {_cnt};
+    #if {$_cnt > 0} {#math {_non_spell_rows} {$_non_spell_rows + $_cnt + 1}};
+    #list {gstin[_cat_debuff]} {size} {_cnt};
+    #if {$_cnt > 0} {#math {_non_spell_rows} {$_non_spell_rows + $_cnt + 1}};
+    #list {gstin[_cat_cooldown]} {size} {_cnt};
+    #if {$_cnt > 0} {#math {_non_spell_rows} {$_non_spell_rows + $_cnt + 1}};
+
+    #nop -- Anchor non-spell sections to bottom --;
+    #local {_total_rows} {0};
+    #math {_total_rows} {$_max_row - $_row + 1};
+    #local {_bottom_start} {0};
+    #math {_bottom_start} {$_max_row - $_non_spell_rows + 1};
+
+    #nop -- Spells get everything above the bottom sections --;
+    #local {_spell_cnt} {0};
+    #list {gstin[_cat_spell]} {size} {_spell_cnt};
+    #local {_spell_max} {0};
+    #math {_spell_max} {$_bottom_start - 1};
+    #nop -- Spell bar budget = rows from bar_top to spell_max, minus 1 for header --;
+    #local {_spell_bar_budget} {0};
+    #if {$_spell_cnt > 0} {
+        #math {_spell_bar_budget} {$_spell_max - $_row};
+        #if {$_spell_bar_budget < 1} {#local {_spell_bar_budget} {1}};
+    };
+
+    #local {_cr} {$_row};
+    #local {_htc} {$gstin[colors][ui][header_text]};
+
+    #nop -- Render Spells at top (budget-limited, truncate with [More...]) --;
+    #if {$_spell_cnt > 0} {
+        #local {_spell_limit} {$_spell_bar_budget};
+        #if {$_spell_cnt > $_spell_bar_budget} {
+            #math {_spell_limit} {$_spell_bar_budget - 1};
+            #if {$_spell_limit < 0} {#local {_spell_limit} {0}};
+        };
+        #local {_ci} {1};
+        #local {_drawn} {0};
+        #while {$_ci <= $_spell_cnt && $_drawn < $_spell_limit} {
+            gstin_draw_effect_bar {$_cr} {$_col} {$_ce} {$gstin[_cat_spell][$_ci]};
+            #math {_cr} {$_cr + 1};
+            #math {_drawn} {$_drawn + 1};
+            #math {_ci} {$_ci + 1};
+        };
+        #if {$_spell_cnt > $_spell_bar_budget} {
+            gstin_drawright {$_cr} {${_htc}[More...]\e[0m};
+            #math {_cr} {$_cr + 1};
+        };
+    };
+
+    #nop -- Clear gap between spells and bottom sections --;
+    #while {$_cr < $_bottom_start} {
+        gstin_drawright {$_cr} {};
+        #math {_cr} {$_cr + 1};
+    };
+
+    #nop -- Render bottom-anchored categories (never truncated) --;
+    #local {_cr} {$_bottom_start};
+
+    #nop -- Buffs --;
+    #list {gstin[_cat_buff]} {size} {_cnt};
+    #if {$_cnt > 0} {
+        gstin_draw_right_header {$_cr} {Buffs};
+        #math {_cr} {$_cr + 1};
+        #local {_ci} {1};
+        #while {$_ci <= $_cnt} {
+            gstin_draw_effect_bar {$_cr} {$_col} {$_ce} {$gstin[_cat_buff][$_ci]};
+            #math {_cr} {$_cr + 1};
+            #math {_ci} {$_ci + 1};
+        };
+    };
+
+    #nop -- Debuffs --;
+    #list {gstin[_cat_debuff]} {size} {_cnt};
+    #if {$_cnt > 0} {
+        gstin_draw_right_header {$_cr} {Debuffs};
+        #math {_cr} {$_cr + 1};
+        #local {_ci} {1};
+        #while {$_ci <= $_cnt} {
+            gstin_draw_effect_bar {$_cr} {$_col} {$_ce} {$gstin[_cat_debuff][$_ci]};
+            #math {_cr} {$_cr + 1};
+            #math {_ci} {$_ci + 1};
+        };
+    };
+
+    #nop -- Cooldowns --;
+    #list {gstin[_cat_cooldown]} {size} {_cnt};
+    #if {$_cnt > 0} {
+        gstin_draw_right_header {$_cr} {Cooldowns};
+        #math {_cr} {$_cr + 1};
+        #local {_ci} {1};
+        #while {$_ci <= $_cnt} {
+            gstin_draw_effect_bar {$_cr} {$_col} {$_ce} {$gstin[_cat_cooldown][$_ci]};
+            #math {_cr} {$_cr + 1};
+            #math {_ci} {$_ci + 1};
+        };
+    };
+}
+
+#nop -- Master redraw --;
+#nop -- Wrapped in synchronized output (\e[?2026h/l) so the terminal --;
+#nop -- buffers all draws and paints atomically — eliminates row 1 flicker --;
+#alias {gstin_render_all} {
+    #variable {gstin[_render_pending]} {0};
+    #undelay {gstin_effects_tick};
+    #nop -- Prepare room data and detect resize need --;
+    gstin_prepare_room_info;
+    #nop -- Apply resize BEFORE sync block (split forces full repaint) --;
+    gstin_apply_resize;
+    #nop -- Now render atomically --;
+    #showme {\e[?2026h} {0};
+    #variable {gstin[_sync_active]} {1};
+    gstin_render_room_info;
+    #if {$gstin[ui][right_active] == 1} {gstin_render_spells};
+    gstin_render_status;
+    gstin_render_chat;
+    gstin_redraw_top_border;
+}
+
+#nop -- Request a render (coalesced — multiple requests = one render) --;
+#nop -- Sets _render_pending flag so effects-only renders skip when full --;
+#nop -- render is imminent (prevents double-paint race) --;
+#alias {gstin_request_render} {
+    #variable {gstin[_render_pending]} {1};
+    #delay {gstin_render_tick} {gstin_render_all} {0};
+}
+
+#nop -- Request effects-only render (right sidebar only, no full redraw) --;
+#nop -- 50ms delay coalesces multiple rapid updates into one repaint --;
+#nop -- Checks _render_pending at execution time to skip if full render imminent --;
+#alias {gstin_request_effects_render} {
+    #if {$gstin[ui][right_active] == 0} {#return};
+    #delay {gstin_effects_tick} {
+        #nop -- After coalesce: hide sidebar if cycle produced no active effects --;
+        #local {_efsz} {0};
+        #list {gstin[effects_order]} {size} {_efsz};
+        #if {$_efsz == 0} {
+            gstin_hide_right_sidebar;
+            #return;
+        };
+        #if {$gstin[_render_pending] != 1} {
+            #showme {\e[?2026h} {0};
+            #variable {gstin[_sync_active]} {1};
+            gstin_render_spells;
+            gstin_redraw_top_border;
+        };
+    } {0.05};
+}
+
+#nop -- Recalculate on resize --;
+#event {SCREEN RESIZE} {
+    #delay {gstin_resize_delay} {
+        #screen get rows gstin[ui][rows];
+        #screen get cols gstin[ui][cols];
+        #math {gstin[ui][left_w]}    {$gstin[ui][cols] / 4};
+        #local {_cmin} {$gstin[config][chat_min_width]};
+        #if {$_cmin < 31} {#local {_cmin} {31}};
+        #if {$gstin[ui][left_w] < $_cmin} {#variable {gstin[ui][left_w]} {$_cmin}};
+        #if {$gstin[config][chat_max_width] > 0 && $gstin[ui][left_w] > $gstin[config][chat_max_width]} {
+            #variable {gstin[ui][left_w]} {$gstin[config][chat_max_width]};
+        };
+        #if {$gstin[ui][right_active] == 1} {
+            #variable {gstin[ui][right_w]} {32};
+            #math {gstin[ui][right_col]} {$gstin[ui][cols] - 32 + 1};
+        } {
+            #variable {gstin[ui][right_w]} {0};
+            #variable {gstin[ui][right_col]} {0};
+        };
+        #variable {gstin[ui][top_size]} {0};
+        #math {gstin[ui][bar_bot]}   {$gstin[ui][rows] - 2};
+        gstin_calc_status_layout;
+        gstin_chat_rewrap;
+        #variable {gstin[_chat_dirty]} {1};
+        gstin_render_all;
+        #buffer end;
+    } {0.2};
+}
+
+#nop -- No initial right sidebar draw — it starts hidden --;
+
+#class {gstin_layout} {close}

@@ -1,0 +1,14 @@
+#nop =========================================================================;
+#nop  Per-character config example.
+#nop  Copy this file to config/char/YourCharName.tin
+#nop  Set gstin[config][char_name] in config/settings.tin to load it.
+#nop =========================================================================;
+
+#nop -- Character-specific highlights --;
+#nop #highlight {YourCharName} {<fff>}
+
+#nop -- Character-specific macros --;
+#nop #alias {hunt} {#3 {attack goblin}}
+
+#nop -- Character-specific gags --;
+#nop #gag {some annoying message}

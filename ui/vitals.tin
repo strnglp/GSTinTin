@@ -1,0 +1,456 @@
+#nop =========================================================================;
+#nop  GSTinTin - Vitals & Status Display
+#nop  ProfanityFE-style status area: body diagram, vertical bars.
+#nop  Layout (8 rows within left sidebar):
+#nop    Row 0:  -- [Vitals] --------------------+
+#nop    Row 1:  Md ████  o o  ns   ST ████████
+#nop    Row 2:  Ec ████    O       HP ████████
+#nop    Row 3:  Ps Ds Bl  /|\  nk  SP ████████
+#nop    Row 4:            o|o      MN ████████
+#nop    Row 5:             / \  bk  SM ████████
+#nop    Row 6:  Sp:[spell]
+#nop    Row 7:  L:[left]  R:[right]
+#nop  Bottom bar: RT/CT text + posture/stealth indicators.
+#nop =========================================================================;
+
+#class {gstin_vitals} {open}
+
+#nop -- Draw overlay bar (shared by vitals and effects) --;
+#nop -- Args: row, col_start, col_end, current, max, fill_bg, label, empty_bg, fill_fg, empty_fg --;
+#alias {gstin_draw_bar} {
+    #local {_row} {%1};
+    #local {_cs} {%2};
+    #local {_ce} {%3};
+    #local {_cur} {%4};
+    #local {_max} {%5};
+    #local {_bg} {%6};
+    #local {_label} {%7};
+    #local {_ebg} {%8};
+    #local {_bfg} {%9};
+    #local {_efg} {%10};
+    #local {_w} {0};
+    #math {_w} {$_ce - $_cs + 1};
+    #if {$_w < 1} {#return};
+    #nop -- Pad/truncate label to bar width (spaces, not NBSP, for string ops) --;
+    #local {_padded} {};
+    #format {_padded} {%-${_w}.${_w}s} {$_label};
+    #nop -- Calculate fill width --;
+    #local {_fill} {0};
+    #if {$_max > 0 && $_cur > 0} {
+        #math {_fill} {$_cur * $_w / $_max};
+        #if {$_fill > $_w} {#local {_fill} {$_w}};
+        #if {$_fill < 1 && $_cur > 0} {#local {_fill} {1}};
+    };
+    #nop -- Single-pass draw: filled + empty in one #showme --;
+    #local {_bar} {};
+    #if {$_fill >= $_w} {
+        #replace {_padded} { } { };
+        #local {_bar} {${_bg}${_bfg}${_padded}};
+    } {
+        #if {$_fill > 0} {
+            #local {_filled} {};
+            #format {_filled} {%-.${_fill}s} {$_padded};
+            #local {_ew} {0};
+            #math {_ew} {$_w - $_fill};
+            #nop -- Extract tail: reverse, truncate to _ew, reverse back --;
+            #nop -- Uses regular spaces so %r counts single-byte chars --;
+            #local {_rev} {};
+            #format {_rev} {%r} {$_padded};
+            #local {_etail} {};
+            #format {_etail} {%-.${_ew}s} {$_rev};
+            #format {_etail} {%r} {$_etail};
+            #nop -- Replace spaces with NBSP for background rendering --;
+            #replace {_filled} { } { };
+            #replace {_etail} { } { };
+            #local {_bar} {${_bg}${_bfg}${_filled}${_ebg}${_efg}${_etail}};
+        } {
+            #replace {_padded} { } { };
+            #local {_bar} {${_ebg}${_efg}${_padded}};
+        };
+    };
+    #showme {${_bar}<099>} {${_row}} {${_cs}};
+}
+
+#nop -- Get color for injury severity --;
+#function {gstin_injury_color} {
+    #switch {"%1"} {
+        #case {""}         {#return {$gstin[colors][injury][none]}};
+        #case {"Injury1"}  {#return {$gstin[colors][injury][injury1]}};
+        #case {"Injury2"}  {#return {$gstin[colors][injury][injury2]}};
+        #case {"Injury3"}  {#return {$gstin[colors][injury][injury3]}};
+        #case {"Scar1"}    {#return {$gstin[colors][injury][scar1]}};
+        #case {"Scar2"}    {#return {$gstin[colors][injury][scar2]}};
+        #case {"Scar3"}    {#return {$gstin[colors][injury][scar3]}};
+    };
+    #return {$gstin[colors][injury][none]};
+}
+
+#nop -- Helper: draw text at specific row/col in sidebar (no trailing reset) --;
+#alias {gstin_status_at} {
+    #local {_row} {%1};
+    #local {_col} {%2};
+    #local {_txt} {%3};
+    #showme {${_txt}} {${_row}} {${_col}};
+}
+
+#nop -- Draw value inside an overlay bar for a vitals row --;
+#nop -- Args: row, bar_cur, bar_max, bg_color, [display_value] --;
+#alias {gstin_draw_vital_row} {
+    #local {_row} {%1};
+    #local {_cur} {%2};
+    #local {_max} {%3};
+    #local {_bg} {%4};
+    #local {_dv} {%5};
+    #local {_bs} {$gstin[ui][bar_val_col]};
+    #local {_be} {$gstin[ui][bar_end_col]};
+    #local {_w} {0};
+    #math {_w} {$_be - $_bs + 1};
+    #nop -- Build right-aligned label: use 5th arg if given, else cur --;
+    #local {_label} {};
+    #if {"$_dv" != ""} {
+        #format {_label} {%${_w}s} {$_dv};
+    } {
+        #format {_label} {%${_w}s} {$_cur};
+    };
+    gstin_draw_bar {$_row} {$_bs} {$_be} {$_cur} {$_max} {$_bg} {$_label} {$gstin[colors][vitals][empty_bg]} {$gstin[colors][ui][label_text]} {$gstin[colors][ui][label_text]};
+}
+
+#nop -- Helper: clear a left sidebar row --;
+#alias {gstin_clear_left_row} {
+    #local {_row} {%1};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][left_w] - 1};
+    #local {_spaces} {};
+    #format {_spaces} {%${_w}s} {};
+    #showme {${_spaces}} {${_row}} {1};
+}
+
+#nop -- Render compass rose (3 rows starting at given row) --;
+#nop -- Layout: col 2 = up/out/down, cols 5/7/9 = NW-N-NE / W-E / SW-S-SE --;
+#alias {gstin_render_compass} {
+    #local {_r1} {%1};
+    #local {_r2} {0};
+    #local {_r3} {0};
+    #math {_r2} {$_r1 + 1};
+    #math {_r3} {$_r1 + 2};
+
+    #local {_ca} {$gstin[colors][compass][active]};
+    #local {_ci} {$gstin[colors][compass][inactive]};
+
+    #nop -- Row 1: up NW N NE --;
+    #if {$gstin[compass][up]}  {gstin_status_at {$_r1} {3} {${_ca}<099>}} {gstin_status_at {$_r1} {3} {${_ci}<099>}};
+    #if {$gstin[compass][nw]}  {gstin_status_at {$_r1} {6} {${_ca}↖<099>}} {gstin_status_at {$_r1} {6} {${_ci}↖<099>}};
+    #if {$gstin[compass][n]}   {gstin_status_at {$_r1} {8} {${_ca}▲<099>}} {gstin_status_at {$_r1} {8} {${_ci}▲<099>}};
+    #if {$gstin[compass][ne]}  {gstin_status_at {$_r1} {10} {${_ca}↗<099>}} {gstin_status_at {$_r1} {10} {${_ci}↗<099>}};
+
+    #nop -- Row 2: out W E --;
+    #if {$gstin[compass][out]} {gstin_status_at {$_r2} {3} {${_ca}⏎<099>}} {gstin_status_at {$_r2} {3} {${_ci}⏎<099>}};
+    #if {$gstin[compass][w]}   {gstin_status_at {$_r2} {6} {${_ca}◀<099>}} {gstin_status_at {$_r2} {6} {${_ci}◀<099>}};
+    #if {$gstin[compass][e]}   {gstin_status_at {$_r2} {10} {${_ca}▶<099>}} {gstin_status_at {$_r2} {10} {${_ci}▶<099>}};
+
+    #nop -- Row 3: down SW S SE --;
+    #if {$gstin[compass][down]} {gstin_status_at {$_r3} {3} {${_ca}<099>}} {gstin_status_at {$_r3} {3} {${_ci}<099>}};
+    #if {$gstin[compass][sw]}  {gstin_status_at {$_r3} {6} {${_ca}↙<099>}} {gstin_status_at {$_r3} {6} {${_ci}↙<099>}};
+    #if {$gstin[compass][s]}   {gstin_status_at {$_r3} {8} {${_ca}▼<099>}} {gstin_status_at {$_r3} {8} {${_ci}▼<099>}};
+    #if {$gstin[compass][se]}  {gstin_status_at {$_r3} {10} {${_ca}↘<099>}} {gstin_status_at {$_r3} {10} {${_ci}↘<099>}};
+}
+
+#nop -- Render body diagram (5 rows starting at given row) --;
+#nop -- Uses gstin[ui][body_col] for horizontal placement --;
+#alias {gstin_render_body} {
+    #local {_br} {%1};
+    #local {_c} {$gstin[ui][body_col]};
+    #local {_c2} {0};
+    #local {_c3} {0};
+    #local {_tc} {0};
+    #math {_c2} {$_c + 1};
+    #math {_c3} {$_c + 2};
+    #math {_tc} {$_c + 4};
+    #local {_cL} {0};
+    #local {_cR} {0};
+    #math {_cL} {$_c - 1};
+    #math {_cR} {$_c3 + 1};
+    #local {_clr} {};
+
+    #nop -- Row 1: eyes + nsys --;
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][leftEye]}};
+    gstin_status_at {$_br} {$_c} {${_clr}<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][rightEye]}};
+    gstin_status_at {$_br} {$_c3} {${_clr}<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][nsys]}};
+    gstin_status_at {$_br} {$_tc} {${_clr}ns<099>};
+
+    #nop -- Row 2: head --;
+    #math {_br} {$_br + 1};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][head]}};
+    gstin_status_at {$_br} {$_c2} {${_clr}O<099>};
+
+    #nop -- Row 3: arms + chest + neck --;
+    #math {_br} {$_br + 1};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][leftArm]}};
+    gstin_status_at {$_br} {$_c} {${_clr}/<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][chest]}};
+    gstin_status_at {$_br} {$_c2} {${_clr}|<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][rightArm]}};
+    gstin_status_at {$_br} {$_c3} {${_clr}\\<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][neck]}};
+    gstin_status_at {$_br} {$_tc} {${_clr}nk<099>};
+
+    #nop -- Row 4: hands + abdomen --;
+    #math {_br} {$_br + 1};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][leftHand]}};
+    gstin_status_at {$_br} {$_cL} {${_clr}o<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][abdomen]}};
+    gstin_status_at {$_br} {$_c2} {${_clr}|<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][rightHand]}};
+    gstin_status_at {$_br} {$_cR} {${_clr}o<099>};
+
+    #nop -- Row 5: legs + back --;
+    #math {_br} {$_br + 1};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][leftLeg]}};
+    gstin_status_at {$_br} {$_c} {${_clr}/<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][rightLeg]}};
+    gstin_status_at {$_br} {$_c3} {${_clr}\\<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][back]}};
+    gstin_status_at {$_br} {$_tc} {${_clr}bk<099>};
+
+    #nop -- Row 6: feet --;
+    #math {_br} {$_br + 1};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][leftLeg]}};
+    gstin_status_at {$_br} {$_cL} {${_clr}o<099>};
+    #local {_clr} {@gstin_injury_color{$gstin[injuries][rightLeg]}};
+    gstin_status_at {$_br} {$_cR} {${_clr}o<099>};
+}
+
+#nop -- Render 5 vitals bars vertically (rows 0-4 starting at given row) --;
+#alias {gstin_render_vitals_bars} {
+    #local {_r} {%1};
+    #local {_ic} {$gstin[ui][bar_icon_col]};
+    #local {_cr} {0};
+
+    #nop -- Row 0: Stance (purple) --;
+    gstin_status_at {$_r} {$_ic} {$gstin[colors][vitals][sn_fg]󱢾<099>};
+    gstin_draw_vital_row {$_r} {$gstin[vitals][stance][value]} {100} {$gstin[colors][vitals][sn_bg]};
+
+    #nop -- Row 1: HP (green) --;
+    #math {_cr} {$_r + 1};
+    gstin_status_at {$_cr} {$_ic} {$gstin[colors][vitals][hp_fg]<099>};
+    gstin_draw_vital_row {$_cr} {$gstin[vitals][health][current]} {$gstin[vitals][health][max]} {$gstin[colors][vitals][hp_bg]};
+
+    #nop -- Row 2: Spirit (yellow) --;
+    #math {_cr} {$_r + 2};
+    gstin_status_at {$_cr} {$_ic} {$gstin[colors][vitals][sp_fg]<099>};
+    gstin_draw_vital_row {$_cr} {$gstin[vitals][spirit][current]} {$gstin[vitals][spirit][max]} {$gstin[colors][vitals][sp_bg]};
+
+    #nop -- Row 3: Mana (blue) --;
+    #math {_cr} {$_r + 3};
+    gstin_status_at {$_cr} {$_ic} {$gstin[colors][vitals][mn_fg]<099>};
+    gstin_draw_vital_row {$_cr} {$gstin[vitals][mana][current]} {$gstin[vitals][mana][max]} {$gstin[colors][vitals][mn_bg]};
+
+    #nop -- Row 4: Stamina (cyan) --;
+    #math {_cr} {$_r + 4};
+    gstin_status_at {$_cr} {$_ic} {$gstin[colors][vitals][st_fg]<099>};
+    gstin_draw_vital_row {$_cr} {$gstin[vitals][stamina][current]} {$gstin[vitals][stamina][max]} {$gstin[colors][vitals][st_bg]};
+}
+
+
+#nop -- Render condition icons (poison, disease, bleeding, dead) --;
+#nop -- Left side, below enc bar: icon + 4 status indicators --;
+#nop -- Width clamped to same as vitals bars --;
+#alias {gstin_render_conditions} {
+    #local {_r} {%1};
+    #nop -- Use precomputed lbar_end (same width as vitals bars, respects body padding) --;
+    #local {_lbe} {$gstin[ui][lbar_end]};
+    #nop -- Icon at col 2 --;
+    gstin_status_at {$_r} {2} {$gstin[colors][condition][bleeding]󱇬$gstin[palette][reset]};
+    #nop -- Space 4 condition icons evenly from col 4 to _lbe --;
+    #local {_span} {0};
+    #math {_span} {$_lbe - 4};
+    #local {_c} {4};
+    #local {_c2} {0};
+    #math {_c2} {4 + $_span / 3};
+    #local {_c3} {0};
+    #math {_c3} {4 + $_span * 2 / 3};
+    #local {_c4} {$_lbe};
+
+    #if {"$gstin[indicators][POISONED]" == "y"} {
+        gstin_status_at {$_r} {$_c} {$gstin[colors][condition][poison]<099>};
+    } {
+        gstin_status_at {$_r} {$_c} {$gstin[colors][condition][inactive]<099>};
+    };
+    #if {"$gstin[indicators][DISEASED]" == "y"} {
+        gstin_status_at {$_r} {$_c2} {$gstin[colors][condition][disease]<099>};
+    } {
+        gstin_status_at {$_r} {$_c2} {$gstin[colors][condition][inactive]<099>};
+    };
+    #if {"$gstin[indicators][BLEEDING]" == "y"} {
+        gstin_status_at {$_r} {$_c3} {$gstin[colors][condition][bleeding]<099>};
+    } {
+        gstin_status_at {$_r} {$_c3} {$gstin[colors][condition][inactive]<099>};
+    };
+    #if {"$gstin[indicators][DEAD]" == "y"} {
+        gstin_status_at {$_r} {$_c4} {$gstin[colors][condition][dead]<099>};
+    } {
+        gstin_status_at {$_r} {$_c4} {$gstin[colors][condition][inactive]<099>};
+    };
+}
+
+#nop -- Render full status area in left sidebar (9 rows, no headers) --;
+#alias {gstin_render_status} {
+    #local {_vr} {$gstin[ui][status_row]};
+    #local {_r} {0};
+    #local {_snap} {};
+
+    #nop -- Row 0: section header (static, only on first draw or after resize) --;
+    #if {$gstin[_prev][header] != 1} {
+    #local {_htc} {$gstin[colors][ui][header_text]};
+    #local {_shc} {$gstin[colors][ui][section_header]};
+    #local {_hdr} {── ${_htc}[Vitals]${_shc} };
+    #local {_hlen} {0};
+    #format {_hlen} {%L} {$_hdr};
+    #local {_fill_w} {0};
+    #math {_fill_w} {$gstin[ui][left_w] - $_hlen - 1};
+    #local {_fill} {};
+    #loop {1} {$_fill_w} {_fi} {
+        #local {_fill} {${_fill}─};
+    };
+    gstin_drawleft {$_vr} {$gstin[colors][ui][section_header]${_hdr}${_fill}\e[0m};
+    gstin_status_at {$_vr} {$gstin[ui][left_w]} {$gstin[colors][ui][section_header]┤\e[0m};
+        #variable {gstin[_prev][header]} {1};
+    };
+
+    #nop -- Rows 1-6: body diagram --;
+    #local {_snap} {$gstin[injuries][head]/$gstin[injuries][neck]/$gstin[injuries][chest]/$gstin[injuries][abdomen]/$gstin[injuries][back]/$gstin[injuries][leftArm]/$gstin[injuries][rightArm]/$gstin[injuries][leftHand]/$gstin[injuries][rightHand]/$gstin[injuries][leftLeg]/$gstin[injuries][rightLeg]/$gstin[injuries][leftEye]/$gstin[injuries][rightEye]/$gstin[injuries][nsys]};
+    #if {"$_snap" != "$gstin[_prev][body]"} {
+        #math {_r} {$_vr + 1};
+        gstin_render_body {$_r};
+        #variable {gstin[_prev][body]} {$_snap};
+    };
+
+    #nop -- Rows 2-6: vitals bars --;
+    #local {_snap} {$gstin[vitals][stance][value]/$gstin[vitals][health][current]/$gstin[vitals][health][max]/$gstin[vitals][spirit][current]/$gstin[vitals][spirit][max]/$gstin[vitals][mana][current]/$gstin[vitals][mana][max]/$gstin[vitals][stamina][current]/$gstin[vitals][stamina][max]};
+    #if {"$_snap" != "$gstin[_prev][vitals]"} {
+        #math {_r} {$_vr + 2};
+        gstin_render_vitals_bars {$_r};
+        #variable {gstin[_prev][vitals]} {$_snap};
+    };
+
+    #nop -- Left-side bars use precomputed lbar_end (same width as vitals, clamped) --;
+    #local {_lbe} {$gstin[ui][lbar_end]};
+    #local {_bw} {0};
+    #math {_bw} {$_lbe - 3};
+
+    #nop -- Row 3: mind bar --;
+    #if {"$gstin[vitals][mind][value]" != "$gstin[_prev][mind]"} {
+        #math {_r} {$_vr + 3};
+        gstin_status_at {$_r} {2} {$gstin[colors][vitals][mind_fg]<099>};
+        #local {_mlabel} {};
+        #format {_mlabel} {%${_bw}s} {$gstin[vitals][mind][value]};
+        gstin_draw_bar {$_r} {4} {$_lbe} {$gstin[vitals][mind][value]} {100} {$gstin[colors][vitals][mind_bg]} {$_mlabel} {$gstin[colors][vitals][empty_bg]} {$gstin[colors][ui][label_text]} {$gstin[colors][ui][label_text]};
+        #variable {gstin[_prev][mind]} {$gstin[vitals][mind][value]};
+    };
+
+
+    #nop -- Row 4: enc bar --;
+    #if {"$gstin[vitals][encumbrance][value]" != "$gstin[_prev][enc]"} {
+        #math {_r} {$_vr + 4};
+        gstin_status_at {$_r} {2} {$gstin[colors][vitals][enc_fg]<099>};
+        #local {_elabel} {};
+        #format {_elabel} {%${_bw}s} {$gstin[vitals][encumbrance][value]};
+        gstin_draw_bar {$_r} {4} {$_lbe} {$gstin[vitals][encumbrance][value]} {100} {$gstin[colors][vitals][enc_bg]} {$_elabel} {$gstin[colors][vitals][empty_bg]} {$gstin[colors][ui][label_text]} {$gstin[colors][ui][label_text]};
+        #variable {gstin[_prev][enc]} {$gstin[vitals][encumbrance][value]};
+    };
+
+
+    #nop -- Row 5: condition icons --;
+    #local {_snap} {$gstin[indicators][POISONED]/$gstin[indicators][DISEASED]/$gstin[indicators][BLEEDING]/$gstin[indicators][DEAD]};
+    #if {"$_snap" != "$gstin[_prev][conditions]"} {
+        #math {_r} {$_vr + 5};
+        gstin_render_conditions {$_r};
+        #variable {gstin[_prev][conditions]} {$_snap};
+    };
+
+
+    #nop -- Row 7: Spell --;
+    #if {"$gstin[spell]" != "$gstin[_prev][spell]"} {
+        #math {_r} {$_vr + 7};
+        gstin_drawleft {$_r} {  $gstin[colors][sidebar][spell]$gstin[spell]<099>};
+        #variable {gstin[_prev][spell]} {$gstin[spell]};
+    };
+
+
+    #nop -- Row 8: Left and right hand items --;
+    #local {_snap} {$gstin[hands][left]/$gstin[hands][right]};
+    #if {"$_snap" != "$gstin[_prev][hands]"} {
+        #math {_r} {$_vr + 8};
+        #local {_hw} {0};
+        #math {_hw} {$gstin[ui][left_w] / 2 - 3};
+        #local {_lh} {$gstin[hands][left]};
+        #local {_rh} {$gstin[hands][right]};
+        #format {_lh} {%-.${_hw}s} {$_lh};
+        #format {_rh} {%-.${_hw}s} {$_rh};
+        #nop -- Pad left part to push right part to the edge --;
+        #local {_lpart} {  $gstin[colors][sidebar][hands]$_lh<099>};
+        #local {_rpart} { $gstin[colors][sidebar][hands]$_rh<099>};
+        #local {_rlen} {0};
+        #format {_rlen} {%L} {$_rh};
+        #local {_lpad} {0};
+        #math {_lpad} {$gstin[ui][left_w] - $_rlen - 6};
+        #format {_lpart} {%-${_lpad}s} {$_lpart};
+        gstin_drawleft {$_r} {$_lpart$_rpart};
+        #variable {gstin[_prev][hands]} {$_snap};
+    };
+
+    #nop -- Bottom bar --;
+    gstin_render_bottom;
+}
+
+#nop -- Render bottom bar (single row: RT/CT + status flags) --;
+#nop -- Dirty-checks its own state since called from both render_status and rt_tick --;
+#alias {gstin_render_bottom} {
+    #local {_snap} {$gstin[timers][rt_remaining]/$gstin[timers][ct_remaining]/$gstin[indicators][STUNNED]/$gstin[indicators][HIDDEN]/$gstin[indicators][INVISIBLE]/$gstin[indicators][KNEELING]/$gstin[indicators][SITTING]/$gstin[indicators][PRONE]/$gstin[indicators][DEAD]/$gstin[indicators][WEBBED]};
+    #if {"$_snap" == "$gstin[_prev][bottom]"} {#return};
+    #variable {gstin[_prev][bottom]} {$_snap};
+
+    #local {sl} {};
+
+    #if {$gstin[timers][rt_remaining] > 0} {
+        #local {sl} {$gstin[colors][indicator][rt_active]RT:$gstin[timers][rt_remaining]<099> };
+    } {
+        #local {sl} {$gstin[colors][indicator][rt_zero]RT:0<099> };
+    };
+
+    #if {$gstin[timers][ct_remaining] > 0} {
+        #local {sl} {${sl}$gstin[colors][indicator][ct]CT:$gstin[timers][ct_remaining]<099>  };
+    };
+
+    #if {"$gstin[indicators][STUNNED]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][danger]STUN<099> };
+    };
+    #if {"$gstin[indicators][HIDDEN]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][hidden]HID<099> };
+    };
+    #if {"$gstin[indicators][INVISIBLE]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][invisible]INV<099> };
+    };
+    #if {"$gstin[indicators][KNEELING]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][posture]KNL<099> };
+    };
+    #if {"$gstin[indicators][SITTING]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][posture]SIT<099> };
+    };
+    #if {"$gstin[indicators][PRONE]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][posture]PRN<099> };
+    };
+    #if {"$gstin[indicators][DEAD]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][danger]DEAD<099> };
+    };
+    #if {"$gstin[indicators][WEBBED]" == "y"} {
+        #local {sl} {${sl}$gstin[colors][indicator][webbed]WEB<099> };
+    };
+
+    #nop -- Erase line first so resize border chars don't linger --;
+    gstin_drawrow {-1} {\e[2K$sl};
+}
+
+#class {gstin_vitals} {close}

@@ -1,0 +1,1292 @@
+#nop =========================================================================;
+#nop  GSTinTin - Stream Routing
+#nop  Routes text from different game streams with colored prefixes.
+#nop  Gags room/exp/perc streams from main display (shown in status area).
+#nop  Routes chat streams to left sidebar.
+#nop =========================================================================;
+
+#class {gstin_streams} {open}
+
+#nop -- Stream colors are defined in config/colors.tin under gstin[colors][stream] --;
+
+#nop -- Streams to gag entirely (shown in status area) --;
+#variable {gstin[stream_gag][room]}       {1}
+#variable {gstin[stream_gag][percWindow]} {1}
+#variable {gstin[stream_gag][inv]}        {1}
+#nop -- effects stream no longer used (dialogData replaces effectmon) --;
+
+#nop -- Exp stream tracking --;
+#variable {gstin[exp]} {}
+#variable {gstin[exp_current_skill]} {}
+
+#nop -- Handle exp stream data --;
+#action {~<pushStream id="exp %1"/>%2} {
+    #variable {gstin[exp_current_skill]} {%1};
+    #if {"%2" != ""} {
+        #variable {gstin[exp][%1]} {%2};
+    };
+} {1}
+#action {~<pushStream id='exp %1'/>%2} {
+    #variable {gstin[exp_current_skill]} {%1};
+    #if {"%2" != ""} {
+        #variable {gstin[exp][%1]} {%2};
+    };
+} {1}
+
+#nop -- Generic XML gag helper: strip tags, show remaining text, gag line --;
+#nop -- Call from #regexp body as: gstin_gag_xml; #return --;
+#nop -- Reads gstin[_gag_line] which must be set to $_line before gag section --;
+#nop -- Two-step strip: --;
+#nop --   1. Remove data-wrapping paired tags WITH their content --;
+#nop --      Content is structured data (room state, spell/hand names, dialog UI) --;
+#nop --      that either duplicates panel info or is not story text --;
+#nop --   2. Strip all remaining tags, keeping text (handles self-closing metadata --;
+#nop --      like roundTime/castTime where story text can follow the tag, --;
+#nop --      and display wrappers like <a>/<b> whose content IS story text) --;
+#alias {gstin_gag_xml} {
+    #local {_stripped} {$gstin[_gag_line]};
+    #nop Step 1: remove data-wrapping paired tags and their content;
+    #replace {_stripped} {<component{[^>]*}>{.*}</component>} {};
+    #replace {_stripped} {<dialogData{[^>]*}>{.*}</dialogData>} {};
+    #replace {_stripped} {<spell{[^>]*}>{.*}</spell>} {};
+    #replace {_stripped} {<right{[^>]*}>{.*}</right>} {};
+    #replace {_stripped} {<left{[^>]*}>{.*}</left>} {};
+    #replace {_stripped} {<compass{[^>]*}>{.*}</compass>} {};
+    #replace {_stripped} {<prompt{[^>]*}>{.*}</prompt>} {};
+    #replace {_stripped} {<inv{[^>]*}>{.*}</inv>} {};
+    #nop Step 2: strip remaining tags (self-closing and display wrappers);
+    #replace {_stripped} {<{[^>]+}>} {};
+    #nop Step 3: decode XML entities;
+    #replace {_stripped} {&amp;} {&};
+    #replace {_stripped} {&gt;} {>};
+    #replace {_stripped} {&lt;} {<};
+    #replace {_stripped} {&quot;} {"};
+    #replace {_stripped} {&apos;} {'};
+    #format {_stripped} {%p} {$_stripped};
+    #local {_slen} {0};
+    #format {_slen} {%L} {$_stripped};
+    #if {$_slen > 0} {
+        #line ignore #showme {$_stripped};
+        #variable {gstin[_prompt_space]} {0};
+        #variable {gstin[_has_content]} {1};
+        #if {$gstin[_spacelog] == 1} {
+            #line log {/tmp/gstin_space.log} {GAG-XML-VIS: hc=1 text=$_stripped};
+        };
+    };
+    #line gag;
+}
+
+#nop -- Parse dialogData for effect categories (replaces effectmon.lic) --;
+#nop -- Called from RECEIVED LINE for lines starting with <dialogData --;
+#nop -- Each line may contain clear + new data for one category --;
+#nop -- Stores raw data in gstin[effects_raw][category][name] --;
+#nop -- A 1s ticker rebuilds gstin[effects]/effects_order for rendering --;
+
+#nop -- Helper: convert time string to epoch end_time and store effect --;
+#nop -- Args: %1=time string (HH:MM:SS), %2=category prefix --;
+#nop -- Reads gstin[_ep_name] and gstin[_ep_val] set by caller --;
+#alias {gstin_store_pbar_effect} {
+    #local {_time} {%1};
+    #local {_cat} {%2};
+
+    #variable {gstin[_ep_th]} {0};
+    #variable {gstin[_ep_tm]} {0};
+    #variable {gstin[_ep_ts]} {0};
+    #regexp {$_time} {{[0-9]+}:{[0-9]+}:{[0-9]+}} {
+        #variable {gstin[_ep_th]} {&1};
+        #variable {gstin[_ep_tm]} {&2};
+        #variable {gstin[_ep_ts]} {&3};
+    };
+    #local {_secs} {0};
+    #math {_secs} {$gstin[_ep_th] * 3600 + $gstin[_ep_tm] * 60 + $gstin[_ep_ts]};
+    #local {_now} {0};
+    #format {_now} {%T};
+    #local {_end} {0};
+    #math {_end} {$_now + $_secs};
+    #nop -- Compute total duration from value pct: total = remaining * 100 / pct --;
+    #nop -- Server value reflects pct of max possible duration for this spell --;
+    #local {_total} {$_secs};
+    #if {$gstin[_ep_val] > 0} {
+        #math {_total} {$_secs * 100 / $gstin[_ep_val]};
+    };
+    #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][end_time]} {$_end};
+    #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][value]} {$gstin[_ep_val]};
+    #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][duration]} {$_total};
+}
+
+#nop -- Helper: parse one category from gstin[_ep_line] --;
+#nop -- Args: %1=dialogData id, %2=category prefix (spell/buff/debuff/cooldown) --;
+#nop -- Uses gstin[_ep_*] temps because #local inside #regexp doesnt propagate --;
+#alias {gstin_parse_effects_category} {
+    #local {_did} {%1};
+    #local {_cat} {%2};
+
+    #nop -- Check if this line contains our category --;
+    #variable {gstin[_ep_has_cat]} {0};
+    #regexp {$gstin[_ep_line]} {dialogData id='$_did'} {#variable {gstin[_ep_has_cat]} {1}};
+    #regexp {$gstin[_ep_line]} {dialogData id="$_did"} {#variable {gstin[_ep_has_cat]} {1}};
+    #if {$gstin[_ep_has_cat] == 0} {#return};
+
+    #nop -- Detect clear directive: save previous keys for removal flash --;
+    #variable {gstin[_ep_has_clear]} {0};
+    #regexp {$gstin[_ep_line]} {id='$_did' clear='t'} {#variable {gstin[_ep_has_clear]} {1}};
+    #regexp {$gstin[_ep_line]} {id="$_did" clear="t"} {#variable {gstin[_ep_has_clear]} {1}};
+
+    #if {$gstin[_ep_has_clear] == 1} {
+        #nop -- Save old keys for delete flash detection --;
+        #variable {gstin[_effects_prev][$_cat]} {$gstin[effects_raw][$_cat]};
+        #variable {gstin[effects_raw][$_cat]} {};
+    };
+
+    #nop -- Extract progressBar entries: text and time --;
+    #nop -- Loop: match first progressBar, extract attrs, mark consumed, repeat --;
+    #variable {gstin[_ep_work]} {$gstin[_ep_line]};
+    #variable {gstin[_ep_more]} {1};
+    #while {$gstin[_ep_more] == 1} {
+        #variable {gstin[_ep_more]} {0};
+        #variable {gstin[_ep_name]} {};
+        #variable {gstin[_ep_time]} {};
+        #variable {gstin[_ep_val]} {0};
+        #variable {gstin[_ep_matched]} {0};
+        #variable {gstin[_ep_id]} {};
+        #nop -- Match progressBar with text= time= value= attributes --;
+        #regexp {$gstin[_ep_work]} {progressBar id='{[^']+}' value='{[0-9]+}' text="{[^"]+}"{[^>]+}time='{[^']+}'} {
+            #variable {gstin[_ep_matched]} {1};
+            #variable {gstin[_ep_id]} {&1};
+            #variable {gstin[_ep_val]} {&2};
+            #variable {gstin[_ep_name]} {&3};
+            #variable {gstin[_ep_time]} {&5};
+        };
+        #regexp {$gstin[_ep_work]} {progressBar id="{[^"]+}" value="{[0-9]+}" text='{[^']+}'{[^>]+}time="{[^"]+}"} {
+            #variable {gstin[_ep_matched]} {1};
+            #variable {gstin[_ep_id]} {&1};
+            #variable {gstin[_ep_val]} {&2};
+            #variable {gstin[_ep_name]} {&3};
+            #variable {gstin[_ep_time]} {&5};
+        };
+        #if {$gstin[_ep_matched] == 1} {
+            #local {_nlen} {0};
+            #format {_nlen} {%L} {$gstin[_ep_name]};
+            #if {$_nlen > 0} {
+                gstin_store_pbar_effect {$gstin[_ep_time]} {$_cat};
+            };
+            #nop -- Mark this progressBar as consumed by replacing its id --;
+            #replace {gstin[_ep_work]} {progressBar id='$gstin[_ep_id]'} {_done_ id='$gstin[_ep_id]'};
+            #replace {gstin[_ep_work]} {progressBar id="$gstin[_ep_id]"} {_done_ id="$gstin[_ep_id]"};
+            #nop -- Check if more progressBars remain --;
+            #regexp {$gstin[_ep_work]} {progressBar } {#variable {gstin[_ep_more]} {1}};
+        };
+    };
+
+    #nop -- Detect removals: effects in prev but not in new --;
+    #if {$gstin[_ep_has_clear] == 1} {
+        #local {_psz} {0};
+        #local {_pk} {};
+        #format {_psz} {%L} {$gstin[_effects_prev][$_cat]};
+        #if {$_psz > 0} {
+            #foreach {*gstin[_effects_prev][$_cat][%*]} {_pk} {
+                #variable {gstin[_ep_still]} {0};
+                #if {&gstin[effects_raw][$_cat][$_pk]} {
+                    #variable {gstin[_ep_still]} {1};
+                };
+                #if {$gstin[_ep_still] == 0} {
+                    #nop -- Skip if already expired client-side --;
+                    #local {_dnow} {0};
+                    #format {_dnow} {%T};
+                    #local {_prev_end} {$gstin[_effects_prev][$_cat][$_pk][end_time]};
+                    #local {_prev_age} {0};
+                    #math {_prev_age} {$_dnow - $_prev_end};
+                    #if {$_prev_age < 2} {
+                        #nop -- Mark as deleted: store epoch for time-based flash --;
+                        #variable {gstin[effects_deleted][$_cat][$_pk][deleted_at]} {$_dnow};
+                    };
+                };
+            };
+        };
+    };
+
+    #nop -- Signal change detected --;
+    #variable {gstin[_effects_changed]} {1};
+}
+
+#nop -- Master dialogData effects parser --;
+#nop -- Stores line in gstin[_ep_line] to avoid repeated expansion --;
+#alias {gstin_parse_dialogdata_effects} {
+    #variable {gstin[_ep_line]} {%1};
+    gstin_parse_effects_category {Active Spells} {spell};
+    gstin_parse_effects_category {Buffs} {buff};
+    gstin_parse_effects_category {Debuffs} {debuff};
+    gstin_parse_effects_category {Cooldowns} {cooldown};
+
+    #if {$gstin[_effects_changed] == 1} {
+        #variable {gstin[_effects_changed]} {0};
+        gstin_effects_rebuild;
+    };
+}
+
+#nop -- Rebuild gstin[effects] and gstin[effects_order] from raw data --;
+#nop -- Produces the same data shape effectmon used: max, current, label, colors --;
+#nop -- Called on dialogData change AND every 1s by the effects ticker --;
+#alias {gstin_effects_rebuild} {
+    #variable {gstin[effects]} {};
+    #variable {gstin[effects_order]} {};
+
+    #nop -- Process each category --;
+    gstin_effects_rebuild_cat {spell};
+    gstin_effects_rebuild_cat {buff};
+    gstin_effects_rebuild_cat {debuff};
+    gstin_effects_rebuild_cat {cooldown};
+
+    #nop -- Process delete-flash entries --;
+    gstin_effects_rebuild_deleted {spell};
+    gstin_effects_rebuild_deleted {buff};
+    gstin_effects_rebuild_deleted {debuff};
+    gstin_effects_rebuild_deleted {cooldown};
+
+    #nop -- Show/hide sidebar based on whether we have any effects --;
+    #local {_esz} {0};
+    #list {gstin[effects_order]} {size} {_esz};
+    #if {$_esz > 0} {
+        gstin_show_right_sidebar;
+        gstin_request_effects_render;
+        gstin_effects_start_ticker;
+    } {
+        gstin_effects_stop_ticker;
+        gstin_hide_right_sidebar;
+    };
+}
+
+#nop -- Rebuild one category into gstin[effects]/effects_order --;
+#nop -- Args: %1=category prefix (spell/buff/debuff/cooldown) --;
+#alias {gstin_effects_rebuild_cat} {
+    #local {_cat} {%1};
+    #local {_now} {0};
+    #format {_now} {%T};
+    #local {_rsz} {0};
+    #format {_rsz} {%L} {$gstin[effects_raw][$_cat]};
+    #if {$_rsz == 0} {#return};
+
+    #local {_idx} {0};
+    #local {_ek} {};
+    #foreach {*gstin[effects_raw][$_cat][%*]} {_ek} {
+        #local {_end} {$gstin[effects_raw][$_cat][$_ek][end_time]};
+        #local {_dur} {$gstin[effects_raw][$_cat][$_ek][duration]};
+        #local {_remaining} {0};
+        #math {_remaining} {$_end - $_now};
+        #if {$_remaining < 0} {#local {_remaining} {0}};
+
+        #nop -- Client-side expiry: show red for 2s then auto-remove --;
+        #if {$_remaining == 0} {
+            #local {_expired_age} {0};
+            #math {_expired_age} {$_now - $_end};
+            #if {$_expired_age >= 2} {#continue};
+        };
+
+        #nop -- Build label: name....[HH:MM:SS] --;
+        #local {_rw} {$gstin[ui][right_w]};
+        #if {$_rw < 10} {#local {_rw} {32}};
+        #local {_bar_w} {0};
+        #math {_bar_w} {$_rw - 2};
+        #local {_timer_w} {10};
+        #local {_max_name} {0};
+        #math {_max_name} {$_bar_w - $_timer_w};
+
+        #nop -- Vowel removal if name too long --;
+        #local {_dname} {$_ek};
+        #local {_nlen} {0};
+        #format {_nlen} {%L} {$_dname};
+        #if {$_nlen > $_max_name} {
+            #replace {_dname} {a} {};
+            #replace {_dname} {e} {};
+            #replace {_dname} {i} {};
+            #replace {_dname} {o} {};
+            #replace {_dname} {u} {};
+        };
+
+        #nop -- Format time string with zero-padded components --;
+        #local {_h} {0};
+        #local {_m} {0};
+        #local {_s} {0};
+        #math {_h} {$_remaining / 3600};
+        #math {_m} {($_remaining % 3600) / 60};
+        #math {_s} {$_remaining % 60};
+        #local {_hs} {$_h};
+        #local {_ms} {$_m};
+        #local {_ss} {$_s};
+        #if {$_h < 10} {#local {_hs} {0$_h}};
+        #if {$_m < 10} {#local {_ms} {0$_m}};
+        #if {$_s < 10} {#local {_ss} {0$_s}};
+        #local {_ts} {[${_hs}:${_ms}:${_ss}]};
+
+        #nop -- Dot-pad gap between name and timer (preserve spaces in name) --;
+        #format {_nlen} {%L} {$_dname};
+        #local {_gap} {0};
+        #math {_gap} {$_max_name - $_nlen};
+        #if {$_gap < 0} {#local {_gap} {0}};
+        #local {_dots} {};
+        #local {_di} {0};
+        #while {$_di < $_gap} {
+            #local {_dots} {${_dots}.};
+            #math {_di} {$_di + 1};
+        };
+        #local {_label} {};
+        #format {_label} {%-.${_max_name}s} {${_dname}${_dots}};
+        #local {_label} {${_label}${_ts}};
+
+        #nop -- Determine colors: expired=red, warning<=60s=yellow, normal=blue --;
+        #local {_colors} {395573,9BA2B2};
+        #local {_fill_cur} {$_remaining};
+        #local {_fill_max} {$_dur};
+        #if {$_remaining == 0} {
+            #local {_colors} {8c4665,9BA2B2};
+            #nop -- Full fill so expired color covers entire bar --;
+            #local {_fill_cur} {1};
+            #local {_fill_max} {1};
+        };
+        #if {$_remaining <= 60 && $_remaining > 0} {
+            #local {_colors} {767339,9BA2B2};
+        };
+
+        #nop -- Build effect ID --;
+        #local {_id} {};
+        #local {_id} {${_cat}${_idx}};
+
+        #nop -- Store in renderer format --;
+        #variable {gstin[effects][$_id][max]} {$_fill_max};
+        #variable {gstin[effects][$_id][current]} {$_fill_cur};
+        #variable {gstin[effects][$_id][label]} {$_label};
+        #variable {gstin[effects][$_id][colors]} {$_colors};
+        #list {gstin[effects_order]} {add} {$_id};
+
+        #math {_idx} {$_idx + 1};
+    };
+}
+
+#nop -- Rebuild delete-flash entries for one category --;
+#nop -- Shows removed effects with expired color for 1 tick then removes them --;
+#alias {gstin_effects_rebuild_deleted} {
+    #local {_cat} {%1};
+    #local {_now} {0};
+    #format {_now} {%T};
+    #local {_dsz} {0};
+    #format {_dsz} {%L} {$gstin[effects_deleted][$_cat]};
+    #if {$_dsz == 0} {#return};
+
+    #nop -- Count current effects in this category for ID offset --;
+    #local {_offset} {0};
+    #local {_osz} {0};
+    #list {gstin[effects_order]} {size} {_osz};
+    #local {_oi} {1};
+    #while {$_oi <= $_osz} {
+        #local {_oid} {$gstin[effects_order][$_oi]};
+        #local {_opfx} {};
+        #format {_opfx} {%-.4s} {$_oid};
+        #local {_cpfx} {};
+        #format {_cpfx} {%-.4s} {$_cat};
+        #if {"$_opfx" == "$_cpfx"} {
+            #math {_offset} {$_offset + 1};
+        };
+        #math {_oi} {$_oi + 1};
+    };
+
+    #local {_dk} {};
+    #local {_to_delete} {};
+    #foreach {*gstin[effects_deleted][$_cat][%*]} {_dk} {
+        #local {_del_at} {$gstin[effects_deleted][$_cat][$_dk][deleted_at]};
+        #local {_del_age} {0};
+        #math {_del_age} {$_now - $_del_at};
+        #if {$_del_age >= 2} {
+            #nop -- Shown for 2+ seconds, mark for removal --;
+            #list {_to_delete} {add} {$_dk};
+        } {
+            #nop -- Build flash bar --;
+            #local {_rw} {$gstin[ui][right_w]};
+            #if {$_rw < 10} {#local {_rw} {32}};
+            #local {_bar_w} {0};
+            #math {_bar_w} {$_rw - 2};
+            #local {_max_name} {0};
+            #math {_max_name} {$_bar_w - 10};
+            #local {_dname} {$_dk};
+            #local {_nlen} {0};
+            #format {_nlen} {%L} {$_dname};
+            #if {$_nlen > $_max_name} {
+                #replace {_dname} {a} {};
+                #replace {_dname} {e} {};
+                #replace {_dname} {i} {};
+                #replace {_dname} {o} {};
+                #replace {_dname} {u} {};
+            };
+            #format {_nlen} {%L} {$_dname};
+            #local {_gap} {0};
+            #math {_gap} {$_max_name - $_nlen};
+            #if {$_gap < 0} {#local {_gap} {0}};
+            #local {_dots} {};
+            #local {_di} {0};
+            #while {$_di < $_gap} {
+                #local {_dots} {${_dots}.};
+                #math {_di} {$_di + 1};
+            };
+            #local {_label} {};
+            #format {_label} {%-.${_max_name}s} {${_dname}${_dots}};
+            #local {_label} {${_label}[00:00:00]};
+            #local {_id} {${_cat}${_offset}};
+            #variable {gstin[effects][$_id][max]} {1};
+            #variable {gstin[effects][$_id][current]} {1};
+            #variable {gstin[effects][$_id][label]} {$_label};
+            #variable {gstin[effects][$_id][colors]} {8c4665,9BA2B2};
+            #list {gstin[effects_order]} {add} {$_id};
+            #math {_offset} {$_offset + 1};
+        };
+    };
+
+    #nop -- Clean up expired flash entries --;
+    #local {_di} {1};
+    #local {_delsz} {0};
+    #list {_to_delete} {size} {_delsz};
+    #while {$_di <= $_delsz} {
+        #unvariable {gstin[effects_deleted][$_cat][$_to_delete[$_di]]};
+        #math {_di} {$_di + 1};
+    };
+}
+
+#nop -- Effects ticker: rebuild every 1s for countdown updates --;
+#alias {gstin_effects_start_ticker} {
+    #unticker {gstin_effects_ticker};
+    #ticker {gstin_effects_ticker} {gstin_effects_rebuild} {1};
+}
+#alias {gstin_effects_stop_ticker} {
+    #unticker {gstin_effects_ticker};
+}
+
+#nop -- EVENT handler: process each received line based on active stream --;
+#nop -- IMPORTANT: store %0 in a local var ONCE to avoid parse buffer overflow --;
+#nop -- (40+ #regexp {%0} calls would expand the event body to 60KB+) --;
+#event {RECEIVED LINE} {
+    #local {_line} {%0};
+
+    #nop -- Re-entry guard: when we #showme a story line (without #line ignore) --;
+    #nop -- RECEIVED LINE fires again. Skip processing so #highlight can fire. --;
+    #if {$gstin[_showing_story] == 1} {
+        #return;
+    };
+
+    #nop Raw logging if enabled;
+    #if {$gstin[rawlog] == 1} {
+        #line log {/tmp/gstin_raw.log} {$_line};
+    };
+
+    #nop -- Detect endSetup marker: server init burst is complete --;
+    #nop -- Gag all lines before endSetup to suppress init burst from display --;
+    #if {$gstin[_setup_done] == 0} {
+        #regexp {$_line} {endSetup} {
+            #variable {gstin[_setup_done]} {1};
+        };
+        #line gag;
+        #return;
+    };
+
+    #nop -- Mapper ready: detect map loaded as signal mapper is online --;
+    #if {$gstin[_mapper_ready] == 0} {
+        #regexp {$_line} {Map loaded} {
+            #variable {gstin[_mapper_ready]} {1};
+            gstin_request_render;
+        };
+    };
+
+    #nop -- dialogData effects: parse Active Spells/Buffs/Debuffs/Cooldowns --;
+    #nop -- Must parse BEFORE the generic dialogData gag at bottom of event --;
+    #variable {gstin[_is_effects_dd]} {0};
+    #regexp {$_line} {dialogData id='Active Spells'} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id="Active Spells"} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id='Buffs'} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id="Buffs"} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id='Debuffs'} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id="Debuffs"} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id='Cooldowns'} {#variable {gstin[_is_effects_dd]} {1}};
+    #regexp {$_line} {dialogData id="Cooldowns"} {#variable {gstin[_is_effects_dd]} {1}};
+    #if {$gstin[_is_effects_dd] == 1} {
+        gstin_parse_dialogdata_effects {$_line};
+    };
+
+    #nop -- streamWindow drop mode: gag duplicate stream content from main scroll --;
+    #nop -- When <streamWindow> arrives, gag stream infrastructure lines --;
+    #nop -- On first non-stream content line: --;
+    #nop --   If inside push/pop and stream is gagged (inv): keep gagging --;
+    #nop --   If past pop (room) or window-def-only (login): let visible text through --;
+    #regexp {$_line} {<streamWindow id='{[^']+}'} {
+        #variable {gstin[stream][dropping]} {&1};
+        #variable {gstin[stream][drop_pushed]} {0};
+        #variable {gstin[stream][drop_popped]} {0};
+    };
+    #regexp {$_line} {<streamWindow id="{[^"]+}"} {
+        #variable {gstin[stream][dropping]} {&1};
+        #variable {gstin[stream][drop_pushed]} {0};
+        #variable {gstin[stream][drop_popped]} {0};
+    };
+    #if {"$gstin[stream][dropping]" != ""} {
+        #variable {gstin[_is_stream_line]} {0};
+        #regexp {$_line} {<streamWindow } {#variable {gstin[_is_stream_line]} {1}};
+        #regexp {$_line} {<clearStream } {#variable {gstin[_is_stream_line]} {1}};
+        #regexp {$_line} {<pushStream } {
+            #variable {gstin[_is_stream_line]} {1};
+            #variable {gstin[stream][drop_pushed]} {1};
+        };
+        #regexp {$_line} {<popStream} {
+            #variable {gstin[_is_stream_line]} {1};
+            #variable {gstin[stream][drop_popped]} {1};
+        };
+        #regexp {$_line} {<compDef } {#variable {gstin[_is_stream_line]} {1}};
+        #if {$gstin[_is_stream_line] == 1} {
+            #line gag;
+            #nop -- Fall through to normal stream routing for chat --;
+        } {
+            #nop -- Non-stream line: exit drop mode --;
+            #variable {gstin[stream][dropping]} {};
+            #nop -- Check if still inside a gagged stream (push seen, no pop yet) --;
+            #variable {gstin[_drop_gag]} {0};
+            #if {$gstin[stream][drop_pushed] == 1 && $gstin[stream][drop_popped] == 0} {
+                #if {&gstin[stream_gag][$gstin[stream][current]]} {
+                    #variable {gstin[_drop_gag]} {1};
+                };
+            };
+            #if {$gstin[_drop_gag] == 1} {
+                #nop -- Gagged stream content: gag but keep current for routing --;
+                #line gag;
+            } {
+                #nop -- Visible text or non-gagged stream: clear and display --;
+                #variable {gstin[stream][current]} {};
+                gstin_render_chat;
+            };
+        };
+    };
+
+    #nop -- If in drop mode and stream was cleared by same-line popStream, restore it --;
+    #if {"$gstin[stream][dropping]" != "" && "$gstin[stream][current]" == ""} {
+        #variable {gstin[stream][current]} {$gstin[stream][dropping]};
+    };
+
+    #nop -- clearStream room: reset room state so stale data doesn't persist --;
+    #nop -- Critical for rooms like Town Center that omit compDefs for players/objs --;
+    #regexp {$_line} {<clearStream id='room'/>} {
+        #variable {gstin[room][players]} {};
+        #variable {gstin[room][objects]} {};
+        #variable {gstin[room][exits]} {};
+    };
+    #regexp {$_line} {<clearStream id="room"/>} {
+        #variable {gstin[room][players]} {};
+        #variable {gstin[room][objects]} {};
+        #variable {gstin[room][exits]} {};
+    };
+    #nop -- clearStream percWindow: reset spells (migrated from xml_parser.tin #action) --;
+    #regexp {$_line} {<clearStream id='percWindow'/>} {#variable {gstin[spells]} {}};
+    #regexp {$_line} {<clearStream id="percWindow"/>} {#variable {gstin[spells]} {}};
+
+    #nop -- Track pushStream/popStream for stream routing --;
+    #regexp {$_line} {<pushStream id='{[^']+}'/>} {
+        #variable {gstin[stream][current]} {&1};
+        #if {"&1" == "room"} {};
+    };
+    #regexp {$_line} {<pushStream id="{[^"]+}"/>} {
+        #variable {gstin[stream][current]} {&1};
+        #if {"&1" == "room"} {};
+    };
+    #regexp {$_line} {<popStream} {
+        #if {"$gstin[stream][current]" == "room"} {
+            gstin_request_render;
+        };
+        #variable {gstin[stream][current]} {};
+    };
+
+    #nop -- If in drop mode and stream was cleared by same-line popStream, restore it --;
+    #if {"$gstin[stream][dropping]" != "" && "$gstin[stream][current]" == ""} {
+        #variable {gstin[stream][current]} {$gstin[stream][dropping]};
+    };
+
+    #nop -- Component updates (incremental room state) --;
+    #nop -- Parsed BEFORE stream routing so updates fire during stream transitions --;
+    #regexp {$_line} {<component id='room title'>{.+}</component>} {
+        #variable {gstin[room][title]} {&1};
+        gstin_strip_xml {gstin[room][title]};
+    };
+    #regexp {$_line} {<component id="room title">{.+}</component>} {
+        #variable {gstin[room][title]} {&1};
+        gstin_strip_xml {gstin[room][title]};
+    };
+    #regexp {$_line} {<component id='room desc'>{.+}</component>} {
+        #variable {gstin[room][desc]} {&1};
+    };
+    #regexp {$_line} {<component id="room desc">{.+}</component>} {
+        #variable {gstin[room][desc]} {&1};
+    };
+    #regexp {$_line} {<component id='room objs'></component>} {
+        #variable {gstin[room][objects]} {};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id="room objs"></component>} {
+        #variable {gstin[room][objects]} {};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id='room players'></component>} {
+        #variable {gstin[room][players]} {};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id="room players"></component>} {
+        #variable {gstin[room][players]} {};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id='room objs'>{.+}</component>} {
+        #variable {gstin[room][objects]} {&1};
+        gstin_strip_xml_colored {gstin[room][objects]};
+        gstin_consolidate_objects;
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id="room objs">{.+}</component>} {
+        #variable {gstin[room][objects]} {&1};
+        gstin_strip_xml_colored {gstin[room][objects]};
+        gstin_consolidate_objects;
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id='room players'>{.+}</component>} {
+        #variable {gstin[room][players]} {&1};
+        gstin_strip_xml_colored {gstin[room][players]};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id="room players">{.+}</component>} {
+        #variable {gstin[room][players]} {&1};
+        gstin_strip_xml_colored {gstin[room][players]};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id='room exits'>{.+}</component>} {
+        #variable {gstin[room][exits]} {&1};
+        gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<component id="room exits">{.+}</component>} {
+        #variable {gstin[room][exits]} {&1};
+        gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        gstin_request_render;
+    };
+
+    #nop -- Hands (parsed early: hand tags appear on lines with pushStream inv) --;
+    #nop -- Attributed tags (exist=) take priority over plain tags --;
+    #nop -- Pattern uses exist= and </right> or </left> to anchor precisely --;
+    #regexp {$_line} {exist={[^>]+}>{[^<]+}</right>} {
+        #variable {gstin[hands][right]} {&2};
+        gstin_request_render;
+    } {
+        #regexp {$_line} {<right>{[^<]+}</right>} {
+            #variable {gstin[hands][right]} {&1};
+            gstin_request_render;
+        };
+    };
+    #regexp {$_line} {exist={[^>]+}>{[^<]+}</left>} {
+        #variable {gstin[hands][left]} {&2};
+        gstin_request_render;
+    } {
+        #regexp {$_line} {<left>{[^<]+}</left>} {
+            #variable {gstin[hands][left]} {&1};
+            gstin_request_render;
+        };
+    };
+
+    #nop -- Timers (parsed early: can appear on lines with pushStream inv) --;
+    #regexp {$_line} {<roundTime value='{[0-9]+}'/>} {
+        #variable {gstin[timers][rt_end]} {&1};
+        #local {_rtnow} {0};
+        #format {_rtnow} {%T};
+        #math {_rtnow} {$_rtnow - $gstin[time][offset]};
+        #math {gstin[timers][rt_max]} {&1 - $_rtnow};
+        #if {$gstin[timers][rt_max] < 1} {#variable {gstin[timers][rt_max]} {1}};
+        gstin_start_rt_countdown;
+    };
+    #regexp {$_line} {<castTime value='{[0-9]+}'/>} {
+        #variable {gstin[timers][ct_end]} {&1};
+        gstin_start_rt_countdown;
+    };
+
+    #nop -- Fallback RT from wait message (covers reconnect with no roundTime tag) --;
+    #regexp {$_line} {^\.\.\.wait {[0-9]+} seconds\.} {
+        #local {_ws} {&1};
+        #format {gstin[time][now]} {%T};
+        #math {gstin[timers][rt_end]} {$gstin[time][now] - $gstin[time][offset] + $_ws};
+        #variable {gstin[timers][rt_max]} {$_ws};
+        gstin_start_rt_countdown;
+    };
+
+    #nop -- Vitals --;
+    #regexp {$_line} {<progressBar id='health' value='{[0-9]+}' text='health {[0-9]+}/{[0-9]+}'} {
+        #variable {gstin[vitals][health][value]} {&1};
+        #variable {gstin[vitals][health][current]} {&2};
+        #variable {gstin[vitals][health][max]} {&3};
+    };
+    #regexp {$_line} {<progressBar id='mana' value='{[0-9]+}' text='mana {[0-9]+}/{[0-9]+}'} {
+        #variable {gstin[vitals][mana][value]} {&1};
+        #variable {gstin[vitals][mana][current]} {&2};
+        #variable {gstin[vitals][mana][max]} {&3};
+    };
+    #regexp {$_line} {<progressBar id='spirit' value='{[0-9]+}' text='spirit {[0-9]+}/{[0-9]+}'} {
+        #variable {gstin[vitals][spirit][value]} {&1};
+        #variable {gstin[vitals][spirit][current]} {&2};
+        #variable {gstin[vitals][spirit][max]} {&3};
+    };
+    #regexp {$_line} {<progressBar id='stamina' value='{[0-9]+}' text='stamina {[0-9]+}/{[0-9]+}'} {
+        #variable {gstin[vitals][stamina][value]} {&1};
+        #variable {gstin[vitals][stamina][current]} {&2};
+        #variable {gstin[vitals][stamina][max]} {&3};
+    };
+    #nop -- pbarStance parsed later (handles both prompt and dialogData lines) --;
+    #regexp {$_line} {<progressBar id='mindState' value='{[0-9]+}' text='{[^']+}'} {
+        #variable {gstin[vitals][mind][value]} {&1};
+        #variable {gstin[vitals][mind][text]} {&2};
+    };
+    #regexp {$_line} {<progressBar id='encumlevel' value='{[0-9]+}' text='{[^']+}'} {
+        #variable {gstin[vitals][encumbrance][value]} {&1};
+        #variable {gstin[vitals][encumbrance][text]} {&2};
+    };
+
+    #nop -- Request render if any vital was on this line --;
+    #regexp {$_line} {<progressBar } {gstin_request_render};
+
+    #nop -- Room title from streamWindow subtitle (data only, no render) --;
+    #nop -- Subtitle has raw lich IDs so roomName drives border updates --;
+    #regexp {$_line} {subtitle=" - {[^"]+}"} {
+        #variable {gstin[room][title]} {&1};
+        gstin_strip_xml {gstin[room][title]};
+    };
+
+    #nop -- Spell --;
+    #nop -- Attribute chars must be inside {} for PCRE (gotcha 6) --;
+    #regexp {$_line} {<spell{[^>]*}>{[^<]*}</spell>} {
+        #variable {gstin[spell]} {&2};
+        gstin_request_render;
+    };
+
+    #nop -- Compass --;
+    #regexp {$_line} {<compass>} {
+        #variable {gstin[compass][n]}    {0};
+        #variable {gstin[compass][ne]}   {0};
+        #variable {gstin[compass][e]}    {0};
+        #variable {gstin[compass][se]}   {0};
+        #variable {gstin[compass][s]}    {0};
+        #variable {gstin[compass][sw]}   {0};
+        #variable {gstin[compass][w]}    {0};
+        #variable {gstin[compass][nw]}   {0};
+        #variable {gstin[compass][up]}   {0};
+        #variable {gstin[compass][down]} {0};
+        #variable {gstin[compass][out]}  {0};
+        #regexp {$_line} {value="n"/>}    {#variable {gstin[compass][n]}    {1}};
+        #regexp {$_line} {value='n'/>}    {#variable {gstin[compass][n]}    {1}};
+        #regexp {$_line} {value="ne"/>}   {#variable {gstin[compass][ne]}   {1}};
+        #regexp {$_line} {value='ne'/>}   {#variable {gstin[compass][ne]}   {1}};
+        #regexp {$_line} {value="e"/>}    {#variable {gstin[compass][e]}    {1}};
+        #regexp {$_line} {value='e'/>}    {#variable {gstin[compass][e]}    {1}};
+        #regexp {$_line} {value="se"/>}   {#variable {gstin[compass][se]}   {1}};
+        #regexp {$_line} {value='se'/>}   {#variable {gstin[compass][se]}   {1}};
+        #regexp {$_line} {value="s"/>}    {#variable {gstin[compass][s]}    {1}};
+        #regexp {$_line} {value='s'/>}    {#variable {gstin[compass][s]}    {1}};
+        #regexp {$_line} {value="sw"/>}   {#variable {gstin[compass][sw]}   {1}};
+        #regexp {$_line} {value='sw'/>}   {#variable {gstin[compass][sw]}   {1}};
+        #regexp {$_line} {value="w"/>}    {#variable {gstin[compass][w]}    {1}};
+        #regexp {$_line} {value='w'/>}    {#variable {gstin[compass][w]}    {1}};
+        #regexp {$_line} {value="nw"/>}   {#variable {gstin[compass][nw]}   {1}};
+        #regexp {$_line} {value='nw'/>}   {#variable {gstin[compass][nw]}   {1}};
+        #regexp {$_line} {value="up"/>}   {#variable {gstin[compass][up]}   {1}};
+        #regexp {$_line} {value='up'/>}   {#variable {gstin[compass][up]}   {1}};
+        #regexp {$_line} {value="down"/>} {#variable {gstin[compass][down]} {1}};
+        #regexp {$_line} {value='down'/>} {#variable {gstin[compass][down]} {1}};
+        #regexp {$_line} {value="out"/>}  {#variable {gstin[compass][out]}  {1}};
+        #regexp {$_line} {value='out'/>}  {#variable {gstin[compass][out]}  {1}};
+        gstin_request_render;
+    };
+
+    #nop -- Indicators --;
+    #regexp {$_line} {<indicator id='IconSTUNNED' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][STUNNED]} {&1};
+        #if {"&1" == "y"} {
+            #format {gstin[timers][stun_end]} {%T};
+            #math {gstin[timers][stun_end]} {$gstin[timers][stun_end] + 20};
+            #variable {gstin[timers][stun_max]} {20};
+            gstin_start_rt_countdown;
+        };
+        #if {"&1" == "n"} {
+            #variable {gstin[timers][stun_end]} {0};
+            #variable {gstin[timers][stun_remaining]} {0};
+        };
+    };
+    #regexp {$_line} {<indicator id="IconSTUNNED" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][STUNNED]} {&1};
+        #if {"&1" == "y"} {
+            #format {gstin[timers][stun_end]} {%T};
+            #math {gstin[timers][stun_end]} {$gstin[timers][stun_end] + 20};
+            #variable {gstin[timers][stun_max]} {20};
+            gstin_start_rt_countdown;
+        };
+        #if {"&1" == "n"} {
+            #variable {gstin[timers][stun_end]} {0};
+            #variable {gstin[timers][stun_remaining]} {0};
+        };
+    };
+    #regexp {$_line} {<indicator id='IconBLEEDING' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][BLEEDING]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconBLEEDING" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][BLEEDING]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconPOISONED' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][POISONED]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconPOISONED" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][POISONED]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconDISEASED' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][DISEASED]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconDISEASED" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][DISEASED]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconSTANDING' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][STANDING]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconSTANDING" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][STANDING]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconKNEELING' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][KNEELING]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconKNEELING" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][KNEELING]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconSITTING' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][SITTING]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconSITTING" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][SITTING]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconPRONE' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][PRONE]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconPRONE" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][PRONE]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconJOINED' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][JOINED]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconJOINED" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][JOINED]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconHIDDEN' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][HIDDEN]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconHIDDEN" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][HIDDEN]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconINVISIBLE' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][INVISIBLE]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconINVISIBLE" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][INVISIBLE]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconDEAD' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][DEAD]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconDEAD" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][DEAD]} {&1};
+    };
+    #regexp {$_line} {<indicator id='IconWEBBED' visible='{[^']*}'/>} {
+        #variable {gstin[indicators][WEBBED]} {&1};
+    };
+    #regexp {$_line} {<indicator id="IconWEBBED" visible="{[^"]*}"/>} {
+        #variable {gstin[indicators][WEBBED]} {&1};
+    };
+
+    #nop -- Request render if any indicator was on this line --;
+    #regexp {$_line} {<indicator } {
+        gstin_request_render;
+    };
+
+    #nop -- Prompt time sync + flag extraction --;
+    #nop -- Must run here (before gags) because prompts can be on dialogData lines --;
+    #nop -- Flag check uses _line directly to avoid ampersand mangling --;
+    #regexp {$_line} {<prompt time='{[0-9]+}'} {
+        #local {_pt} {&1};
+        #variable {gstin[prompt][time]} {$_pt};
+        #format {gstin[time][now]} {%T};
+        #math {gstin[time][offset]} {$gstin[time][now] - $_pt};
+    };
+    #regexp {$_line} {<prompt time="{[0-9]+}"} {
+        #local {_pt} {&1};
+        #variable {gstin[prompt][time]} {$_pt};
+        #format {gstin[time][now]} {%T};
+        #math {gstin[time][offset]} {$gstin[time][now] - $_pt};
+    };
+
+    #nop -- Message spacing: insert blank line between server responses --;
+    #regexp {$_line} {</prompt>} {
+        #if {$gstin[_spacelog] == 1} {
+            #line log {/tmp/gstin_space.log} {PROMPT: ps=$gstin[_prompt_space] hc=$gstin[_has_content]};
+        };
+        #if {$gstin[config][compact] == 0 && $gstin[_prompt_space] == 0 && $gstin[_has_content] == 1} {
+            #line ignore #showme {};
+            #variable {gstin[_prompt_space]} {1};
+            #if {$gstin[_spacelog] == 1} {
+                #line log {/tmp/gstin_space.log} {  -> BLANK inserted};
+            };
+        };
+        #variable {gstin[_has_content]} {0};
+    };
+
+    #nop -- Prompt flag sync: check for H (hidden) from prompt text --;
+    #nop -- Prompt text has flags before the escaped gt char --;
+    #nop -- Ampersand cannot appear in patterns (TinTin++ interprets it) --;
+    #regexp {$_line} {</prompt>} {
+        #regexp {$_line} {">{[^<]*H[^<]*}</prompt>} {
+            #if {"$gstin[indicators][HIDDEN]" != "y"} {
+                #variable {gstin[indicators][HIDDEN]} {y};
+                gstin_request_render;
+            };
+        } {
+            #if {"$gstin[indicators][HIDDEN]" != "n"} {
+                #variable {gstin[indicators][HIDDEN]} {n};
+                gstin_request_render;
+            };
+        };
+    };
+
+    #nop -- Room info from style tags (visible in story, also extracted for panels) --;
+    #regexp {$_line} {roomName" />{.+}} {
+        #variable {gstin[room][title]} {&1};
+        gstin_strip_xml {gstin[room][title]};
+        gstin_request_render;
+    };
+    #regexp {$_line} {roomName' />{.+}} {
+        #variable {gstin[room][title]} {&1};
+        gstin_strip_xml {gstin[room][title]};
+        gstin_request_render;
+    };
+    #regexp {$_line} {roomDesc"/>{.+}} {
+        #variable {gstin[room][desc]} {&1};
+    };
+    #regexp {$_line} {roomDesc'/>{.+}} {
+        #variable {gstin[room][desc]} {&1};
+    };
+
+    #nop =====================================================================;
+    #nop  Stream routing: gag/route AFTER all state extraction above;
+    #nop =====================================================================;
+    #local {_stream} {$gstin[stream][current]};
+
+    #if {"$_stream" != ""} {
+        #nop -- Gag blank/whitespace lines in streams (server trailing newlines) --;
+        #local {_ws} {$_line};
+        #format {_ws} {%p} {$_ws};
+        #local {_wslen} {0};
+        #format {_wslen} {%L} {$_ws};
+        #if {$_wslen == 0} {
+            #line gag;
+            #return;
+        };
+
+        #nop Parse room data from room stream BEFORE gagging;
+        #if {"$_stream" == "room"} {
+            #regexp {$_line} {<compDef id='room desc'>{.+}</compDef>} {
+                #variable {gstin[room][desc]} {&1};
+            };
+            #regexp {$_line} {<compDef id="room desc">{.+}</compDef>} {
+                #variable {gstin[room][desc]} {&1};
+            };
+            #regexp {$_line} {<compDef id='room objs'>{.*}</compDef>} {
+                #variable {gstin[room][objects]} {&1};
+                gstin_strip_xml_colored {gstin[room][objects]};
+                gstin_consolidate_objects;
+            };
+            #regexp {$_line} {<compDef id="room objs">{.*}</compDef>} {
+                #variable {gstin[room][objects]} {&1};
+                gstin_strip_xml_colored {gstin[room][objects]};
+                gstin_consolidate_objects;
+            };
+            #regexp {$_line} {<compDef id='room players'>{.*}</compDef>} {
+                #variable {gstin[room][players]} {&1};
+                gstin_strip_xml_colored {gstin[room][players]};
+            };
+            #regexp {$_line} {<compDef id="room players">{.*}</compDef>} {
+                #variable {gstin[room][players]} {&1};
+                gstin_strip_xml_colored {gstin[room][players]};
+            };
+            #regexp {$_line} {<compDef id='room exits'>{.+}</compDef>} {
+                #variable {gstin[room][exits]} {&1};
+                gstin_strip_xml_colored {gstin[room][exits]} {exits};
+            };
+            #regexp {$_line} {<compDef id="room exits">{.+}</compDef>} {
+                #variable {gstin[room][exits]} {&1};
+                gstin_strip_xml_colored {gstin[room][exits]} {exits};
+            };
+            #line gag;
+            #return;
+        };
+
+        #nop Gag other gagged streams (perc/inv);
+        #if {&gstin[stream_gag][$_stream]} {
+            #line gag;
+            #return;
+        };
+
+        #nop Gag exp streams (captured by exp actions above);
+        #if {"$_stream" == "exp"} {
+            #line gag;
+            #return;
+        };
+
+        #nop Route chat streams to left sidebar (word-wrapped);
+        #nop -- Skip chat routing during startup burst (before endSetup) --;
+        #if {&gstin[stream_chat][$_stream] && $gstin[_setup_done] == 1} {
+            #nop -- Merge solo-quote artifact: push+pop on same line with short content --;
+            #nop -- Buffer the raw line and merge with next chat line so XML strip --;
+            #nop -- combines them naturally (e.g. sing/recite opening quote) --;
+            #local {_praw_len} {0};
+            #format {_praw_len} {%L} {$gstin[_chat_pending_raw]};
+            #if {$_praw_len > 0} {
+                #local {_line} {$gstin[_chat_pending_raw]$_line};
+                #variable {gstin[_chat_pending_raw]} {};
+            };
+            #variable {gstin[_chat_short]} {0};
+            #regexp {$_line} {<popStream} {
+                #local {_raw_vis} {$_line};
+                #replace {_raw_vis} {<{[^>]+}>} {};
+                #local {_raw_vlen} {0};
+                #format {_raw_vlen} {%L} {$_raw_vis};
+                #if {$_raw_vlen <= 5} {
+                    #variable {gstin[_chat_short]} {1};
+                };
+            };
+            #if {$gstin[_chat_short] == 1} {
+                #variable {gstin[_chat_pending_raw]} {$_line};
+                #line gag;
+                #return;
+            };
+            gstin_chat_add {$gstin[colors][stream][$_stream]} {$_line};
+            #showme {\e[?2026h} {0};
+            #variable {gstin[_sync_active]} {1};
+            gstin_render_chat;
+            gstin_redraw_top_border;
+            #line gag;
+            #return;
+        };
+
+        #nop Other streams fall through to story colorization below;
+    };
+
+    #nop -- Room text: extract data for status area (display not gagged here) --;
+    #nop -- Gagging of room component updates is handled by the --;
+    #nop -- <component id='room '> gag in the XML gag section below --;
+    #regexp {$_line} {^Also here: {.+}} {
+        #variable {gstin[room][players]} {Also here: &1};
+        gstin_strip_xml_colored {gstin[room][players]};
+        gstin_request_render;
+    };
+    #regexp {$_line} {You also see {.+}} {
+        #variable {gstin[room][objects]} {  You also see &1};
+        gstin_strip_xml_colored {gstin[room][objects]};
+        gstin_consolidate_objects;
+        gstin_request_render;
+    };
+    #regexp {$_line} {^Obvious paths: {.+}} {
+        #variable {gstin[room][exits]} {Obvious paths: &1};
+        gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        gstin_request_render;
+    };
+    #regexp {$_line} {^Obvious exits: {.+}} {
+        #variable {gstin[room][exits]} {Obvious exits: &1};
+        gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        gstin_request_render;
+    };
+
+    #nop -- Extract data from XML lines before gagging --;
+    #variable {gstin[_gag_line]} {$_line};
+    #regexp {$_line} {pbarStance' value='{[0-9]+}'} {
+        #variable {gstin[vitals][stance][value]} {&1};
+        gstin_request_render;
+    };
+
+    #nop -- Injuries (migrated from xml_parser.tin #action) --;
+    #regexp {$_line} {<image id='{[^']+}' name='{[^']*}'/>} {
+        #variable {gstin[injuries][&1]} {&2};
+        gstin_request_render;
+    };
+    #regexp {$_line} {<image id="{[^"]+}" name="{[^"]*}"/>} {
+        #variable {gstin[injuries][&1]} {&2};
+        gstin_request_render;
+    };
+
+    #nop -- Generic XML gag: strip tags, show any remaining game text, gag line --;
+    #nop -- Handles all XML-prefixed lines in one place so we never lose text --;
+    #nop -- #return inside #regexp does NOT exit RECEIVED LINE (gotcha 3) --;
+    #nop -- Use flag pattern: set var inside #regexp, then #if at top scope --;
+    #variable {gstin[_xml_gag]} {0};
+    #regexp {$_line} {^<progressBar}      {#variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<popStream}        {#variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<pushStream}       {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<arbProgress}      {#variable {gstin[_xml_gag]} {1}};
+    #if {$gstin[_xml_gag] == 1} {#line gag; #return};
+    #regexp {$_line} {^<indicator}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<roundTime}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<castTime}         {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<dialogData}       {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<openDialog}       {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<closeDialog}      {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<streamWindow}     {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<clearStream}      {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #nop -- Room components: data already extracted above, gag silently --;
+    #regexp {$_line} {^<component id='room } {#variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<component id="room } {#variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<component}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<nav }             {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<switchQuickBar}   {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<exposeContainer}  {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<container}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #regexp {$_line} {^<clearContainer}   {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #if {$gstin[_xml_gag] == 1} {#line gag; #return};
+    #nop -- Catch-all: data tags appearing mid-line (not caught by ^< above) --;
+    #nop -- Detects closing tags of paired infrastructure elements that --;
+    #nop -- gstin_gag_xml strips with content in step 1 --;
+    #variable {gstin[_xml_gag]} {0};
+    #regexp {$_line} {</{component|right|left|inv|compass|spell}>} {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #if {$gstin[_xml_gag] == 1} {#line gag; #return};
+
+    #nop -- Prompt: gag here (AFTER spacing logic at line 592 already ran) --;
+    #nop -- Must return to prevent end-of-event flag resets from undoing spacing --;
+    #nop -- Extract prompt text since #line gag blocks the xml_parser.tin #action --;
+    #regexp {$_line} {<prompt } {
+        #regexp {$_line} {>{[^<]*}</prompt>} {
+            #variable {gstin[prompt][text]} {&1};
+        };
+        #line gag;
+        #return;
+    };
+
+    #nop -- Suppress invisible lines from affecting spacing --;
+    #nop -- Lines that are empty/whitespace after XML stripping should not --;
+    #nop -- set has_content (prevents double-spacing from server blank lines) --;
+    #local {_vis} {$_line};
+    #replace {_vis} {<{[^>]+}>} {};
+    #format {_vis} {%p} {$_vis};
+    #local {_vlen} {0};
+    #format {_vlen} {%L} {$_vis};
+    #if {$_vlen == 0} {
+        #if {$gstin[_spacelog] == 1} {
+            #line log {/tmp/gstin_space.log} {GAG-EMPTY: vlen=0};
+        };
+        #line gag;
+        #return;
+    };
+    #nop -- Gag prompt char remnant (escaped gt entity on its own line) --;
+    #nop -- Always arrives right after a prompt gag, while _has_content is 0 --;
+    #nop -- Real game text always follows the prompt char, not precedes it --;
+    #if {$_vlen <= 4 && $gstin[_has_content] == 0} {
+        #if {$gstin[_spacelog] == 1} {
+            #line log {/tmp/gstin_space.log} {GAG-SHORT: vlen=$_vlen hc=0 vis=$_vis};
+        };
+        #line gag;
+        #return;
+    };
+
+    #nop -- Line survived all processing and will display in main scroll --;
+    #nop -- Reset spacing flag so next prompt can insert a separator --;
+    #variable {gstin[_prompt_space]} {0};
+    #variable {gstin[_has_content]} {1};
+    #if {$gstin[_spacelog] == 1} {
+        #line log {/tmp/gstin_space.log} {STORY: ps=0 hc=1 stream=$gstin[stream][current] vis=$_vis};
+    };
+
+    #nop -- Colorize and display via unified pipeline --;
+    #nop -- Same gstin_strip_xml_colored used by room panel and chat feed --;
+    #nop -- Guard flag lets #showme re-enter RECEIVED LINE safely --;
+    #nop -- so #highlight rules fire on the colorized output --;
+    #variable {gstin[_story_line]} {$_line};
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #if {$gstin[_spacelog] == 1} {
+        #local {_slen} {0};
+        #format {_slen} {%L} {$gstin[_story_line]};
+        #line log {/tmp/gstin_space.log} {SHOWME: len=$_slen text=$gstin[_story_line]};
+    };
+    #variable {gstin[_showing_story]} {1};
+    #showme {$gstin[_story_line]};
+    #variable {gstin[_showing_story]} {0};
+    #line gag;
+
+}
+
+#nop -- Render chat buffer in left sidebar --;
+#alias {gstin_render_chat} {
+    #if {$gstin[_chat_dirty] == 0} {#return};
+    #variable {gstin[_chat_dirty]} {0};
+
+    #local {_start_row} {0};
+    #math {_start_row} {$gstin[ui][bar_top]};
+    #local {_end_row} {0};
+    #math {_end_row} {$gstin[ui][bar_bot] - 9};
+    #local {_max_lines} {0};
+    #math {_max_lines} {$_end_row - $_start_row + 1};
+
+    #local {_sz} {0};
+    #list {gstin[chat][lines]} {size} {_sz};
+
+    #nop -- Clamp scroll offset to valid range --;
+    #if {$gstin[chat][scroll] < 0} {
+        #variable {gstin[chat][scroll]} {0};
+    };
+    #local {_scroll_max} {0};
+    #if {$_sz > $_max_lines} {
+        #math {_scroll_max} {$_sz - $_max_lines};
+    };
+    #if {$gstin[chat][scroll] > $_scroll_max} {
+        #variable {gstin[chat][scroll]} {$_scroll_max};
+    };
+
+    #nop -- Calculate first visible line with scroll offset --;
+    #local {_first} {1};
+    #if {$_sz > $_max_lines} {
+        #math {_first} {$_sz - $_max_lines + 1 - $gstin[chat][scroll]};
+    };
+    #local {_last} {0};
+    #math {_last} {$_first + $_max_lines - 1};
+    #if {$_last > $_sz} {#local {_last} {$_sz}};
+
+    #local {_row} {$_start_row};
+    #local {_i} {$_first};
+    #local {_carry} {};
+    #while {$_i <= $_last && $_row <= $_end_row} {
+        #local {_line} {${_carry}$gstin[chat][lines][$_i]};
+        gstin_find_last_color {$_line};
+        #local {_carry} {$gstin[_last_color]};
+        #if {"$_carry" == "<099>"} {#local {_carry} {}};
+        gstin_drawleft {$_row} {${_line}};
+        #math {_row} {$_row + 1};
+        #math {_i} {$_i + 1};
+    };
+
+    #nop Clear remaining empty rows;
+    #while {$_row <= $_end_row} {
+        gstin_drawleft {$_row} {};
+        #math {_row} {$_row + 1};
+    };
+
+    #nop -- Section headers on the split border line above chat --;
+    #local {_hrow} {0};
+    #math {_hrow} {$gstin[ui][bar_top] - 1};
+    #if {$gstin[chat][scroll] > 0} {
+        gstin_status_at {$_hrow} {3} {$gstin[colors][ui][header_text] [Feed +$gstin[chat][scroll]] \e[0m};
+    } {
+        gstin_status_at {$_hrow} {3} {$gstin[colors][ui][header_text] [Feed] \e[0m──────};
+    };
+    #local {_scol} {0};
+    #math {_scol} {$gstin[ui][left_w] + 2};
+    gstin_status_at {$_hrow} {$_scol} {$gstin[colors][ui][header_text] [Story] \e[0m};
+    #if {$gstin[ui][right_active] == 1} {
+        #local {_spcol} {0};
+        #math {_spcol} {$gstin[ui][right_col] + 2};
+        gstin_status_at {$_hrow} {$_spcol} {$gstin[colors][ui][header_text] [Spells] \e[0m};
+    };
+
+}
+
+#class {gstin_streams} {close}

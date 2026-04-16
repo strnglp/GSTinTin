@@ -1,0 +1,16 @@
+#nop =========================================================================;
+#nop  GSTinTin - XML Parser
+#nop
+#nop  All state extraction and display colorization is now handled by the
+#nop  RECEIVED LINE event in streams.tin using gstin_strip_xml_colored
+#nop  (ui/layout.tin). This gives a single code path for both the story
+#nop  scroll and the side panels.
+#nop
+#nop  Previously this file contained #action rules for state extraction
+#nop  and #substitute rules for XML tag stripping/colorization. Those have
+#nop  been migrated to RECEIVED LINE and gstin_strip_xml_colored.
+#nop =========================================================================;
+
+#class {gstin_xml_parser} {open}
+
+#class {gstin_xml_parser} {close}

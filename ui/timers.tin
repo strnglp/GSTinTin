@@ -1,0 +1,53 @@
+#nop =========================================================================;
+#nop  GSTinTin - Countdown Timers
+#nop  Handles roundtime, casttime, and stun countdowns.
+#nop  Updates bottom bar text + stun/RT progress bars each tick.
+#nop =========================================================================;
+
+#class {gstin_timers} {open}
+
+#nop -- Start/restart the RT countdown tick loop --;
+#alias {gstin_start_rt_countdown} {
+    #undelay {gstin_rt_tick};
+    gstin_rt_tick;
+}
+
+#nop -- Tick the countdown once and schedule next tick --;
+#alias {gstin_rt_tick} {
+    #local {now} {0};
+    #format {now} {%T};
+    #math {now} {$now - $gstin[time][offset]};
+
+    #nop Roundtime remaining;
+    #if {$gstin[timers][rt_end] > $now} {
+        #math {gstin[timers][rt_remaining]} {$gstin[timers][rt_end] - $now};
+    } {
+        #variable {gstin[timers][rt_remaining]} {0};
+    };
+
+    #nop Casttime remaining;
+    #if {$gstin[timers][ct_end] > $now} {
+        #math {gstin[timers][ct_remaining]} {$gstin[timers][ct_end] - $now};
+    } {
+        #variable {gstin[timers][ct_remaining]} {0};
+    };
+
+    #nop Stun remaining;
+    #if {$gstin[timers][stun_end] > $now} {
+        #math {gstin[timers][stun_remaining]} {$gstin[timers][stun_end] - $now};
+    } {
+        #variable {gstin[timers][stun_remaining]} {0};
+    };
+
+    #showme {\e[?2026h} {0};
+    #variable {gstin[_sync_active]} {1};
+    gstin_render_bottom;
+    gstin_redraw_top_border;
+
+    #nop Continue ticking if any timer is active;
+    #if {$gstin[timers][rt_remaining] > 0 || $gstin[timers][ct_remaining] > 0 || $gstin[timers][stun_remaining] > 0} {
+        #delay {gstin_rt_tick} {gstin_rt_tick} {0.5};
+    };
+}
+
+#class {gstin_timers} {close}

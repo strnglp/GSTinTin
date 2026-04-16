@@ -1,0 +1,66 @@
+#nop =========================================================================;
+#nop  GSTinTin - Dark Theme Palette
+#nop  Raw color codes optimized for dark terminal backgrounds.
+#nop  Loaded by gstin.tin based on gstin[config][theme].
+#nop =========================================================================;
+
+#class {gstin_palette} {open}
+
+#nop ---- Bright foreground colors --;
+#variable {gstin[palette][bright_red]}     {<faa>}
+#variable {gstin[palette][bright_green]}   {<beb>}
+#variable {gstin[palette][bright_blue]}    {<bdf>}
+#variable {gstin[palette][bright_yellow]}  {<feb>}
+#variable {gstin[palette][bright_cyan]}    {<bfe>}
+#variable {gstin[palette][bright_magenta]} {<dbf>}
+
+#nop ---- Dark foreground colors (lighter than light-theme to read on dark bg) --;
+#variable {gstin[palette][dark_red]}       {<ebb>}
+#variable {gstin[palette][dark_green]}     {<bdb>}
+#variable {gstin[palette][dark_blue]}      {<bbe>}
+#variable {gstin[palette][dark_yellow]}    {<ddb>}
+#variable {gstin[palette][dark_cyan]}      {<bde>}
+#variable {gstin[palette][dark_magenta]}   {<dbd>}
+
+#nop ---- Accent foreground colors --;
+#variable {gstin[palette][orange]}         {<ecb>}
+#variable {gstin[palette][sky_blue]}       {<bce>}
+#variable {gstin[palette][cornflower]}     {<bce>}
+#variable {gstin[palette][turquoise]}      {<bec>}
+#variable {gstin[palette][violet]}         {<cbf>}
+
+#nop ---- Gray foreground colors --;
+#variable {gstin[palette][dim_gray]}       {<g14>}
+#variable {gstin[palette][medium_gray]}    {<g16>}
+
+#nop ---- Grayscale foreground (flipped for dark bg) --;
+#variable {gstin[palette][near_black]}     {<g22>}
+#variable {gstin[palette][charcoal]}       {<g18>}
+#variable {gstin[palette][dark_gray]}      {<g15>}
+#variable {gstin[palette][gray]}           {<g13>}
+#variable {gstin[palette][silver]}         {<g11>}
+#variable {gstin[palette][near_white]}     {<g23>}
+
+#nop ---- Bright background colors (deeper/muted for dark terminal) --;
+#variable {gstin[palette][bg_bright_red]}     {<BAA>}
+#variable {gstin[palette][bg_bright_green]}   {<ABA>}
+#variable {gstin[palette][bg_bright_blue]}    {<AAC>}
+#variable {gstin[palette][bg_bright_yellow]}  {<BBA>}
+#variable {gstin[palette][bg_bright_cyan]}    {<ABB>}
+#variable {gstin[palette][bg_bright_magenta]} {<BAB>}
+
+#nop ---- Accent background colors --;
+#variable {gstin[palette][bg_orange]}      {<BAA>}
+#variable {gstin[palette][bg_cornflower]}  {<AAB>}
+#variable {gstin[palette][bg_dark_yellow]} {<BBA>}
+
+#nop ---- Grayscale background (dark fills for dark terminal) --;
+#variable {gstin[palette][bg_charcoal]}    {<G03>}
+#variable {gstin[palette][bg_light_gray]}  {<G05>}
+
+#nop ---- Special --;
+#variable {gstin[palette][reset]}          {<099>}
+#variable {gstin[palette][bold]}           {\e[1m}
+#variable {gstin[palette][reset_all]}      {\e[0m}
+
+#class {gstin_palette} {close}

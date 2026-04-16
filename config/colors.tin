@@ -1,0 +1,152 @@
+#nop =========================================================================;
+#nop  GSTinTin - Semantic Color Configuration
+#nop  Maps UI purposes to named palette colors from config/palette_*.tin.
+#nop  To change raw colors, edit the palette files. To change what a specific
+#nop  UI element uses, change the palette reference below.
+#nop  After changing highlight colors, call gstin_apply_highlights to refresh.
+#nop =========================================================================;
+
+#class {gstin_colors} {open}
+
+#nop ==========================================================================;
+#nop  Semantic Colors
+#nop  Map UI purposes to named palette colors. To change what "danger" looks
+#nop  like everywhere, change the palette entry. To change what a specific
+#nop  element uses, change the palette reference below.
+#nop ==========================================================================;
+
+#nop ---- Chat Stream Prefix Colors --;
+#variable {gstin[colors][stream][combat]}   {$gstin[palette][dark_red]}
+#variable {gstin[colors][stream][thoughts]} {$gstin[palette][dim_gray]}
+#variable {gstin[colors][stream][lnet]}     {$gstin[palette][dark_magenta]}
+#variable {gstin[colors][stream][ooc]}      {$gstin[palette][dark_green]}
+#variable {gstin[colors][stream][death]}    {$gstin[palette][medium_gray]}
+#variable {gstin[colors][stream][logons]}   {$gstin[palette][dark_cyan]}
+#variable {gstin[colors][stream][speech]}   {$gstin[palette][bright_green]}
+#variable {gstin[colors][stream][whisper]}  {$gstin[palette][dark_magenta]}
+#variable {gstin[colors][stream][familiar]} {$gstin[palette][dark_cyan]}
+#variable {gstin[colors][stream][voln]}     {$gstin[palette][dark_blue]}
+#variable {gstin[colors][stream][assess]}   {$gstin[palette][dark_yellow]}
+#variable {gstin[colors][stream][group]}         {$gstin[palette][dark_yellow]}
+#variable {gstin[colors][stream][announcements]} {$gstin[palette][dark_yellow]}
+
+#nop ---- Vitals Bar Colors (overlay bars: bg=fill, fg=icon text) --;
+#variable {gstin[colors][vitals][hp_bg]}    {$gstin[palette][bg_bright_green]}
+#variable {gstin[colors][vitals][hp_fg]}    {$gstin[palette][bright_green]}
+#variable {gstin[colors][vitals][mn_bg]}    {$gstin[palette][bg_bright_blue]}
+#variable {gstin[colors][vitals][mn_fg]}    {$gstin[palette][bright_blue]}
+#variable {gstin[colors][vitals][st_bg]}    {$gstin[palette][bg_bright_cyan]}
+#variable {gstin[colors][vitals][st_fg]}    {$gstin[palette][bright_cyan]}
+#variable {gstin[colors][vitals][sp_bg]}    {$gstin[palette][bg_bright_yellow]}
+#variable {gstin[colors][vitals][sp_fg]}    {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][vitals][sn_bg]}    {$gstin[palette][bg_bright_magenta]}
+#variable {gstin[colors][vitals][sn_fg]}    {$gstin[palette][bright_magenta]}
+#variable {gstin[colors][vitals][stun_bg]}  {$gstin[palette][bg_bright_red]}
+#variable {gstin[colors][vitals][stun_fg]}  {$gstin[palette][bright_red]}
+#variable {gstin[colors][vitals][rt_bg]}    {$gstin[palette][bg_orange]}
+#variable {gstin[colors][vitals][rt_fg]}    {$gstin[palette][orange]}
+#variable {gstin[colors][vitals][mind_bg]}  {$gstin[palette][bg_cornflower]}
+#variable {gstin[colors][vitals][mind_fg]}  {$gstin[palette][cornflower]}
+#variable {gstin[colors][vitals][enc_bg]}   {$gstin[palette][bg_dark_yellow]}
+#variable {gstin[colors][vitals][enc_fg]}   {$gstin[palette][dark_yellow]}
+
+#nop -- Bar overlay text colors --;
+#variable {gstin[colors][vitals][fill_fg]}   {$gstin[palette][near_white]}
+#variable {gstin[colors][vitals][empty_fg]}  {$gstin[palette][charcoal]}
+#variable {gstin[colors][vitals][empty_bg]}  {$gstin[palette][bg_light_gray]}
+
+#nop ---- Injury Severity Colors --;
+#variable {gstin[colors][injury][none]}    {$gstin[palette][silver]}
+#variable {gstin[colors][injury][injury1]} {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][injury][injury2]} {$gstin[palette][orange]}
+#variable {gstin[colors][injury][injury3]} {$gstin[palette][bright_red]}
+#variable {gstin[colors][injury][scar1]}   {$gstin[palette][bright_cyan]}
+#variable {gstin[colors][injury][scar2]}   {$gstin[palette][bright_blue]}
+#variable {gstin[colors][injury][scar3]}   {$gstin[palette][bright_blue]}
+
+#nop ---- Sidebar Element Colors --;
+#variable {gstin[colors][sidebar][hands]}          {$gstin[palette][turquoise]}
+#variable {gstin[colors][sidebar][spell]}          {$gstin[palette][sky_blue]}
+#variable {gstin[colors][sidebar][stat_value]}     {$gstin[palette][bright_magenta]}
+
+#nop ---- Effects Bar Colors (right sidebar) --;
+#nop -- Per-category fill colors (bg=bar fill, fg=bar text) --;
+#variable {gstin[colors][effects][spell_bg]}    {$gstin[palette][bg_bright_blue]}
+#variable {gstin[colors][effects][spell_fg]}    {$gstin[palette][near_black]}
+#variable {gstin[colors][effects][buff_bg]}     {$gstin[palette][bg_bright_green]}
+#variable {gstin[colors][effects][buff_fg]}     {$gstin[palette][near_black]}
+#variable {gstin[colors][effects][debuff_bg]}   {$gstin[palette][bg_orange]}
+#variable {gstin[colors][effects][debuff_fg]}   {$gstin[palette][near_black]}
+#variable {gstin[colors][effects][cooldown_bg]} {$gstin[palette][bg_bright_green]}
+#variable {gstin[colors][effects][cooldown_fg]} {$gstin[palette][near_black]}
+#nop -- Urgency overrides (warning = expiring soon, expired = nearly gone) --;
+#variable {gstin[colors][effects][warning_bg]}  {$gstin[palette][bg_bright_yellow]}
+#variable {gstin[colors][effects][warning_fg]}  {$gstin[palette][near_black]}
+#variable {gstin[colors][effects][expired_bg]}  {$gstin[palette][bg_bright_red]}
+#variable {gstin[colors][effects][expired_fg]}  {$gstin[palette][near_black]}
+#nop -- Empty portion of bar --;
+#variable {gstin[colors][effects][empty_bg]}    {$gstin[palette][bg_light_gray]}
+#variable {gstin[colors][effects][empty_fg]}    {$gstin[palette][charcoal]}
+
+#nop ---- Compass Direction Colors --;
+#variable {gstin[colors][compass][active]}   {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][compass][inactive]} {$gstin[palette][dark_gray]}
+
+#nop ---- Condition Icon Colors --;
+#variable {gstin[colors][condition][poison]}   {$gstin[palette][bright_green]}
+#variable {gstin[colors][condition][disease]}  {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][condition][bleeding]} {$gstin[palette][bright_red]}
+#variable {gstin[colors][condition][dead]}     {$gstin[palette][violet]}
+#variable {gstin[colors][condition][inactive]} {$gstin[palette][dark_gray]}
+
+#nop ---- Status Indicator Colors --;
+#variable {gstin[colors][indicator][rt_active]}  {$gstin[palette][bright_red]}
+#variable {gstin[colors][indicator][rt_zero]}    {$gstin[palette][dark_gray]}
+#variable {gstin[colors][indicator][ct]}         {$gstin[palette][sky_blue]}
+#variable {gstin[colors][indicator][danger]}     {$gstin[palette][bright_red]}
+#variable {gstin[colors][indicator][hidden]}     {$gstin[palette][bright_green]}
+#variable {gstin[colors][indicator][invisible]}  {$gstin[palette][cornflower]}
+#variable {gstin[colors][indicator][posture]}    {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][indicator][webbed]}     {$gstin[palette][orange]}
+
+#nop ---- UI Chrome Colors --;
+#variable {gstin[colors][ui][section_header]} {$gstin[palette][reset_all]}
+#variable {gstin[colors][ui][header_text]}    {$gstin[palette][bold]}
+#variable {gstin[colors][ui][label_text]}     {$gstin[palette][near_black]}
+#variable {gstin[colors][ui][header_bg]}      {$gstin[palette][bg_charcoal]}
+#variable {gstin[colors][ui][header_fg]}      {$gstin[palette][near_white]}
+#variable {gstin[colors][ui][placeholder]}    {$gstin[palette][gray]}
+
+#nop ---- System Message Colors --;
+#variable {gstin[colors][system][status]}  {$gstin[palette][dark_red]}
+#variable {gstin[colors][system][warning]} {$gstin[palette][bright_red]}
+
+#nop ---- Highlight Colors --;
+#nop -- Used by features/highlights.tin. Call gstin_apply_highlights after changes --;
+#variable {gstin[colors][highlight][spell]}           {$gstin[palette][bright_blue]}
+#variable {gstin[colors][highlight][room_danger]}     {$gstin[palette][dark_red]}
+#variable {gstin[colors][highlight][personal_danger]} {$gstin[palette][bright_red]}
+#variable {gstin[colors][highlight][objects_npcs]}    {$gstin[palette][dark_yellow]}
+#variable {gstin[colors][highlight][exits]}           {$gstin[palette][cornflower]}
+#variable {gstin[colors][highlight][items_offers]}    {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][highlight][creature_status]} {$gstin[palette][dark_gray]}
+#variable {gstin[colors][highlight][chan_lnet]}        {$gstin[palette][bright_blue]}
+#variable {gstin[colors][highlight][chan_code]}        {$gstin[palette][bright_green]}
+#variable {gstin[colors][highlight][chan_private]}     {$gstin[palette][bright_cyan]}
+#variable {gstin[colors][highlight][chan_help]}        {$gstin[palette][dark_green]}
+#variable {gstin[colors][highlight][chan_merchant]}    {$gstin[palette][dark_red]}
+#variable {gstin[colors][highlight][chan_general]}     {$gstin[palette][dark_green]}
+#variable {gstin[colors][highlight][chan_shattered]}   {$gstin[palette][dark_yellow]}
+#variable {gstin[colors][highlight][lich_output]}     {$gstin[palette][bright_green]}
+#variable {gstin[colors][highlight][experience]}      {$gstin[palette][bright_green]}
+#variable {gstin[colors][highlight][player_disk]}     {$gstin[palette][sky_blue]}
+#variable {gstin[colors][highlight][player_title]}    {$gstin[palette][cornflower]}
+#variable {gstin[colors][highlight][player_name]}     {$gstin[palette][sky_blue]}
+#variable {gstin[colors][highlight][player_status]}   {$gstin[palette][orange]}
+#variable {gstin[colors][highlight][creature]}        {$gstin[palette][dark_blue]}
+#variable {gstin[colors][highlight][creature_end]}    {$gstin[palette][reset]}
+#variable {gstin[colors][highlight][direction]}       {$gstin[palette][sky_blue]}
+#variable {gstin[colors][highlight][direction_end]}   {$gstin[palette][reset]}
+
+
+#class {gstin_colors} {close}

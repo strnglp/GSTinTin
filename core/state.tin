@@ -1,0 +1,195 @@
+#nop =========================================================================;
+#nop  GSTinTin - State Initialization
+#nop  All game state lives under $gstin[...]
+#nop =========================================================================;
+
+#class {gstin_state} {open}
+
+#nop -- Vitals --;
+#variable {gstin[vitals][health][current]}   {0}
+#variable {gstin[vitals][health][max]}       {0}
+#variable {gstin[vitals][health][value]}     {0}
+#variable {gstin[vitals][mana][current]}     {0}
+#variable {gstin[vitals][mana][max]}         {0}
+#variable {gstin[vitals][mana][value]}       {0}
+#variable {gstin[vitals][spirit][current]}   {0}
+#variable {gstin[vitals][spirit][max]}       {0}
+#variable {gstin[vitals][spirit][value]}     {0}
+#variable {gstin[vitals][stamina][current]}  {0}
+#variable {gstin[vitals][stamina][max]}      {0}
+#variable {gstin[vitals][stamina][value]}    {0}
+#variable {gstin[vitals][stance][value]}     {0}
+#variable {gstin[vitals][mind][value]}       {0}
+#variable {gstin[vitals][mind][text]}        {}
+#variable {gstin[vitals][encumbrance][value]} {0}
+#variable {gstin[vitals][encumbrance][text]} {}
+
+#nop -- Timers --;
+#variable {gstin[timers][rt_end]}          {0}
+#variable {gstin[timers][ct_end]}          {0}
+#variable {gstin[timers][rt_remaining]}    {0}
+#variable {gstin[timers][ct_remaining]}    {0}
+#variable {gstin[timers][stun_end]}        {0}
+#variable {gstin[timers][stun_remaining]}  {0}
+#variable {gstin[timers][rt_max]}          {0}
+#variable {gstin[timers][stun_max]}        {20}
+
+#nop -- Prompt and time sync --;
+#variable {gstin[prompt][text]}    {}
+#variable {gstin[prompt][time]}    {0}
+#variable {gstin[time][offset]}    {0}
+
+#nop -- Compass directions --;
+#variable {gstin[compass][n]}   {0}
+#variable {gstin[compass][ne]}  {0}
+#variable {gstin[compass][e]}   {0}
+#variable {gstin[compass][se]}  {0}
+#variable {gstin[compass][s]}   {0}
+#variable {gstin[compass][sw]}  {0}
+#variable {gstin[compass][w]}   {0}
+#variable {gstin[compass][nw]}  {0}
+#variable {gstin[compass][up]}  {0}
+#variable {gstin[compass][down]}{0}
+#variable {gstin[compass][out]} {0}
+
+#nop -- Hand items and spell --;
+#variable {gstin[hands][left]}  {Empty}
+#variable {gstin[hands][right]} {Empty}
+#variable {gstin[spell]}        {None}
+
+#nop -- Indicators --;
+#variable {gstin[indicators][STUNNED]}   {n}
+#variable {gstin[indicators][BLEEDING]}  {n}
+#variable {gstin[indicators][POISONED]}  {n}
+#variable {gstin[indicators][DISEASED]}  {n}
+#variable {gstin[indicators][STANDING]}  {y}
+#variable {gstin[indicators][KNEELING]}  {n}
+#variable {gstin[indicators][SITTING]}   {n}
+#variable {gstin[indicators][PRONE]}     {n}
+#variable {gstin[indicators][JOINED]}    {n}
+#variable {gstin[indicators][HIDDEN]}    {n}
+#variable {gstin[indicators][INVISIBLE]} {n}
+#variable {gstin[indicators][DEAD]}      {n}
+#variable {gstin[indicators][WEBBED]}    {n}
+
+#nop -- Injuries: 0=none, Injury1-3=wound, Scar1-3=scar --;
+#variable {gstin[injuries][head]}      {}
+#variable {gstin[injuries][neck]}      {}
+#variable {gstin[injuries][chest]}     {}
+#variable {gstin[injuries][abdomen]}   {}
+#variable {gstin[injuries][back]}      {}
+#variable {gstin[injuries][leftArm]}   {}
+#variable {gstin[injuries][rightArm]}  {}
+#variable {gstin[injuries][leftHand]}  {}
+#variable {gstin[injuries][rightHand]} {}
+#variable {gstin[injuries][leftLeg]}   {}
+#variable {gstin[injuries][rightLeg]}  {}
+#variable {gstin[injuries][leftEye]}   {}
+#variable {gstin[injuries][rightEye]}  {}
+#variable {gstin[injuries][nsys]}      {}
+
+#nop -- Room info --;
+#variable {gstin[room][title]}   {}
+#variable {gstin[room][desc]}    {}
+#variable {gstin[room][objects]} {}
+#variable {gstin[room][players]} {}
+#variable {gstin[room][exits]}   {}
+
+#nop -- Mapper ready flag (set when we first see a (uNNNNN) lich ID) --;
+#variable {gstin[_mapper_ready]} {0}
+
+#nop -- Setup complete flag (set when endSetup received) --;
+#variable {gstin[_setup_done]} {0}
+
+#nop -- Cached border string --;
+#variable {gstin[_cached_border]} {}
+
+#nop -- Pending resize flag (0=no resize needed) --;
+#variable {gstin[_resize_needed]} {0}
+
+#nop -- Pending split flag (defers #split to render phase) --;
+#variable {gstin[_split_needed]} {0}
+
+#nop -- Render pending flag (prevents effects/full render race) --;
+#variable {gstin[_render_pending]} {0}
+
+#nop -- Story showme re-entry guard (prevents RECEIVED LINE loop) --;
+#variable {gstin[_showing_story]} {0}
+
+#nop -- Spacing debug log (toggle with gstin_spacelog alias) --;
+#variable {gstin[_spacelog]} {0}
+
+#nop -- Sync output active flag (end-sync writes to row 2 not row 0) --;
+#variable {gstin[_sync_active]} {0}
+
+#nop -- Previous-state cache for dirty-checking vitals redraws --;
+#variable {gstin[_prev][header]}     {0}
+#variable {gstin[_prev][body]}       {_}
+#variable {gstin[_prev][vitals]}     {_}
+#variable {gstin[_prev][mind]}       {_}
+#variable {gstin[_prev][enc]}        {_}
+#variable {gstin[_prev][conditions]} {_}
+#variable {gstin[_prev][spell]}      {_}
+#variable {gstin[_prev][hands]}      {_}
+#variable {gstin[_prev][bottom]}     {_}
+
+#nop -- Stream state --;
+#variable {gstin[stream][current]} {}
+
+#nop -- Message spacing state --;
+#variable {gstin[_prompt_space]} {0}
+#variable {gstin[_has_content]} {0}
+
+#nop -- Experience tracking --;
+#variable {gstin[exp]} {}
+#variable {gstin[exp_current_skill]} {}
+
+#nop -- Active spells --;
+#variable {gstin[spells]} {}
+
+#nop -- Effects (parsed from dialogData) --;
+#variable {gstin[effects]} {}
+#variable {gstin[effects_order]} {}
+#variable {gstin[effects_raw]} {}
+#variable {gstin[effects_deleted]} {}
+#variable {gstin[_effects_prev]} {}
+#variable {gstin[_effects_changed]} {0}
+
+
+
+#nop -- UI layout dimensions (calculated at startup and on resize) --;
+#variable {gstin[ui][rows]}           {0}
+#variable {gstin[ui][cols]}           {0}
+#variable {gstin[ui][left_w]}         {0}
+#variable {gstin[ui][right_w]}        {0}
+#variable {gstin[ui][right_col]}      {0}
+#variable {gstin[ui][right_active]}   {0}
+#variable {gstin[ui][bar_top]}        {0}
+#variable {gstin[ui][bar_bot]}        {0}
+
+#nop -- Status area layout positions (set by gstin_calc_status_layout) --;
+#variable {gstin[ui][status_row]}     {0}
+#variable {gstin[ui][body_col]}       {0}
+#variable {gstin[ui][bar_icon_col]}   {0}
+
+#nop -- Chat buffer --;
+#variable {gstin[chat][raw]}   {}
+#variable {gstin[chat][lines]} {}
+#variable {gstin[chat][scroll]} {0}
+#variable {gstin[_prev][chat]} {_}
+#variable {gstin[_chat_dirty]} {0}
+
+#nop -- Streams routed to chat sidebar --;
+#variable {gstin[stream_chat][thoughts]} {1}
+#variable {gstin[stream_chat][lnet]}     {1}
+#variable {gstin[stream_chat][ooc]}      {1}
+#variable {gstin[stream_chat][speech]}   {1}
+#variable {gstin[stream_chat][whisper]}  {1}
+#variable {gstin[stream_chat][familiar]} {1}
+#variable {gstin[stream_chat][voln]}     {1}
+#variable {gstin[stream_chat][group]}    {1}
+#variable {gstin[stream_chat][logons]}   {1}
+#variable {gstin[stream_chat][death]}         {1}
+#variable {gstin[stream_chat][announcements]} {1}
+
+#class {gstin_state} {close}

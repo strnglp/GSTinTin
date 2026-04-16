@@ -1,0 +1,55 @@
+#nop =========================================================================;
+#nop  GSTinTin - TinTin++ Frontend for GemStone IV via lich-5
+#nop
+#nop  Usage (detachable mode):
+#nop    Terminal 1: ruby lich.rbw --login CharName --detachable-client=8000 --without-frontend --gemstone &
+#nop    Terminal 2: cd /path/to/GSTinTin && tt++ gstin.tin
+#nop
+#nop  Commands:
+#nop    gstin_state      - Show parsed game state
+#nop    gstin_exp        - Show experience tracking
+#nop    gstin_injuries   - Show injury status
+#nop    gstin_redraw     - Force redraw status bar
+#nop    gstin_connect    - Reconnect to lich-5
+#nop =========================================================================;
+
+#config {command echo} {on}
+#config {speedwalk} {off}
+#config {color patch} {off}
+
+#nop -- Load all modules into the global session (gts) --;
+
+#nop -- Configuration --;
+#read {config/settings.tin}
+#read {config/palette_$gstin[config][theme].tin}
+#read {config/colors.tin}
+
+#nop -- Core --;
+#read {core/state.tin}
+#read {core/connection.tin}
+#read {core/xml_parser.tin}
+#read {core/streams.tin}
+
+#nop -- UI --;
+#read {ui/layout.tin}
+#read {ui/vitals.tin}
+#read {ui/room_stream.tin}
+#read {ui/timers.tin}
+
+#nop -- Features --;
+#read {features/highlights.tin}
+#read {features/gags.tin}
+#read {features/macros.tin}
+
+#nop -- Load per-character config if char_name is set --;
+#if {"$gstin[config][char_name]" != ""} {
+    #script {_charfile_exists} {test -f config/char/$gstin[config][char_name].tin && echo 1 || echo 0};
+    #if {"$_charfile_exists[1]" == "1"} {
+        #read {config/char/$gstin[config][char_name].tin};
+        #showme {$gstin[colors][system][status]--- Loaded character config: $gstin[config][char_name]<099>};
+        gstin_apply_highlights;
+    };
+}
+
+#showme {$gstin[colors][system][status]--- GSTinTin loaded. Connecting to lich-5...<099>}
+gstin_connect

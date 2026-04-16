@@ -1,0 +1,106 @@
+#nop =========================================================================;
+#nop  GSTinTin - Highlights
+#nop  Using TinTin++ native patterns (not PCRE regex).
+#nop  %* = wildcard, %w = word, %d = digit, %s = space
+#nop  Colors are defined in config/colors.tin. Call gstin_apply_highlights
+#nop  after changing highlight colors to refresh.
+#nop =========================================================================;
+
+#nop -- Alias to (re)apply all highlights from color variables --;
+#alias {gstin_apply_highlights} {
+    #class {gstin_highlights} {kill};
+    #class {gstin_highlights} {open};
+
+    #nop ---- Room name --;
+    #highlight {^[%*]$} {bold};
+
+    #nop ---- Spell casting ----;
+    #highlight {You gesture%*} {$gstin[colors][highlight][spell]};
+    #highlight {You intone a phrase%*} {$gstin[colors][highlight][spell]};
+    #highlight {You recite a series%*} {$gstin[colors][highlight][spell]};
+    #highlight {You trace a%*} {$gstin[colors][highlight][spell]};
+    #highlight {Your hands glow with power%*} {$gstin[colors][highlight][spell]};
+    #highlight {Cast Roundtime 3 Seconds.} {$gstin[colors][highlight][spell]};
+    #highlight {Your spell is ready.} {$gstin[colors][highlight][spell]};
+    #highlight {%*remaining. ]} {$gstin[colors][highlight][spell]};
+
+    #nop ---- Creature death ----;
+    #highlight {%*falls to the ground dead%*} {bold};
+    #highlight {%*and dies.} {bold};
+    #highlight {%*and lies still.} {bold};
+    #highlight {%*goes still.} {bold};
+    #highlight {%*going still.} {bold};
+    #highlight {%*falls to the ground motionless%*} {bold};
+    #highlight {%* is stunned!} {bold};
+    #highlight {You come out of hiding.} {bold};
+
+    #nop ---- Danger ----;
+    #highlight {%*ruining your hiding place.} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You are no longer hidden.} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You are stunned%*} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You are knocked to the ground%*} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You are unable to remain hidden!} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You are visible again.} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You fade into sight.} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You feel drained!} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You have overextended yourself!} {$gstin[colors][highlight][personal_danger]};
+    #highlight {You feel yourself going into shock!} {$gstin[colors][highlight][personal_danger]};
+
+    #nop ---- Dangerous AoE ----;
+    #highlight {%*throws his arms skyward!} {$gstin[colors][highlight][room_danger]};
+    #highlight {%*throws her arms skyward!} {$gstin[colors][highlight][room_danger]};
+    #highlight {swirling black void} {$gstin[colors][highlight][room_danger]};
+    #highlight {flaming meteors} {$gstin[colors][highlight][room_danger]};
+
+    #nop ---- Channel tags (tag only, not full line) ----;
+    #highlight {[LNet]} {$gstin[colors][highlight][chan_lnet]};
+    #highlight {[code]} {$gstin[colors][highlight][chan_code]};
+    #highlight {[Private%*]} {$gstin[colors][highlight][chan_private]};
+    #highlight {[Help]} {$gstin[colors][highlight][chan_help]};
+    #highlight {[Merchant]} {$gstin[colors][highlight][chan_merchant]};
+    #highlight {[General]} {$gstin[colors][highlight][chan_general]};
+    #highlight {[Shattered]} {$gstin[colors][highlight][chan_shattered]};
+
+    #nop ---- Lich output ----;
+    #highlight {--- Lich:%*} {$gstin[colors][highlight][lich_output]};
+
+    #nop ---- Creature status conditions ----;
+    #highlight {(calmed)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(dead)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(flying)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(hiding)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(kneeling)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(prone)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(sitting)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(sleeping)} {$gstin[colors][highlight][creature_status]};
+    #highlight {(stunned)} {$gstin[colors][highlight][creature_status]};
+
+    #nop ---- Player disks ----;
+    #nop #highlight {%w disk} {$gstin[colors][highlight][player_disk]};
+
+    #nop ---- Item offers ----;
+    #highlight {%*offers you %*Click ACCEPT%*} {$gstin[colors][highlight][items_offers]};
+    #highlight {%*just gave you %* coin%*} {$gstin[colors][highlight][items_offers]};
+
+    #nop ---- Experience gain ----;
+    #highlight {Your recent adventures echo powerfully%*} {$gstin[colors][highlight][experience]};
+
+    #nop ---- Custom highlights (highest priority) ----;
+    #if {&gstin[custom_highlights][] > 0} {
+        #foreach {*gstin[custom_highlights][]} {_group} {
+            #local {_color} {$gstin[custom_highlights][$_group][color]};
+            #if {&gstin[custom_highlights][$_group][bg_color] > 0} {
+                #local {_color} {$gstin[custom_highlights][$_group][color]$gstin[custom_highlights][$_group][bg_color]};
+            };
+            #foreach {$gstin[custom_highlights][$_group][patterns]} {_pattern} {
+                #format {_cmd} {#substitute {%s} {%s%s<099>} {1}} {$_pattern} {$_color} {$_pattern};
+                $_cmd;
+            };
+        };
+    };
+
+    #class {gstin_highlights} {close};
+}
+
+#nop -- Apply highlights on load --;
+gstin_apply_highlights;

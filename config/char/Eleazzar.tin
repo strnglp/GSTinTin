@@ -1,0 +1,30 @@
+#nop =========================================================================;
+#nop  Per-character config for Eleazzar
+#nop =========================================================================;
+
+#class {gstin_char_eleazzar} {open}
+
+#nop -- Character-specific highlights --;
+#nop ---- Custom Highlights (highest priority, override all defaults) --;
+#nop -- Define groups with a color and semicolon-separated patterns.          --;
+#nop -- Patterns match as substrings — just the matched text gets colored.    --;
+#nop -- Call gstin_apply_highlights after changes.                            --;
+#nop --                                                                       --;
+#nop -- Example:                                                              --;
+#nop --   #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]} --;
+#nop --   #variable {gstin[custom_highlights][friends][bg_color]} {$gstin[palette][bg_light_gray]} --;
+#nop --   #variable {gstin[custom_highlights][friends][patterns]} {Gandalf;Legolas;Aragorn}      --;
+#nop --   #variable {gstin[custom_highlights][enemies][color]}    {$gstin[palette][bright_red]}   --;
+#nop --   #variable {gstin[custom_highlights][enemies][patterns]} {Sauron;Saruman}               --;
+
+#variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][dark_green]}
+#variable {gstin[custom_highlights][oel][bg_color]}  {$gstin[palette][bg_light_gray]}
+#variable {gstin[custom_highlights][oel][patterns]} {Eleazzar;Calphion;Bakarus;Zeminar;Aenternoll;Meliyara;Tikba;Berean;Missoni;Khiya;Palau;Tolwynn;Traiva;Alisaire;Raelee;Xorus;Lylia;Stormyrain;Thrassus;Blades;Issiah;Hadya;Naamit;Maylan;Drazaa;Peatwyn;Mosonri}
+
+#variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
+#variable {gstin[custom_highlights][friends][patterns]} {Eleazzar;Calphion;Malhander,Raelik,Nikolaii;Aerocus;Darphin;Sythana;Fayotae;Myharl;Jastalyn;Parwyn}
+#nop -- Character-specific macros --;
+
+#nop -- Character-specific gags --;
+
+#class {gstin_char_eleazzar} {close}
