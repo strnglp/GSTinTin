@@ -162,4 +162,17 @@
     #showme {$gstin[colors][system][status]--- UI redrawn<099>};
 }
 
+#nop -- Toggle spells sidebar (Ctrl+S) --;
+#macro {\x13} {
+    #if {$gstin[ui][right_active] == 1} {
+        gstin_effects_stop_ticker;
+        gstin_hide_right_sidebar;
+        #showme {$gstin[colors][system][status]--- Spells sidebar: OFF<099>};
+    } {
+        gstin_show_right_sidebar;
+        gstin_effects_start_ticker;
+        #showme {$gstin[colors][system][status]--- Spells sidebar: ON<099>};
+    };
+}
+
 #class {gstin_macros} {close}
