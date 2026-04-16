@@ -33,6 +33,19 @@
     };
 } {1}
 
+#nop -- Decode XML entities in gstin[_rl] to safe marker tokens --;
+#nop -- Uses flat var + #line substitute {none} to prevent & mangling by SUB_VAR --;
+#nop -- \\; matches escaped semicolons (RECEIVED LINE stores ; as \; internally) --;
+#alias {gstin_decode_entities} {
+    #variable {_edtmp} {$gstin[_rl]};
+    #line substitute {none} {#replace {_edtmp} {&amp\\;}  {GSAMPMARK}};
+    #line substitute {none} {#replace {_edtmp} {&gt\\;}   {GSGTMARK}};
+    #line substitute {none} {#replace {_edtmp} {&lt\\;}   {GSLTMARK}};
+    #line substitute {none} {#replace {_edtmp} {&quot\\;}  {GSQUOTMARK}};
+    #line substitute {none} {#replace {_edtmp} {&apos\\;}  {GSAPOSMARK}};
+    #variable {gstin[_rl]} {$_edtmp};
+}
+
 #nop -- Generic XML gag helper: strip tags, show remaining text, gag line --;
 #nop -- Call from #regexp body as: gstin_gag_xml; #return --;
 #nop -- Reads gstin[_gag_line] which must be set to $_line before gag section --;
@@ -56,12 +69,12 @@
     #replace {_stripped} {<inv{[^>]*}>{.*}</inv>} {};
     #nop Step 2: strip remaining tags (self-closing and display wrappers);
     #replace {_stripped} {<{[^>]+}>} {};
-    #nop Step 3: decode XML entities;
-    #replace {_stripped} {&amp;} {&};
-    #replace {_stripped} {&gt;} {>};
-    #replace {_stripped} {&lt;} {<};
-    #replace {_stripped} {&quot;} {"};
-    #replace {_stripped} {&apos;} {'};
+    #nop Step 3: resolve entity markers to final characters;
+    #replace {_stripped} {GSAMPMARK}  {&&};
+    #replace {_stripped} {GSGTMARK}   {>};
+    #replace {_stripped} {GSLTMARK}   {<};
+    #replace {_stripped} {GSQUOTMARK} {"};
+    #replace {_stripped} {GSAPOSMARK} {'};
     #format {_stripped} {%p} {$_stripped};
     #local {_slen} {0};
     #format {_slen} {%L} {$_stripped};
@@ -474,6 +487,12 @@
     #if {$gstin[rawlog] == 1} {
         #line log {/tmp/gstin_raw.log} {$_line};
     };
+
+    #nop -- Decode XML entities to safe markers early in the pipeline --;
+    #nop -- Markers survive all processing and resolve to real chars at display time --;
+    #variable {gstin[_rl]} {$_line};
+    gstin_decode_entities;
+    #local {_line} {$gstin[_rl]};
 
     #nop -- Detect endSetup marker: server init burst is complete --;
     #nop -- Gag all lines before endSetup to suppress init burst from display --;
@@ -1168,6 +1187,11 @@
     #nop -- set has_content (prevents double-spacing from server blank lines) --;
     #local {_vis} {$_line};
     #replace {_vis} {<{[^>]+}>} {};
+    #replace {_vis} {GSAMPMARK}  {&&};
+    #replace {_vis} {GSGTMARK}   {>};
+    #replace {_vis} {GSLTMARK}   {<};
+    #replace {_vis} {GSQUOTMARK} {"};
+    #replace {_vis} {GSAPOSMARK} {'};
     #format {_vis} {%p} {$_vis};
     #local {_vlen} {0};
     #format {_vlen} {%L} {$_vis};

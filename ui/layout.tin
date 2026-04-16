@@ -304,12 +304,8 @@ gstin_calc_status_layout;
     #local {_vn} {%1};
     #local {_ctx} {%2};
 
-    #nop -- Entity unescaping (before XML stripping so < > dont form false tags) --;
-    #replace {$_vn} {&amp;} {GXAMP};
-    #replace {$_vn} {&gt;} {GXEGT};
-    #replace {$_vn} {&lt;} {GXELT};
-    #replace {$_vn} {&quot;} {GXQUO};
-    #replace {$_vn} {&apos;} {GXAPO};
+    #nop -- Entity markers (GSLTMARK etc) injected in RECEIVED LINE --;
+    #nop -- No entity decoding needed here -- markers pass through XML stripping --;
 
     #nop -- Strip semantic tags to placeholders (no action suffix colorizing) --;
     #replace {$_vn} {</a>}          {GXRST};
@@ -387,12 +383,12 @@ gstin_calc_status_layout;
     #replace {$_vn} {GXWSP} {$gstin[colors][stream][whisper]};
     #replace {$_vn} {GXTHT} {$gstin[colors][stream][thoughts]};
 
-    #nop -- Resolve entity placeholders --;
-    #replace {$_vn} {GXAMP} {&};
-    #replace {$_vn} {GXEGT} {>};
-    #replace {$_vn} {GXELT} {<};
-    #replace {$_vn} {GXQUO} {"};
-    #replace {$_vn} {GXAPO} {'};
+    #nop -- Resolve entity markers to final characters --;
+    #replace {$_vn} {GSAMPMARK}  {&&};
+    #replace {$_vn} {GSGTMARK}   {>};
+    #replace {$_vn} {GSLTMARK}   {<};
+    #replace {$_vn} {GSQUOTMARK} {"};
+    #replace {$_vn} {GSAPOSMARK} {'};
 }
 
 #nop -- Count wrapped lines needed for a text string --;
