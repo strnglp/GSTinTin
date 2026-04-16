@@ -257,12 +257,15 @@
     gstin_effects_rebuild_deleted {cooldown};
 
     #nop -- Show/hide sidebar based on whether we have any effects --;
+    #nop -- Respect user toggle (Ctrl+S): dont auto-show if disabled --;
     #local {_esz} {0};
     #list {gstin[effects_order]} {size} {_esz};
     #if {$_esz > 0} {
-        gstin_show_right_sidebar;
-        gstin_request_effects_render;
-        gstin_effects_start_ticker;
+        #if {$gstin[ui][right_disabled] != 1} {
+            gstin_show_right_sidebar;
+            gstin_request_effects_render;
+            gstin_effects_start_ticker;
+        };
     } {
         gstin_effects_stop_ticker;
         gstin_hide_right_sidebar;
@@ -300,7 +303,7 @@
         #if {$_rw < 10} {#local {_rw} {32}};
         #local {_bar_w} {0};
         #math {_bar_w} {$_rw - 2};
-        #local {_timer_w} {10};
+        #local {_timer_w} {8};
         #local {_max_name} {0};
         #math {_max_name} {$_bar_w - $_timer_w};
 
@@ -316,20 +319,26 @@
             #replace {_dname} {u} {};
         };
 
-        #nop -- Format time string with zero-padded components --;
+        #nop -- Format time: [MM:SS] under 1min, [HH:MM] otherwise (avoids per-second redraws) --;
         #local {_h} {0};
         #local {_m} {0};
         #local {_s} {0};
         #math {_h} {$_remaining / 3600};
         #math {_m} {($_remaining % 3600) / 60};
         #math {_s} {$_remaining % 60};
-        #local {_hs} {$_h};
-        #local {_ms} {$_m};
-        #local {_ss} {$_s};
-        #if {$_h < 10} {#local {_hs} {0$_h}};
-        #if {$_m < 10} {#local {_ms} {0$_m}};
-        #if {$_s < 10} {#local {_ss} {0$_s}};
-        #local {_ts} {[${_hs}:${_ms}:${_ss}]};
+        #if {$_remaining < 60} {
+            #local {_ms} {$_m};
+            #local {_ss} {$_s};
+            #if {$_m < 10} {#local {_ms} {0$_m}};
+            #if {$_s < 10} {#local {_ss} {0$_s}};
+            #local {_ts} {[${_ms}:${_ss}s]};
+        } {
+            #local {_hs} {$_h};
+            #local {_ms} {$_m};
+            #if {$_h < 10} {#local {_hs} {0$_h}};
+            #if {$_m < 10} {#local {_ms} {0$_m}};
+            #local {_ts} {[${_hs}:${_ms}m]};
+        };
 
         #nop -- Dot-pad gap between name and timer (preserve spaces in name) --;
         #format {_nlen} {%L} {$_dname};
@@ -1084,8 +1093,6 @@
             };
             gstin_chat_add {$gstin[colors][stream][$_stream]} {$_line};
             #screen cursor hide;
-            #showme {\e[?2026h} {1} {1};
-            #variable {gstin[_sync_active]} {1};
             gstin_render_chat;
             gstin_redraw_top_border;
             #line gag;

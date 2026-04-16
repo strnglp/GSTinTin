@@ -119,8 +119,10 @@
 #nop -- Spacing debug log (toggle with gstin_spacelog alias) --;
 #variable {gstin[_spacelog]} {0}
 
-#nop -- Sync output active flag (end-sync writes to row 2 not row 0) --;
-#variable {gstin[_sync_active]} {0}
+#nop -- Bar rendering helpers --;
+#variable {gstin[_bar_str]} {}
+#variable {gstin[_bar_noshow]} {0}
+#variable {gstin[_draw_count]} {0}
 
 #nop -- Previous-state cache for dirty-checking vitals redraws --;
 #variable {gstin[_prev][header]}     {0}
@@ -164,6 +166,10 @@
 #variable {gstin[ui][right_w]}        {0}
 #variable {gstin[ui][right_col]}      {0}
 #variable {gstin[ui][right_active]}   {0}
+#variable {gstin[ui][right_disabled]} {0}
+
+#nop -- Per-row dirty cache for right sidebar (cleared on resize/toggle) --;
+#variable {gstin[_prev_rbar]} {}
 #variable {gstin[ui][bar_top]}        {0}
 #variable {gstin[ui][bar_bot]}        {0}
 

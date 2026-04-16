@@ -61,6 +61,7 @@ gstin_calc_status_layout;
         #math {gstin[ui][bar_top]} {$gstin[ui][top_size] + 1};
         #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
         #variable {gstin[_split_needed]} {1};
+        #variable {gstin[_prev_rbar]} {};
         gstin_request_render;
     };
 }
@@ -81,6 +82,7 @@ gstin_calc_status_layout;
         #math {gstin[ui][bar_top]} {$gstin[ui][top_size] + 1};
         #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
         #variable {gstin[_split_needed]} {1};
+        #variable {gstin[_prev_rbar]} {};
         gstin_request_render;
     };
 }
@@ -97,20 +99,18 @@ gstin_calc_status_layout;
 }
 
 #nop -- Helper: draw text in right sidebar at given row --;
-#nop -- Starts 1 col inside the border and truncates to preserve the split bar --;
+#nop -- Draws │ border + content in a single #showme to reduce draw calls --;
 #alias {gstin_drawright} {
     #if {$gstin[ui][right_w] < 4 || $gstin[ui][right_col] < 1} {#return};
     #local {_row} {%1};
     #local {_txt} {%2};
-    #local {_col} {0};
-    #math {_col} {$gstin[ui][right_col] + 1};
     #local {_w} {0};
     #math {_w} {$gstin[ui][right_w] - 2};
     #local {_endcol} {0};
-    #math {_endcol} {$_col + $_w - 1};
+    #math {_endcol} {$gstin[ui][right_col] + $_w};
     #if {$_endcol > $gstin[ui][cols] || $_row > $gstin[ui][rows]} {#return};
     #format {_txt} {%-${_w}.${_w}s} {$_txt};
-    #showme {${_txt}<099>} {${_row}} {${_col}};
+    #showme {│${_txt}<099>} {${_row}} {$gstin[ui][right_col]};
 }
 
 #nop -- Helper: draw text on full-width row using {row} parameter --;
@@ -606,15 +606,8 @@ gstin_calc_status_layout;
             #replace {_pad} { } {─};
             #variable {gstin[_cached_border]} {┌${_pad}┐};
         };
-    #nop -- End synchronized output if sync block is active --;
-    #nop -- Appended to border showme so it goes to row 1 (not {0} which clears row 1) --;
-    #if {$gstin[_sync_active] == 1} {
-        #showme {$gstin[_cached_border]\e[?2026l} {1} {1};
-        #variable {gstin[_sync_active]} {0};
-        #screen cursor show;
-    } {
-        #showme {$gstin[_cached_border]} {1} {1};
-    };
+    #showme {$gstin[_cached_border]} {1} {1};
+    #screen cursor show;
 }
 
 #nop -- Redraw the bottom border of the room box --;
@@ -748,7 +741,17 @@ gstin_calc_status_layout;
         #local {_fg} {$gstin[colors][effects][expired_fg]};
     };
 
+    #nop -- Build bar string then draw │+bar in one #showme to halve draw calls --;
+    #nop -- Per-row dirty check: skip #showme if bar output is unchanged --;
+    #variable {gstin[_bar_noshow]} {1};
     gstin_draw_bar {$_row} {$_col} {$_ce} {$_ecur} {$_emax} {$_bg} {$_label} {$gstin[colors][effects][empty_bg]} {$_fg} {$gstin[colors][effects][empty_fg]};
+    #variable {gstin[_bar_noshow]} {0};
+    #if {"$gstin[_bar_str]" != "$gstin[_prev_rbar][$_row]"} {
+        #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+        #showme {│$gstin[_bar_str]<099>} {${_row}} {$gstin[ui][right_col]};
+        #variable {gstin[_prev_rbar][$_row]} {$gstin[_bar_str]};
+        #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+    };
 }
 
 #nop -- Helper: draw a section header in the right sidebar --;
@@ -773,12 +776,19 @@ gstin_calc_status_layout;
     #loop {1} {$_fill_w} {_fi} {
         #local {_fill} {${_fill}─};
     };
-    gstin_status_at {$_row} {$gstin[ui][right_col]} {$gstin[colors][ui][section_header]${_hdr_text}${_fill}\e[0m};
+    #local {_snap} {hdr:$_label:$_row};
+    #if {"$_snap" != "$gstin[_prev_rbar][$_row]"} {
+        #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+        gstin_status_at {$_row} {$gstin[ui][right_col]} {$gstin[colors][ui][section_header]${_hdr_text}${_fill}\e[0m};
+        #variable {gstin[_prev_rbar][$_row]} {$_snap};
+        #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+    };
 }
 
 #nop -- Render effects (from dialogData) in right sidebar --;
 #nop -- Dynamic sections: each category (spell/buff/debuff/cooldown) gets its own --;
 #nop -- header and bars, only shown when that category has active entries --;
+#nop -- Per-row dirty check: only redraws rows whose content actually changed --;
 #alias {gstin_render_spells} {
     #if {$gstin[ui][right_active] == 0} {#return};
     #nop -- Bounds check: skip if right sidebar would exceed terminal width --;
@@ -794,13 +804,6 @@ gstin_calc_status_layout;
     #math {_col} {$gstin[ui][right_col] + 1};
     #local {_ce} {0};
     #math {_ce} {$_col + $_w - 1};
-
-    #nop -- Redraw border column as │ (clears stale ├ from removed headers) --;
-    #local {_br} {$_row};
-    #while {$_br <= $_max_row} {
-        gstin_status_at {$_br} {$gstin[ui][right_col]} {│};
-        #math {_br} {$_br + 1};
-    };
 
     #nop -- Split effects_order into 4 category lists --;
     #variable {gstin[_cat_spell]} {};
@@ -876,16 +879,18 @@ gstin_calc_status_layout;
             #math {_ci} {$_ci + 1};
         };
         #if {$_spell_cnt > $_spell_bar_budget} {
-            gstin_drawright {$_cr} {${_htc}[More...]\e[0m};
+            #if {"$gstin[_prev_rbar][$_cr]" != "more"} {
+                #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+                gstin_drawright {$_cr} {${_htc}[More...]\e[0m};
+                #variable {gstin[_prev_rbar][$_cr]} {more};
+                #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+            };
             #math {_cr} {$_cr + 1};
         };
     };
 
-    #nop -- Clear gap between spells and bottom sections --;
-    #while {$_cr < $_bottom_start} {
-        gstin_drawright {$_cr} {};
-        #math {_cr} {$_cr + 1};
-    };
+    #nop -- Track end of spell section for gap clearing below --;
+    #local {_spell_end} {$_cr};
 
     #nop -- Render bottom-anchored categories (never truncated) --;
     #local {_cr} {$_bottom_start};
@@ -928,23 +933,29 @@ gstin_calc_status_layout;
             #math {_ci} {$_ci + 1};
         };
     };
+
+    #nop -- Clear gap rows only where content previously existed --;
+    #local {_gap} {$_spell_end};
+    #while {$_gap < $_bottom_start} {
+        #if {"$gstin[_prev_rbar][$_gap]" != "blank"} {
+            #if {$gstin[_draw_count] == 0} {#screen cursor hide};
+            gstin_drawright {$_gap} {};
+            #variable {gstin[_prev_rbar][$_gap]} {blank};
+            #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
+        };
+        #math {_gap} {$_gap + 1};
+    };
+    #nop -- prev_rbar cache now tracks per-row state --;
 }
 
 #nop -- Master redraw --;
-#nop -- Wrapped in synchronized output (\e[?2026h/l) so the terminal --;
-#nop -- buffers all draws and paints atomically — eliminates row 1 flicker --;
+#nop -- Cursor hide/show wraps all draws to prevent cursor flicker --;
 #alias {gstin_render_all} {
     #variable {gstin[_render_pending]} {0};
     #undelay {gstin_effects_tick};
-    #nop -- Prepare room data and detect resize need --;
     gstin_prepare_room_info;
-    #nop -- Apply resize BEFORE sync block (split forces full repaint) --;
     gstin_apply_resize;
-    #nop -- Now render atomically --;
-    #nop -- Hide cursor to prevent flicker, sync output for atomic repaint --;
     #screen cursor hide;
-    #showme {\e[?2026h} {1} {1};
-    #variable {gstin[_sync_active]} {1};
     gstin_render_room_info;
     #if {$gstin[ui][right_active] == 1} {gstin_render_spells};
     gstin_render_status;
@@ -974,11 +985,12 @@ gstin_calc_status_layout;
             #return;
         };
         #if {$gstin[_render_pending] != 1} {
-            #screen cursor hide;
-            #showme {\e[?2026h} {1} {1};
-            #variable {gstin[_sync_active]} {1};
+            #variable {gstin[_draw_count]} {0};
             gstin_render_spells;
-            gstin_redraw_top_border;
+            #nop -- Cursor was hidden by render_spells on first draw --;
+            #if {$gstin[_draw_count] > 0} {
+                #screen cursor show;
+            };
         };
     } {0.05};
 }
@@ -1007,6 +1019,7 @@ gstin_calc_status_layout;
         gstin_calc_status_layout;
         gstin_chat_rewrap;
         #variable {gstin[_chat_dirty]} {1};
+        #variable {gstin[_prev_rbar]} {};
         gstin_render_all;
         #buffer end;
     } {0.2};

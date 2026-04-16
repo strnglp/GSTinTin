@@ -68,7 +68,10 @@
             #local {_bar} {${_ebg}${_efg}${_padded}};
         };
     };
-    #showme {${_bar}<099>} {${_row}} {${_cs}};
+    #variable {gstin[_bar_str]} {$_bar};
+    #if {$gstin[_bar_noshow] != 1} {
+        #showme {${_bar}<099>} {${_row}} {${_cs}};
+    };
 }
 
 #nop -- Get color for injury severity --;
