@@ -262,6 +262,26 @@
     };
 }
 
+#nop -- Parse hostile creature names from dDBTarget content_text --;
+#nop -- Input: comma-separated list like "none,ice troll,cold guardian" --;
+#alias {gstin_parse_hostiles} {
+    #local {_raw} {%1};
+    #variable {gstin[hostiles]} {};
+    #replace {_raw} {,} {;};
+    #local {_items} {};
+    #list {_items} {create} {$_raw};
+    #local {_sz} {0};
+    #list {_items} {size} {_sz};
+    #local {_i} {1};
+    #while {$_i <= $_sz} {
+        #local {_name} {$_items[$_i]};
+        #if {"$_name" != "none"} {
+            #variable {gstin[hostiles][$_name]} {1};
+        };
+        #math {_i} {$_i + 1};
+    };
+}
+
 #nop -- Rebuild gstin[effects] and gstin[effects_order] from raw data --;
 #nop -- Produces the same data shape effectmon used: max, current, label, colors --;
 #nop -- Called on dialogData change AND every 1s by the effects ticker --;
@@ -588,6 +608,21 @@
     #regexp {$_line} {dialogData id="Cooldowns"} {#variable {gstin[_is_effects_dd]} {1}};
     #if {$gstin[_is_effects_dd] == 1} {
         gstin_parse_dialogdata_effects {$_line};
+    };
+
+    #nop -- dDBTarget: extract hostile creature names from combat dialogData --;
+    #variable {gstin[_is_target_dd]} {0};
+    #regexp {$_line} {id='dDBTarget'} {#variable {gstin[_is_target_dd]} {1}};
+    #regexp {$_line} {id="dDBTarget"} {#variable {gstin[_is_target_dd]} {1}};
+    #if {$gstin[_is_target_dd] == 1} {
+        #regexp {$_line} {content_text="{[^"]+}"} {
+            #variable {gstin[_target_raw]} {&1};
+            gstin_parse_hostiles {$gstin[_target_raw]};
+        };
+        #regexp {$_line} {content_text='{[^']+}'} {
+            #variable {gstin[_target_raw]} {&1};
+            gstin_parse_hostiles {$gstin[_target_raw]};
+        };
     };
 
     #nop -- streamWindow drop mode: gag duplicate stream content from main scroll --;

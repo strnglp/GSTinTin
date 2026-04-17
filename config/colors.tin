@@ -145,6 +145,8 @@
 #variable {gstin[colors][highlight][player_status]}   {$gstin[palette][orange]}
 #variable {gstin[colors][highlight][creature]}        {$gstin[palette][dark_blue]}
 #variable {gstin[colors][highlight][creature_end]}    {$gstin[palette][reset]}
+#variable {gstin[colors][highlight][hostile]}          {$gstin[palette][dark_red]}
+#variable {gstin[colors][highlight][hostile_end]}      {$gstin[palette][reset]}
 #variable {gstin[colors][highlight][direction]}       {$gstin[palette][sky_blue]}
 #variable {gstin[colors][highlight][direction_end]}   {$gstin[palette][reset]}
 

@@ -97,7 +97,7 @@
         #return;
     };
 
-    #nop -- Third-party attacks (catch-all) --;
+    #nop -- Third-party attacks: only colorize when a hostile is involved --;
     #variable {gstin[_cb_hit]} {0};
     #regexp {$_raw} { swings } {#variable {gstin[_cb_hit]} {1}};
     #regexp {$_raw} { thrusts } {#variable {gstin[_cb_hit]} {1}};
@@ -111,7 +111,14 @@
     #regexp {$_raw} { strikes at } {#variable {gstin[_cb_hit]} {1}};
     #regexp {$_raw} { gestures at } {#variable {gstin[_cb_hit]} {1}};
     #if {$gstin[_cb_hit] == 1} {
-        gstin_apply_combat_color {$gstin[colors][combat][attack_at_other]};
+        #variable {gstin[_cb_hostile]} {0};
+        #foreach {*gstin[hostiles][%*]} {_hkey} {
+            #variable {gstin[_hk]} {$_hkey};
+            #regexp {$_raw} {$gstin[_hk]} {#variable {gstin[_cb_hostile]} {1}};
+        };
+        #if {$gstin[_cb_hostile] == 1} {
+            gstin_apply_combat_color {$gstin[colors][combat][attack_at_other]};
+        };
         #return;
     };
 }

@@ -340,6 +340,17 @@ gstin_calc_status_layout;
     #nop -- Suppress entity reset inside creature span --;
     #replace {$_vn} {GXRSTGXCRE} {GXCRE};
 
+    #nop -- Hostile creature override: swap creature markers for hostile markers --;
+    #nop -- After creature overrides, spans look like: GXCRSarticle GXCRSnameGXCRE --;
+    #nop -- Replace inner name span, then convert preceding article GXCRS --;
+    #if {&gstin[hostiles][] > 0} {
+        #foreach {*gstin[hostiles][%*]} {_hkey} {
+            #variable {gstin[_hk]} {$_hkey};
+            #replace {$_vn} {GXCRS$gstin[_hk]GXCRE} {GXHOS$gstin[_hk]GXHOE};
+        };
+        #replace {$_vn} {GXCRS{[^G]*}GXHOS} {GXHOS&1GXHOS};
+    };
+
     #nop -- Preset base color: GXRST resets to preset color, not default --;
     #nop -- This layers semantic colors (names, creatures) over channel color --;
     #nop -- Within a preset span, resets return to the preset color --;
@@ -378,6 +389,8 @@ gstin_calc_status_layout;
     #replace {$_vn} {GXDFT} {<099>};
     #replace {$_vn} {GXCRS} {$gstin[colors][highlight][creature]};
     #replace {$_vn} {GXCRE} {$gstin[colors][highlight][creature_end]};
+    #replace {$_vn} {GXHOS} {$gstin[colors][highlight][hostile]};
+    #replace {$_vn} {GXHOE} {$gstin[colors][highlight][hostile_end]};
     #replace {$_vn} {GXDIR} {$gstin[colors][highlight][direction]};
     #replace {$_vn} {GXDRE} {$gstin[colors][highlight][direction_end]};
     #replace {$_vn} {GXSPC} {$gstin[colors][stream][speech]};

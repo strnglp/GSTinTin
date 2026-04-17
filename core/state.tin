@@ -155,6 +155,9 @@
 #variable {gstin[_prompt_space]} {0}
 #variable {gstin[_has_content]} {0}
 
+#nop -- Hostile creatures (from dDBTarget, keyed by name) --;
+#variable {gstin[hostiles]} {}
+
 #nop -- Experience tracking --;
 #variable {gstin[exp]} {}
 #variable {gstin[exp_current_skill]} {}
