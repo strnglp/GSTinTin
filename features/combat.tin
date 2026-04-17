@@ -24,6 +24,14 @@
     #class {gstin_combat_hl} {close};
 }
 
+#nop -- Apply combat base color: resets mid-line return to combat color --;
+#nop -- Same approach as preset colors (speech/whisper) in gstin_strip_xml_colored --;
+#alias {gstin_apply_combat_color} {
+    #local {_cc} {%1};
+    #replace {gstin[_story_line]} {<099>} {$_cc};
+    #variable {gstin[_story_line]} {${_cc}$gstin[_story_line]<099>};
+}
+
 #nop -- Pipeline combat colorization: called from RECEIVED LINE in streams.tin --;
 #nop -- Reads gstin[_story_raw] (clean text) for pattern matching --;
 #nop -- Modifies gstin[_story_line] (colorized text) for display --;
@@ -70,7 +78,7 @@
     #regexp {$_raw} { toward you!} {#variable {gstin[_cb_hit]} {1}};
     #regexp {$_raw} { gestures at you!} {#variable {gstin[_cb_hit]} {1}};
     #if {$gstin[_cb_hit] == 1} {
-        #variable {gstin[_story_line]} {$gstin[colors][combat][attack_at_me]$gstin[_story_line]<099>};
+        gstin_apply_combat_color {$gstin[colors][combat][attack_at_me]};
         #return;
     };
 
@@ -85,7 +93,7 @@
     #regexp {$_raw} {{^You lunge }} {#variable {gstin[_cb_hit]} {1}};
     #regexp {$_raw} {{^You attempt to }} {#variable {gstin[_cb_hit]} {1}};
     #if {$gstin[_cb_hit] == 1} {
-        #variable {gstin[_story_line]} {$gstin[colors][combat][my_attack]$gstin[_story_line]<099>};
+        gstin_apply_combat_color {$gstin[colors][combat][my_attack]};
         #return;
     };
 
@@ -103,7 +111,7 @@
     #regexp {$_raw} { strikes at } {#variable {gstin[_cb_hit]} {1}};
     #regexp {$_raw} { gestures at } {#variable {gstin[_cb_hit]} {1}};
     #if {$gstin[_cb_hit] == 1} {
-        #variable {gstin[_story_line]} {$gstin[colors][combat][attack_at_other]$gstin[_story_line]<099>};
+        gstin_apply_combat_color {$gstin[colors][combat][attack_at_other]};
         #return;
     };
 }
