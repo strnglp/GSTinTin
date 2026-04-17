@@ -67,23 +67,43 @@
     #replace {_stripped} {<compass{[^>]*}>{.*}</compass>} {};
     #replace {_stripped} {<prompt{[^>]*}>{.*}</prompt>} {};
     #replace {_stripped} {<inv{[^>]*}>{.*}</inv>} {};
-    #nop Step 2: strip remaining tags (self-closing and display wrappers);
-    #replace {_stripped} {<{[^>]+}>} {};
-    #nop Step 3: resolve entity markers to final characters;
-    #replace {_stripped} {GSAMPMARK}  {&&};
-    #replace {_stripped} {GSGTMARK}   {>};
-    #replace {_stripped} {GSLTMARK}   {<};
-    #replace {_stripped} {GSQUOTMARK} {"};
-    #replace {_stripped} {GSAPOSMARK} {'};
+    #nop Step 1b: strip self-closing metadata tags (keep trailing text with XML intact);
+    #replace {_stripped} {<roundTime{[^>]*}>} {};
+    #replace {_stripped} {<castTime{[^>]*}>} {};
+    #replace {_stripped} {<indicator{[^>]*}>} {};
+    #replace {_stripped} {<streamWindow{[^>]*}>} {};
+    #replace {_stripped} {<clearStream{[^>]*}>} {};
+    #replace {_stripped} {<openDialog{[^>]*}>} {};
+    #replace {_stripped} {<closeDialog{[^>]*}>} {};
+    #replace {_stripped} {<switchQuickBar{[^>]*}>} {};
+    #replace {_stripped} {<exposeContainer{[^>]*}>} {};
+    #replace {_stripped} {<container{[^>]*}>} {};
+    #replace {_stripped} {<clearContainer{[^>]*}>} {};
+    #replace {_stripped} {<nav{[^>]*}>} {};
     #format {_stripped} {%p} {$_stripped};
     #local {_slen} {0};
     #format {_slen} {%L} {$_stripped};
     #if {$_slen > 0} {
-        #line ignore #showme {$_stripped};
+        #nop -- Route through story pipeline for colorization --;
+        #variable {gstin[_story_line]} {$_stripped};
+        gstin_strip_xml_colored {gstin[_story_line]};
+        #local {_vis} {$_stripped};
+        #replace {_vis} {<{[^>]+}>} {};
+        #replace {_vis} {GSAMPMARK}  {&&};
+        #replace {_vis} {GSGTMARK}   {>};
+        #replace {_vis} {GSLTMARK}   {<};
+        #replace {_vis} {GSQUOTMARK} {"};
+        #replace {_vis} {GSAPOSMARK} {'};
+        #format {_vis} {%p} {$_vis};
+        #variable {gstin[_story_raw]} {$_vis};
+        gstin_colorize_combat;
+        #variable {gstin[_showing_story]} {1};
+        #showme {$gstin[_story_line]};
+        #variable {gstin[_showing_story]} {0};
         #variable {gstin[_prompt_space]} {0};
         #variable {gstin[_has_content]} {1};
         #if {$gstin[_spacelog] == 1} {
-            #line log {/tmp/gstin_space.log} {GAG-XML-VIS: hc=1 text=$_stripped};
+            #line log {/tmp/gstin_space.log} {GAG-XML-VIS: hc=1 text=$gstin[_story_line]};
         };
     };
     #line gag;
@@ -246,8 +266,12 @@
 #nop -- Produces the same data shape effectmon used: max, current, label, colors --;
 #nop -- Called on dialogData change AND every 1s by the effects ticker --;
 #alias {gstin_effects_rebuild} {
+    #local {_prev_count} {0};
+    #list {gstin[effects_order]} {size} {_prev_count};
+    #variable {gstin[_effects_snap_old]} {$gstin[_effects_snap]};
     #variable {gstin[effects]} {};
     #variable {gstin[effects_order]} {};
+    #variable {gstin[_effects_snap]} {};
 
     #nop -- Process each category --;
     gstin_effects_rebuild_cat {spell};
@@ -261,14 +285,23 @@
     gstin_effects_rebuild_deleted {debuff};
     gstin_effects_rebuild_deleted {cooldown};
 
-    #nop -- Show/hide sidebar based on whether we have any effects --;
-    #nop -- Respect user toggle (Ctrl+S): dont auto-show if disabled --;
+    #nop -- Effect count change means addition/removal --;
     #local {_esz} {0};
     #list {gstin[effects_order]} {size} {_esz};
+    #if {$_esz != $_prev_count} {
+        #variable {gstin[_dirty][spells]} {1};
+    };
+
+    #nop -- Show/hide sidebar based on whether we have any effects --;
+    #nop -- Respect user toggle (Ctrl+S): dont auto-show if disabled --;
     #if {$_esz > 0} {
         #if {$gstin[ui][right_disabled] != 1} {
             gstin_show_right_sidebar;
-            gstin_request_effects_render;
+            #if {$gstin[_dirty][spells] == 1} {
+                gstin_request_render;
+            } {
+                gstin_request_effects_render;
+            };
             gstin_effects_start_ticker;
         };
     } {
@@ -377,6 +410,21 @@
         #nop -- Build effect ID --;
         #local {_id} {};
         #local {_id} {${_cat}${_idx}};
+
+        #nop -- Check if this effect's display changed (label text or bar fill width) --;
+        #local {_bar_w} {0};
+        #math {_bar_w} {$gstin[ui][right_w] - 2};
+        #local {_fill_w} {0};
+        #if {$_fill_max > 0 && $_fill_cur > 0} {
+            #math {_fill_w} {$_fill_cur * $_bar_w / $_fill_max};
+            #if {$_fill_w > $_bar_w} {#local {_fill_w} {$_bar_w}};
+            #if {$_fill_w < 1 && $_fill_cur > 0} {#local {_fill_w} {1}};
+        };
+        #local {_snap} {$_label|$_fill_w|$_colors};
+        #variable {gstin[_effects_snap][$_id]} {$_snap};
+        #if {"$_snap" != "$gstin[_effects_snap_old][$_id]"} {
+            #variable {gstin[_dirty][spells]} {1};
+        };
 
         #nop -- Store in renderer format --;
         #variable {gstin[effects][$_id][max]} {$_fill_max};
@@ -1235,14 +1283,14 @@
     };
 
     #nop -- Injuries (migrated from xml_parser.tin #action) --;
-    #regexp {$_line} {<image id='{[^']+}' name='{[^']*}'/>} {
+    #regexp {$_line} {<image id='{[^']+}' name='{[^']*}'{[^/]*}/>} {
         #if {"&2" != "$gstin[injuries][&1]"} {
             #variable {gstin[injuries][&1]} {&2};
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };
     };
-    #regexp {$_line} {<image id="{[^"]+}" name="{[^"]*}"/>} {
+    #regexp {$_line} {<image id="{[^"]+}" name="{[^"]*}"{[^/]*}/>} {
         #if {"&2" != "$gstin[injuries][&1]"} {
             #variable {gstin[injuries][&1]} {&2};
             #variable {gstin[_dirty][status]} {1};

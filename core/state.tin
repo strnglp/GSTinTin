@@ -120,6 +120,9 @@
 #variable {gstin[_dirty][chat]}   {0}
 #variable {gstin[_dirty][border]} {0}
 
+#nop -- Per-effect display snapshot for dirty detection (label|fill_w|colors) --;
+#variable {gstin[_effects_snap]} {}
+
 #nop -- Indicator snapshot for dedup (set before parsing, compared after) --;
 #variable {gstin[_isnap]} {}
 
