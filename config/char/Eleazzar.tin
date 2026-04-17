@@ -4,8 +4,8 @@
 
 #class {gstin_char_eleazzar} {open}
 
-#nop -- Per-character theme override (uncomment to use) --;
-#nop #variable {gstin[config][theme]} {icedark};
+#nop -- Per-character theme override --;
+#variable {gstin[config][theme]} {seoullight};
 
 #nop -- Character-specific highlights --;
 #nop ---- Custom Highlights (highest priority, override all defaults) --;
@@ -22,7 +22,7 @@
 
 #variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][dark_green]}
 #variable {gstin[custom_highlights][oel][bg_color]}  {$gstin[palette][bg_light_gray]}
-#variable {gstin[custom_highlights][oel][patterns]} {Eleazzar;Calphion;Bakarus;Zeminar;Aenternoll;Meliyara;Tikba;Berean;Missoni;Khiya;Palau;Tolwynn;Traiva;Alisaire;Raelee;Xorus;Lylia;Stormyrain;Thrassus;Blades;Issiah;Hadya;Naamit;Maylan;Drazaa;Peatwyn;Mosonri}
+#variable {gstin[custom_highlights][oel][patterns]} {Bakarus;Zeminar;Aenternoll;Meliyara;Tikba;Berean;Missoni;Khiya;Palau;Tolwynn;Traiva;Alisaire;Raelee;Xorus;Lylia;Stormyrain;Thrassus;Blades;Issiah;Hadya;Naamit;Maylan;Drazaa;Peatwyn;Mosonri}
 
 #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
 #variable {gstin[custom_highlights][friends][patterns]} {Eleazzar;Calphion;Malhander,Raelik,Nikolaii;Aerocus;Darphin;Sythana;Fayotae;Myharl;Jastalyn;Parwyn}

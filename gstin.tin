@@ -38,6 +38,7 @@
 
 #nop -- Features --;
 #read {features/highlights.tin}
+#read {features/combat.tin}
 #read {features/gags.tin}
 #read {features/macros.tin}
 
@@ -52,6 +53,7 @@
         };
         #showme {$gstin[colors][system][status]--- Loaded character config: $gstin[config][char_name]<099>};
         gstin_apply_highlights;
+        gstin_apply_combat;
     };
 }
 

@@ -148,5 +148,13 @@
 #variable {gstin[colors][highlight][direction]}       {$gstin[palette][sky_blue]}
 #variable {gstin[colors][highlight][direction_end]}   {$gstin[palette][reset]}
 
+#nop ---- Combat Highlight Colors --;
+#variable {gstin[colors][combat][my_attack]}       {$gstin[palette][bright_green]}
+#variable {gstin[colors][combat][attack_at_me]}    {$gstin[palette][bright_red]}
+#variable {gstin[colors][combat][attack_at_other]} {$gstin[palette][dark_yellow]}
+#variable {gstin[colors][combat][damage]}          {$gstin[palette][orange]}
+#variable {gstin[colors][combat][endroll_hit]}     {$gstin[palette][bright_yellow]}
+#variable {gstin[colors][combat][endroll_miss]}    {$gstin[palette][dim_gray]}
+
 
 #class {gstin_colors} {close}

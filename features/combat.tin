@@ -1,0 +1,114 @@
+#nop =========================================================================;
+#nop  GSTinTin - Combat Highlights
+#nop  Colorizes combat text by category:
+#nop    - My attacks (green)
+#nop    - Attacks at me (red, urgent)
+#nop    - Attacks at others (muted yellow)
+#nop    - Damage results (orange)
+#nop    - Endroll: hit >=101 (yellow), miss <=100 (dim)
+#nop  All colorization runs in the story pipeline via gstin_colorize_combat,
+#nop  matching against clean text (gstin[_story_raw]) and modifying the
+#nop  colorized display line (gstin[_story_line]).
+#nop =========================================================================;
+
+#class {gstin_combat} {open}
+
+#alias {gstin_apply_combat} {
+    #class {gstin_combat_hl} {kill};
+    #class {gstin_combat_hl} {open};
+
+    #nop ---- Damage results --;
+    #highlight {%*hit for %d points of damage%*}    {$gstin[colors][combat][damage]} {4};
+    #highlight {%*points of damage!}                {$gstin[colors][combat][damage]} {4};
+
+    #class {gstin_combat_hl} {close};
+}
+
+#nop -- Pipeline combat colorization: called from RECEIVED LINE in streams.tin --;
+#nop -- Reads gstin[_story_raw] (clean text) for pattern matching --;
+#nop -- Modifies gstin[_story_line] (colorized text) for display --;
+#alias {gstin_colorize_combat} {
+    #local {_raw} {$gstin[_story_raw]};
+
+    #nop -- Endroll colorization --;
+    #nop -- Detect AS/DS, CS/TD, or UAF/UDF lines and colorize the final result --;
+    #nop -- Uses #regexp captures + reconstruction to avoid #replace regex issues --;
+    #variable {gstin[_er_matched]} {0};
+    #regexp {$_raw} {AS: } {#variable {gstin[_er_matched]} {1}};
+    #regexp {$_raw} {CS: } {#variable {gstin[_er_matched]} {1}};
+    #regexp {$_raw} {UAF: } {#variable {gstin[_er_matched]} {1}};
+    #if {$gstin[_er_matched] == 1} {
+        #variable {gstin[_er_found]} {0};
+        #regexp {$_raw} {{.*= }{[+-][0-9]+}} {
+            #variable {gstin[_er_found]} {1};
+            #variable {gstin[_er_val]} {&2};
+        };
+        #if {$gstin[_er_found] == 1} {
+            #local {_num} {$gstin[_er_val]};
+            #replace {_num} {\+} {};
+            #regexp {$gstin[_story_line]} {{.*= }{[+-][0-9]+}} {
+                #variable {gstin[_er_prefix]} {&1};
+                #variable {gstin[_er_suffix]} {&2};
+            };
+            #if {$_num >= 101} {
+                #variable {gstin[_story_line]} {$gstin[_er_prefix]$gstin[colors][combat][endroll_hit]$gstin[_er_suffix]<099>};
+            } {
+                #variable {gstin[_story_line]} {$gstin[_er_prefix]$gstin[colors][combat][endroll_miss]$gstin[_er_suffix]<099>};
+            };
+        };
+        #return;
+    };
+
+    #nop -- Attack line colorization: wrap entire line in color --;
+    #nop -- Match against clean text (_raw) using substring matching --;
+    #nop -- Priority: attacks at me > my attacks > third-party --;
+
+    #nop -- Attacks at me (check first, highest priority) --;
+    #variable {gstin[_cb_hit]} {0};
+    #regexp {$_raw} { at you!} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { at you } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { toward you!} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { gestures at you!} {#variable {gstin[_cb_hit]} {1}};
+    #if {$gstin[_cb_hit] == 1} {
+        #variable {gstin[_story_line]} {$gstin[colors][combat][attack_at_me]$gstin[_story_line]<099>};
+        #return;
+    };
+
+    #nop -- My attacks (starts with You) --;
+    #variable {gstin[_cb_hit]} {0};
+    #regexp {$_raw} {{^You hurl }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You swing }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You thrust }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You fire }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You pound }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You charge }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You lunge }} {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} {{^You attempt to }} {#variable {gstin[_cb_hit]} {1}};
+    #if {$gstin[_cb_hit] == 1} {
+        #variable {gstin[_story_line]} {$gstin[colors][combat][my_attack]$gstin[_story_line]<099>};
+        #return;
+    };
+
+    #nop -- Third-party attacks (catch-all) --;
+    #variable {gstin[_cb_hit]} {0};
+    #regexp {$_raw} { swings } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { thrusts } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { hurls } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { charges at } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { lunges at } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { claws at } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { bites at } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { fires } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { pounds at } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { strikes at } {#variable {gstin[_cb_hit]} {1}};
+    #regexp {$_raw} { gestures at } {#variable {gstin[_cb_hit]} {1}};
+    #if {$gstin[_cb_hit] == 1} {
+        #variable {gstin[_story_line]} {$gstin[colors][combat][attack_at_other]$gstin[_story_line]<099>};
+        #return;
+    };
+}
+
+#class {gstin_combat} {close}
+
+#nop -- Apply combat highlights on load --;
+gstin_apply_combat;

@@ -123,6 +123,7 @@
     #class {gstin_colors} {kill};
     #read {config/colors.tin};
     gstin_apply_highlights;
+    gstin_apply_combat;
     #variable {gstin[_prev][header]}     {0};
     #variable {gstin[_prev][body]}       {_};
     #variable {gstin[_prev][vitals]}     {_};

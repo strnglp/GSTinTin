@@ -739,21 +739,20 @@
     };
 
     #nop -- Hands (parsed early: hand tags appear on lines with pushStream inv) --;
-    #nop -- Attributed tags (exist=) take priority over plain tags --;
-    #nop -- Pattern uses exist= and </right> or </left> to anchor precisely --;
+    #nop -- Both exist= and plain tags run independently: server sends both on one line --;
+    #nop -- Plain tag (Empty) appears last and overwrites the exist= match --;
     #regexp {$_line} {exist={[^>]+}>{[^<]+}</right>} {
         #if {"&2" != "$gstin[hands][right]"} {
             #variable {gstin[hands][right]} {&2};
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };
-    } {
-        #regexp {$_line} {<right>{[^<]+}</right>} {
-            #if {"&1" != "$gstin[hands][right]"} {
-                #variable {gstin[hands][right]} {&1};
-                #variable {gstin[_dirty][status]} {1};
-                gstin_request_render;
-            };
+    };
+    #regexp {$_line} {<right>{[^<]+}</right>} {
+        #if {"&1" != "$gstin[hands][right]"} {
+            #variable {gstin[hands][right]} {&1};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
         };
     };
     #regexp {$_line} {exist={[^>]+}>{[^<]+}</left>} {
@@ -762,13 +761,12 @@
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };
-    } {
-        #regexp {$_line} {<left>{[^<]+}</left>} {
-            #if {"&1" != "$gstin[hands][left]"} {
-                #variable {gstin[hands][left]} {&1};
-                #variable {gstin[_dirty][status]} {1};
-                gstin_request_render;
-            };
+    };
+    #regexp {$_line} {<left>{[^<]+}</left>} {
+        #if {"&1" != "$gstin[hands][left]"} {
+            #variable {gstin[hands][left]} {&1};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
         };
     };
 
@@ -1351,6 +1349,8 @@
     #nop -- so #highlight rules fire on the colorized output --;
     #variable {gstin[_story_line]} {$_line};
     gstin_strip_xml_colored {gstin[_story_line]};
+    #variable {gstin[_story_raw]} {$_vis};
+    gstin_colorize_combat;
     #if {$gstin[_spacelog] == 1} {
         #local {_slen} {0};
         #format {_slen} {%L} {$gstin[_story_line]};
