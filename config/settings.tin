@@ -17,8 +17,8 @@
 #variable {gstin[config][log_enabled]} {0}
 #variable {gstin[config][log_dir]} {logs}
 
-#nop -- Theme: dark or light --;
-#variable {gstin[config][theme]} {dark}
+#nop -- Theme: everdark, everlight, icedark, icelight --;
+#variable {gstin[config][theme]} {icedark}
 
 #nop -- Compact mode: 1 = no extra spacing, 0 = blank line between messages --;
 #variable {gstin[config][compact]} {0}

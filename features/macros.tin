@@ -141,20 +141,20 @@
 #alias {theme} {
     #showme {};
     #showme {$gstin[colors][system][status]--- Available themes ---<099>};
-    #showme {  1) dark};
-    #showme {  2) light};
-    #showme {  3) everdark};
-    #showme {  4) everlight};
+    #showme {  1) everdark};
+    #showme {  2) everlight};
+    #showme {  3) icedark};
+    #showme {  4) icelight};
     #showme {};
     #showme {Current: $gstin[config][theme]};
     #showme {$gstin[colors][system][status]--- Enter number to switch ---<099>};
     #cursor {clear};
     #line {oneshot} #alias {~^{1|2|3|4}$} {
         #switch {%%1} {
-            #case {1} {#variable {gstin[config][theme]} {dark}};
-            #case {2} {#variable {gstin[config][theme]} {light}};
-            #case {3} {#variable {gstin[config][theme]} {everdark}};
-            #case {4} {#variable {gstin[config][theme]} {everlight}};
+            #case {1} {#variable {gstin[config][theme]} {everdark}};
+            #case {2} {#variable {gstin[config][theme]} {everlight}};
+            #case {3} {#variable {gstin[config][theme]} {icedark}};
+            #case {4} {#variable {gstin[config][theme]} {icelight}};
         };
         gstin_load_theme;
         #showme {$gstin[colors][system][status]--- Theme: $gstin[config][theme]<099>};
