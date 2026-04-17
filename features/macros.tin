@@ -141,20 +141,27 @@
 #alias {theme} {
     #showme {};
     #showme {$gstin[colors][system][status]--- Available themes ---<099>};
-    #showme {  1) everdark};
-    #showme {  2) everlight};
-    #showme {  3) icedark};
-    #showme {  4) icelight};
+    #showme {  1) catdark       2) catlight};
+    #showme {  3) everdark      4) everlight};
+    #showme {  5) gruvdark      6) gruvlight};
+    #showme {  7) icedark       8) icelight};
+    #showme {  9) seouldark    10) seoullight};
     #showme {};
     #showme {Current: $gstin[config][theme]};
     #showme {$gstin[colors][system][status]--- Enter number to switch ---<099>};
     #cursor {clear};
-    #line {oneshot} #alias {~^{1|2|3|4}$} {
+    #line {oneshot} #alias {~^{[0-9]+}$} {
         #switch {%%1} {
-            #case {1} {#variable {gstin[config][theme]} {everdark}};
-            #case {2} {#variable {gstin[config][theme]} {everlight}};
-            #case {3} {#variable {gstin[config][theme]} {icedark}};
-            #case {4} {#variable {gstin[config][theme]} {icelight}};
+            #case {1}  {#variable {gstin[config][theme]} {catdark}};
+            #case {2}  {#variable {gstin[config][theme]} {catlight}};
+            #case {3}  {#variable {gstin[config][theme]} {everdark}};
+            #case {4}  {#variable {gstin[config][theme]} {everlight}};
+            #case {5}  {#variable {gstin[config][theme]} {gruvdark}};
+            #case {6}  {#variable {gstin[config][theme]} {gruvlight}};
+            #case {7}  {#variable {gstin[config][theme]} {icedark}};
+            #case {8}  {#variable {gstin[config][theme]} {icelight}};
+            #case {9}  {#variable {gstin[config][theme]} {seouldark}};
+            #case {10} {#variable {gstin[config][theme]} {seoullight}};
         };
         gstin_load_theme;
         #showme {$gstin[colors][system][status]--- Theme: $gstin[config][theme]<099>};

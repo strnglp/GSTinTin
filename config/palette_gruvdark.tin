@@ -1,0 +1,72 @@
+#nop =========================================================================;
+#nop  GSTinTin - Gruvdark Theme Palette
+#nop  Gruvbox-inspired dark palette.
+#nop  Uses 24-bit truecolor codes: <Frrggbb> foreground, <Brrggbb> background.
+#nop  Loaded by gstin.tin based on gstin[config][theme].
+#nop =========================================================================;
+
+#class {gstin_palette} {open}
+
+#nop ---- Bright foreground colors --;
+#variable {gstin[palette][bright_red]}     {<Ffb4934>}
+#variable {gstin[palette][bright_green]}   {<Fb8bb26>}
+#variable {gstin[palette][bright_blue]}    {<F83a598>}
+#variable {gstin[palette][bright_yellow]}  {<Ffabd2f>}
+#variable {gstin[palette][bright_cyan]}    {<F8ec07c>}
+#variable {gstin[palette][bright_magenta]} {<Fd3869b>}
+
+#nop ---- Dark foreground colors (neutral variants for dark bg) --;
+#variable {gstin[palette][dark_red]}       {<Fcc241d>}
+#variable {gstin[palette][dark_green]}     {<F98971a>}
+#variable {gstin[palette][dark_blue]}      {<F458588>}
+#variable {gstin[palette][dark_yellow]}    {<Fd79921>}
+#variable {gstin[palette][dark_cyan]}      {<F689d6a>}
+#variable {gstin[palette][dark_magenta]}   {<Fb16286>}
+
+#nop ---- Accent foreground colors --;
+#variable {gstin[palette][orange]}         {<Ffe8019>}
+#variable {gstin[palette][sky_blue]}       {<F83a598>}
+#variable {gstin[palette][cornflower]}     {<F458588>}
+#variable {gstin[palette][turquoise]}      {<F8ec07c>}
+#variable {gstin[palette][violet]}         {<Fd3869b>}
+
+#nop ---- Gray foreground colors --;
+#variable {gstin[palette][dim_gray]}       {<F928374>}
+#variable {gstin[palette][medium_gray]}    {<Fa89984>}
+
+#nop ---- Grayscale foreground --;
+#variable {gstin[palette][near_black]}     {<Febdbb2>}
+#variable {gstin[palette][charcoal]}       {<F928374>}
+#variable {gstin[palette][dark_gray]}      {<F665c54>}
+#variable {gstin[palette][gray]}           {<F7c6f64>}
+#variable {gstin[palette][silver]}         {<Fa89984>}
+#variable {gstin[palette][near_white]}     {<Febdbb2>}
+
+#nop ---- Bright background colors --;
+#variable {gstin[palette][bg_bright_red]}     {<B722529>}
+#variable {gstin[palette][bg_bright_green]}   {<B62693e>}
+#variable {gstin[palette][bg_bright_blue]}    {<B2e4045>}
+#variable {gstin[palette][bg_bright_yellow]}  {<B4a4528>}
+#variable {gstin[palette][bg_bright_cyan]}    {<B49503b>}
+#variable {gstin[palette][bg_bright_magenta]} {<B4a3548>}
+
+#nop ---- Accent background colors --;
+#variable {gstin[palette][bg_orange]}      {<B4a3520>}
+#variable {gstin[palette][bg_cornflower]}  {<B2e4045>}
+#variable {gstin[palette][bg_dark_yellow]} {<B4a4528>}
+
+#nop ---- Grayscale background --;
+#variable {gstin[palette][bg_charcoal]}    {<B1d2021>}
+#variable {gstin[palette][bg_light_gray]}  {<B3c3836>}
+
+#nop ---- Terminal colors (OSC 10/11 hex values) --;
+#variable {gstin[palette][terminal_fg]}    {#ebdbb2}
+#variable {gstin[palette][terminal_bg]}    {#282828}
+#variable {gstin[palette][terminal_cursor]} {#ebdbb2}
+
+#nop ---- Special --;
+#variable {gstin[palette][reset]}          {<099>}
+#variable {gstin[palette][bold]}           {\e[1m}
+#variable {gstin[palette][reset_all]}      {\e[0m}
+
+#class {gstin_palette} {close}

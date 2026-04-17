@@ -4,6 +4,9 @@
 
 #class {gstin_char_eleazzar} {open}
 
+#nop -- Per-character theme override (uncomment to use) --;
+#nop #variable {gstin[config][theme]} {icedark};
+
 #nop -- Character-specific highlights --;
 #nop ---- Custom Highlights (highest priority, override all defaults) --;
 #nop -- Define groups with a color and semicolon-separated patterns.          --;

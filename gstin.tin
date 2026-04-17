@@ -45,7 +45,11 @@
 #if {"$gstin[config][char_name]" != ""} {
     #script {_charfile_exists} {test -f config/char/$gstin[config][char_name].tin && echo 1 || echo 0};
     #if {"$_charfile_exists[1]" == "1"} {
+        #variable {_pre_char_theme} {$gstin[config][theme]};
         #read {config/char/$gstin[config][char_name].tin};
+        #if {"$gstin[config][theme]" != "$_pre_char_theme"} {
+            gstin_load_theme;
+        };
         #showme {$gstin[colors][system][status]--- Loaded character config: $gstin[config][char_name]<099>};
         gstin_apply_highlights;
     };
