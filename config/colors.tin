@@ -52,7 +52,7 @@
 
 #nop -- Bar overlay text colors --;
 #variable {gstin[colors][vitals][fill_fg]}   {$gstin[palette][near_white]}
-#variable {gstin[colors][vitals][empty_fg]}  {$gstin[palette][charcoal]}
+#variable {gstin[colors][vitals][empty_fg]}  {$gstin[palette][near_white]}
 #variable {gstin[colors][vitals][empty_bg]}  {$gstin[palette][bg_light_gray]}
 
 #nop ---- Injury Severity Colors --;
@@ -86,7 +86,7 @@
 #variable {gstin[colors][effects][expired_fg]}  {$gstin[palette][near_black]}
 #nop -- Empty portion of bar --;
 #variable {gstin[colors][effects][empty_bg]}    {$gstin[palette][bg_light_gray]}
-#variable {gstin[colors][effects][empty_fg]}    {$gstin[palette][charcoal]}
+#variable {gstin[colors][effects][empty_fg]}    {$gstin[palette][near_black]}
 
 #nop ---- Compass Direction Colors --;
 #variable {gstin[colors][compass][active]}   {$gstin[palette][bright_yellow]}

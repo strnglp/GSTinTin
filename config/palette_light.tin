@@ -58,6 +58,11 @@
 #variable {gstin[palette][bg_charcoal]}    {<CCD>}
 #variable {gstin[palette][bg_light_gray]}  {<G20>}
 
+#nop ---- Terminal colors (OSC 10/11 hex values) --;
+#variable {gstin[palette][terminal_fg]}    {}
+#variable {gstin[palette][terminal_bg]}    {}
+#variable {gstin[palette][terminal_cursor]} {}
+
 #nop ---- Special --;
 #variable {gstin[palette][reset]}          {<099>}
 #variable {gstin[palette][bold]}           {\e[1m}
