@@ -54,8 +54,9 @@
 
     #nop Start session logging if enabled;
     #if {$gstin[config][log_enabled] == 1} {
-        #format {gstin[config][log_file]} {$gstin[config][log_dir]/gstin_%T.log} {};
-        #log append $gstin[config][log_file];
+        #format {gstin[config][log_file]} {$gstin[config][log_dir]/$gstin[config][char_name]_%T.log} {};
+        #config {log_mode} {plain};
+        #log {append} {$gstin[config][log_file]};
         #showme {$gstin[colors][system][status]--- Logging to $gstin[config][log_file]<099>};
     };
 }

@@ -14,7 +14,7 @@
 #variable {gstin[config][char_name]} {Eleazzar}
 
 #nop -- Logging: set to 1 to enable session logging --;
-#variable {gstin[config][log_enabled]} {0}
+#variable {gstin[config][log_enabled]} {1}
 #variable {gstin[config][log_dir]} {logs}
 
 #nop -- Theme: everdark, everlight, icedark, icelight --;

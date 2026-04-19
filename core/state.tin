@@ -88,6 +88,9 @@
 #variable {gstin[injuries][rightEye]}  {}
 #variable {gstin[injuries][nsys]}      {}
 
+#nop -- Per-part bleeding derived from cmd='tend...' in injury images --;
+#variable {gstin[bleeding][any]}       {n}
+
 #nop -- Room info --;
 #variable {gstin[room][title]}   {}
 #variable {gstin[room][desc]}    {}

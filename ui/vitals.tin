@@ -286,7 +286,7 @@
     } {
         gstin_status_at {$_r} {$_c2} {$gstin[colors][condition][inactive]<099>};
     };
-    #if {"$gstin[indicators][BLEEDING]" == "y"} {
+    #if {"$gstin[indicators][BLEEDING]" == "y" || "$gstin[bleeding][any]" == "y"} {
         gstin_status_at {$_r} {$_c3} {$gstin[colors][condition][bleeding]<099>};
     } {
         gstin_status_at {$_r} {$_c3} {$gstin[colors][condition][inactive]<099>};
@@ -366,7 +366,7 @@
 
 
     #nop -- Row 5: condition icons --;
-    #local {_snap} {$gstin[indicators][POISONED]/$gstin[indicators][DISEASED]/$gstin[indicators][BLEEDING]/$gstin[indicators][DEAD]};
+    #local {_snap} {$gstin[indicators][POISONED]/$gstin[indicators][DISEASED]/$gstin[indicators][BLEEDING]/$gstin[bleeding][any]/$gstin[indicators][DEAD]};
     #if {"$_snap" != "$gstin[_prev][conditions]"} {
         #math {_r} {$_vr + 5};
         gstin_render_conditions {$_r};

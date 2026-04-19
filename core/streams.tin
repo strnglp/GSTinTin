@@ -553,6 +553,49 @@
     #unticker {gstin_effects_ticker};
 }
 
+#nop -- Latch bleeding on for a body part when cmd='tend...' is present --;
+#nop -- %1=body part id, %2=remaining attributes from image tag --;
+#nop -- Only latches ON here -- clearing happens when injury name changes --;
+#alias {gstin_update_part_bleed} {
+    #local {_part} {%1};
+    #local {_attrs} {%2};
+    #variable {gstin[_tmp_bleed]} {0};
+    #regexp {$_attrs} {cmd='tend } {
+        #variable {gstin[_tmp_bleed]} {1};
+    };
+    #regexp {$_attrs} {cmd="tend } {
+        #variable {gstin[_tmp_bleed]} {1};
+    };
+    #if {$gstin[_tmp_bleed] == 1 && "$gstin[bleeding][$_part]" != "y"} {
+        #variable {gstin[bleeding][$_part]} {y};
+        gstin_recompute_bleeding;
+    };
+}
+
+#nop -- Clear bleeding for a body part when its injury changes --;
+#nop -- %1=body part id --;
+#alias {gstin_clear_part_bleed} {
+    #if {"$gstin[bleeding][%1]" == "y"} {
+        #variable {gstin[bleeding][%1]} {n};
+        gstin_recompute_bleeding;
+    };
+}
+
+#nop -- Recompute gstin[bleeding][any] from per-part flags --;
+#alias {gstin_recompute_bleeding} {
+    #local {_found} {n};
+    #foreach {head;neck;chest;abdomen;back;leftArm;rightArm;leftHand;rightHand;leftLeg;rightLeg;leftEye;rightEye;nsys} {_bp} {
+        #if {"$gstin[bleeding][$_bp]" == "y"} {
+            #local {_found} {y};
+        };
+    };
+    #if {"$_found" != "$gstin[bleeding][any]"} {
+        #variable {gstin[bleeding][any]} {$_found};
+        #variable {gstin[_dirty][status]} {1};
+        gstin_request_render;
+    };
+}
+
 #nop -- EVENT handler: process each received line based on active stream --;
 #nop -- IMPORTANT: store %0 in a local var ONCE to avoid parse buffer overflow --;
 #nop -- (40+ #regexp {%0} calls would expand the event body to 60KB+) --;
@@ -1317,19 +1360,37 @@
         };
     };
 
-    #nop -- Injuries (migrated from xml_parser.tin #action) --;
-    #regexp {$_line} {<image id='{[^']+}' name='{[^']*}'{[^/]*}/>} {
-        #if {"&2" != "$gstin[injuries][&1]"} {
-            #variable {gstin[injuries][&1]} {&2};
-            #variable {gstin[_dirty][status]} {1};
-            gstin_request_render;
+    #nop -- Injuries: loop over all image tags on the line --;
+    #nop -- Login dump puts all 14 body parts on one line --;
+    #variable {gstin[_inj_work]} {$_line};
+    #variable {gstin[_inj_more]} {0};
+    #regexp {$gstin[_inj_work]} {<image id=} {#variable {gstin[_inj_more]} {1}};
+    #while {$gstin[_inj_more] == 1} {
+        #variable {gstin[_inj_more]} {0};
+        #variable {gstin[_inj_matched]} {0};
+        #regexp {$gstin[_inj_work]} {<image id='{[^']+}' name='{[^']*}'{[^/]*}/>} {
+            #variable {gstin[_inj_matched]} {1};
+            #variable {gstin[_inj_id]} {&1};
+            #variable {gstin[_inj_name]} {&2};
+            #variable {gstin[_inj_rest]} {&3};
         };
-    };
-    #regexp {$_line} {<image id="{[^"]+}" name="{[^"]*}"{[^/]*}/>} {
-        #if {"&2" != "$gstin[injuries][&1]"} {
-            #variable {gstin[injuries][&1]} {&2};
-            #variable {gstin[_dirty][status]} {1};
-            gstin_request_render;
+        #regexp {$gstin[_inj_work]} {<image id="{[^"]+}" name="{[^"]*}"{[^/]*}/>} {
+            #variable {gstin[_inj_matched]} {1};
+            #variable {gstin[_inj_id]} {&1};
+            #variable {gstin[_inj_name]} {&2};
+            #variable {gstin[_inj_rest]} {&3};
+        };
+        #if {$gstin[_inj_matched] == 1} {
+            #if {"$gstin[_inj_name]" != "$gstin[injuries][$gstin[_inj_id]]"} {
+                #variable {gstin[injuries][$gstin[_inj_id]]} {$gstin[_inj_name]};
+                gstin_clear_part_bleed {$gstin[_inj_id]};
+                #variable {gstin[_dirty][status]} {1};
+                gstin_request_render;
+            };
+            gstin_update_part_bleed {$gstin[_inj_id]} {$gstin[_inj_rest]};
+            #replace {gstin[_inj_work]} {<image id='$gstin[_inj_id]'} {<_done_ id='$gstin[_inj_id]'};
+            #replace {gstin[_inj_work]} {<image id="$gstin[_inj_id]"} {<_done_ id="$gstin[_inj_id]"};
+            #regexp {$gstin[_inj_work]} {<image id=} {#variable {gstin[_inj_more]} {1}};
         };
     };
 
