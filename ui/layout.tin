@@ -342,11 +342,12 @@ gstin_calc_status_layout;
 
     #nop -- Hostile creature override: swap creature markers for hostile markers --;
     #nop -- After creature overrides, spans look like: GXCRSarticle GXCRSnameGXCRE --;
-    #nop -- Replace inner name span, then convert preceding article GXCRS --;
+    #nop -- Replace inner name span (prefix-tolerant for adjectives like "luminous ice troll") --;
+    #nop -- Then convert preceding article GXCRS --;
     #if {&gstin[hostiles][] > 0} {
         #foreach {*gstin[hostiles][%*]} {_hkey} {
             #variable {gstin[_hk]} {$_hkey};
-            #replace {$_vn} {GXCRS$gstin[_hk]GXCRE} {GXHOS$gstin[_hk]GXHOE};
+            #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]GXCRE} {GXHOS&1$gstin[_hk]GXHOE};
         };
         #replace {$_vn} {GXCRS{[^G]*}GXHOS} {GXHOS&1GXHOS};
     };
