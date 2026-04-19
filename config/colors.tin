@@ -102,7 +102,7 @@
 #nop ---- Status Indicator Colors --;
 #variable {gstin[colors][indicator][rt_active]}  {$gstin[palette][bright_red]}
 #variable {gstin[colors][indicator][rt_zero]}    {$gstin[palette][dark_gray]}
-#variable {gstin[colors][indicator][ct]}         {$gstin[palette][sky_blue]}
+#variable {gstin[colors][indicator][ct]}         {$gstin[palette][bright_blue]}
 #variable {gstin[colors][indicator][danger]}     {$gstin[palette][bright_red]}
 #variable {gstin[colors][indicator][hidden]}     {$gstin[palette][bright_green]}
 #variable {gstin[colors][indicator][invisible]}  {$gstin[palette][cornflower]}
@@ -124,6 +124,7 @@
 #nop ---- Highlight Colors --;
 #nop -- Used by features/highlights.tin. Call gstin_apply_highlights after changes --;
 #variable {gstin[colors][highlight][spell]}           {$gstin[palette][bright_blue]}
+#variable {gstin[colors][highlight][roundtime]}       {$gstin[palette][bright_red]}
 #variable {gstin[colors][highlight][room_danger]}     {$gstin[palette][dark_red]}
 #variable {gstin[colors][highlight][personal_danger]} {$gstin[palette][bright_red]}
 #variable {gstin[colors][highlight][objects_npcs]}    {$gstin[palette][dark_yellow]}

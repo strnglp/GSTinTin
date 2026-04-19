@@ -20,8 +20,9 @@
     #highlight {You recite a series%*} {$gstin[colors][highlight][spell]};
     #highlight {You trace a%*} {$gstin[colors][highlight][spell]};
     #highlight {Your hands glow with power%*} {$gstin[colors][highlight][spell]};
-    #highlight {Cast Roundtime 3 Seconds.} {$gstin[colors][highlight][spell]};
+    #highlight {Cast Roundtime %d Seconds.} {$gstin[colors][highlight][spell]};
     #highlight {Your spell is ready.} {$gstin[colors][highlight][spell]};
+    #highlight {Roundtime: %d sec.} {$gstin[colors][highlight][roundtime]};
     #highlight {%*remaining. ]} {$gstin[colors][highlight][spell]};
 
     #nop ---- Creature death ----;
