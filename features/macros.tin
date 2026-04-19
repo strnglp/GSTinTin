@@ -196,6 +196,17 @@
     #showme {$gstin[colors][system][status]--- UI redrawn<099>};
 }
 
+#nop -- Toggle familiar panel (Ctrl+F) --;
+#macro {\x06} {
+    #if {$gstin[familiar][active] == 1} {
+        #variable {gstin[_familiar_hidden]} {1};
+        gstin_hide_familiar_panel;
+    } {
+        #variable {gstin[_familiar_hidden]} {0};
+        gstin_show_familiar_panel;
+    };
+}
+
 #nop -- Toggle spells sidebar (Ctrl+S) --;
 #macro {\x13} {
     #if {$gstin[ui][right_active] == 1} {

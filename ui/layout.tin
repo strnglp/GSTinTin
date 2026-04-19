@@ -417,13 +417,19 @@ gstin_calc_status_layout;
     };
 }
 
-#nop -- Calculate needed top split size from room content --;
+#nop -- Calculate needed top split size from room content + familiar panel --;
 #nop -- Returns result in gstin[_resize_needed] (0=no change, else new size) --;
 #alias {gstin_calc_top_size} {
     #local {_needed} {%1};
     #local {_min} {5};
     #local {_max} {0};
     #math {_max} {$gstin[ui][rows] / 2};
+
+    #nop -- Add familiar panel height if active --;
+    #if {$gstin[familiar][active] == 1} {
+        #nop -- 1 for border + familiar content rows --;
+        #math {_needed} {$_needed + 1 + $gstin[familiar][height]};
+    };
 
     #nop -- Add 2: row 1 for TinTin++ border, last row for bottom border --;
     #math {_needed} {$_needed + 2};
@@ -466,6 +472,11 @@ gstin_calc_status_layout;
         #nop -- Rewrap chat at new width and mark dirty --;
         gstin_chat_rewrap;
         #variable {gstin[_chat_dirty]} {1};
+        #nop -- Rewrap familiar buffer at new width --;
+        #if {$gstin[familiar][active] == 1} {
+            gstin_familiar_rewrap;
+            #variable {gstin[_familiar_dirty]} {1};
+        };
         #buffer end;
     };
 }
@@ -557,7 +568,7 @@ gstin_calc_status_layout;
 
 #nop -- Draw room info from cached pre-wrapped data --;
 #nop -- Row 1: room title (bold) --;
-#nop -- Rows 2 to top_size-1: exits, players, objects --;
+#nop -- Rows 2 to top_size-1: exits, players, objects, then familiar panel --;
 #alias {gstin_render_room_info} {
     #variable {gstin[_toprow]} {2};
     #local {_max_row} {0};
@@ -566,6 +577,24 @@ gstin_calc_status_layout;
     gstin_draw_cached_wrap {gstin[_room_wrap_exits]} {$_max_row};
     gstin_draw_cached_wrap {gstin[_room_wrap_players]} {$_max_row};
     gstin_draw_cached_wrap {gstin[_room_wrap_objects]} {$_max_row};
+
+    #nop -- Familiar panel: border + scrollable content --;
+    #if {$gstin[familiar][active] == 1} {
+        #nop -- Draw separator border with ├─ [Familiar] ─┤ connectors --;
+        #if {$gstin[_toprow] <= $_max_row} {
+            #local {_htc} {$gstin[colors][ui][header_text]};
+            #local {_shc} {$gstin[colors][ui][section_header]};
+            #local {_fpad} {};
+            #local {_fpad_w} {0};
+            #math {_fpad_w} {$gstin[ui][cols] - 17};
+            #if {$_fpad_w < 1} {#local {_fpad_w} {1}};
+            #format {_fpad} {%${_fpad_w}s} {};
+            #replace {_fpad} { } {─};
+            #showme {├── ${_htc}[Familiar]${_shc} ${_fpad}─┤\e[0m} {$gstin[_toprow]};
+            #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+        };
+        gstin_render_familiar_content {$_max_row};
+    };
 
     #nop -- Clear leftover rows (content shrank) --;
     #while {$gstin[_toprow] <= $_max_row} {
@@ -709,6 +738,162 @@ gstin_calc_status_layout;
             #math {_i} {$_i + 1};
         };
         #math {_ri} {$_ri + 1};
+    };
+}
+
+#nop -- Add a familiar line: store raw, strip/colorize, rewrap --;
+#alias {gstin_familiar_add} {
+    #local {_color} {%1};
+    #local {_text} {%2};
+
+    #variable {gstin[_fam_temp]} {$_text};
+    gstin_strip_xml_colored {gstin[_fam_temp]};
+    #replace {gstin[_fam_temp]} {<099>} {$_color};
+    #list {gstin[familiar][raw]} {add} {${_color}|$gstin[_fam_temp]};
+
+    #local {_rsz} {0};
+    #list {gstin[familiar][raw]} {size} {_rsz};
+    #while {$_rsz > 200} {
+        #list {gstin[familiar][raw]} {delete} {1};
+        #math {_rsz} {$_rsz - 1};
+    };
+
+    #variable {gstin[_familiar_dirty]} {1};
+
+    #local {_old_sz} {0};
+    #list {gstin[familiar][lines]} {size} {_old_sz};
+
+    gstin_familiar_rewrap;
+
+    #if {$gstin[familiar][scroll] > 0} {
+        #local {_new_sz} {0};
+        #list {gstin[familiar][lines]} {size} {_new_sz};
+        #local {_added} {0};
+        #math {_added} {$_new_sz - $_old_sz};
+        #if {$_added > 0} {
+            #math {gstin[familiar][scroll]} {$gstin[familiar][scroll] + $_added};
+        };
+    };
+}
+
+#nop -- Rebuild wrapped familiar lines from raw buffer at current width --;
+#alias {gstin_familiar_rewrap} {
+    #variable {gstin[familiar][lines]} {};
+    #local {_w} {0};
+    #math {_w} {$gstin[ui][cols] - 4};
+    #if {$_w < 10} {#local {_w} {10}};
+
+    #local {_rsz} {0};
+    #list {gstin[familiar][raw]} {size} {_rsz};
+    #local {_ri} {1};
+    #while {$_ri <= $_rsz} {
+        #local {_entry} {$gstin[familiar][raw][$_ri]};
+        #local {_color} {};
+        #local {_text} {};
+        #regexp {$_entry} {{[^|]+}|{.*}} {
+            #variable {gstin[_fam_color]} {&1};
+            #variable {gstin[_fam_text]} {&2};
+        };
+        #local {_color} {$gstin[_fam_color]};
+        #local {_text} {$gstin[_fam_text]};
+
+        gstin_wordwrap {$_text} {$_w};
+
+        #local {_sz} {0};
+        #list {gstin[_wrap_result]} {size} {_sz};
+        #local {_i} {1};
+        #while {$_i <= $_sz} {
+            #if {$_i == 1} {
+                #list {gstin[familiar][lines]} {add} {${_color}$gstin[_wrap_result][$_i]};
+            } {
+                #list {gstin[familiar][lines]} {add} {${_color} $gstin[_wrap_result][$_i]};
+            };
+            #math {_i} {$_i + 1};
+        };
+        #math {_ri} {$_ri + 1};
+    };
+
+    #nop -- Recalculate familiar panel height (capped at 1/4 story area) --;
+    #local {_lsz} {0};
+    #list {gstin[familiar][lines]} {size} {_lsz};
+    #local {_fmax} {0};
+    #math {_fmax} {($gstin[ui][rows] - $gstin[ui][top_size]) / 4};
+    #if {$_fmax < 3} {#local {_fmax} {3}};
+    #if {$_lsz < $_fmax} {
+        #variable {gstin[familiar][height]} {$_lsz};
+    } {
+        #variable {gstin[familiar][height]} {$_fmax};
+    };
+    #if {$gstin[familiar][height] < 1} {
+        #variable {gstin[familiar][height]} {1};
+    };
+}
+
+#nop -- Render familiar content into the top bar (called by gstin_render_room_info) --;
+#nop -- Uses gstin[_toprow] for current position, %1=max_row --;
+#alias {gstin_render_familiar_content} {
+    #local {_max_row} {%1};
+    #local {_sz} {0};
+    #list {gstin[familiar][lines]} {size} {_sz};
+
+    #local {_avail} {0};
+    #math {_avail} {$_max_row - $gstin[_toprow] + 1};
+    #if {$_avail < 1} {#return};
+
+    #nop -- Clamp scroll --;
+    #if {$gstin[familiar][scroll] < 0} {
+        #variable {gstin[familiar][scroll]} {0};
+    };
+    #local {_scroll_max} {0};
+    #if {$_sz > $_avail} {
+        #math {_scroll_max} {$_sz - $_avail};
+    };
+    #if {$gstin[familiar][scroll] > $_scroll_max} {
+        #variable {gstin[familiar][scroll]} {$_scroll_max};
+    };
+
+    #local {_first} {1};
+    #if {$_sz > $_avail} {
+        #math {_first} {$_sz - $_avail + 1 - $gstin[familiar][scroll]};
+    };
+    #local {_last} {0};
+    #math {_last} {$_first + $_avail - 1};
+    #if {$_last > $_sz} {#local {_last} {$_sz}};
+
+    #local {_i} {$_first};
+    #local {_carry} {};
+    #while {$_i <= $_last && $gstin[_toprow] <= $_max_row} {
+        #local {_line} {${_carry}$gstin[familiar][lines][$_i]};
+        gstin_find_last_color {$_line};
+        #local {_carry} {$gstin[_last_color]};
+        #if {"$_carry" == "<099>"} {#local {_carry} {}};
+        gstin_drawtop {$gstin[_toprow]} {${_line}<099>};
+        #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+        #math {_i} {$_i + 1};
+    };
+}
+
+#nop -- Show familiar panel (auto or manual) --;
+#alias {gstin_show_familiar_panel} {
+    #if {$gstin[familiar][active] == 0} {
+        #variable {gstin[familiar][active]} {1};
+        #if {$gstin[familiar][height] < 1} {
+            #variable {gstin[familiar][height]} {1};
+        };
+        gstin_dirty_all;
+        gstin_request_render;
+        #showme {$gstin[colors][system][status]--- Familiar panel: ON<099>};
+    };
+}
+
+#nop -- Hide familiar panel --;
+#alias {gstin_hide_familiar_panel} {
+    #if {$gstin[familiar][active] == 1} {
+        #variable {gstin[familiar][active]} {0};
+        #variable {gstin[familiar][height]} {0};
+        gstin_dirty_all;
+        gstin_request_render;
+        #showme {$gstin[colors][system][status]--- Familiar panel: OFF<099>};
     };
 }
 
@@ -967,11 +1152,12 @@ gstin_calc_status_layout;
 
 #nop -- Mark all sections dirty (for resize, init, force redraw) --;
 #alias {gstin_dirty_all} {
-    #variable {gstin[_dirty][room]}   {1};
-    #variable {gstin[_dirty][status]} {1};
-    #variable {gstin[_dirty][spells]} {1};
-    #variable {gstin[_dirty][chat]}   {1};
-    #variable {gstin[_dirty][border]} {1};
+    #variable {gstin[_dirty][room]}     {1};
+    #variable {gstin[_dirty][status]}   {1};
+    #variable {gstin[_dirty][spells]}   {1};
+    #variable {gstin[_dirty][chat]}     {1};
+    #variable {gstin[_dirty][border]}   {1};
+    #variable {gstin[_dirty][familiar]} {1};
 }
 
 #nop -- Master redraw --;
@@ -981,15 +1167,16 @@ gstin_calc_status_layout;
     #if {$gstin[_dirty][spells] == 1} {
         #undelay {gstin_effects_tick};
     };
-    #if {$gstin[_dirty][room] == 1} {
+    #if {$gstin[_dirty][room] == 1 || $gstin[_dirty][familiar] == 1} {
         gstin_prepare_room_info;
     };
     gstin_apply_resize;
     #variable {gstin[_draw_count]} {0};
-    #if {$gstin[_dirty][room] == 1} {
+    #if {$gstin[_dirty][room] == 1 || $gstin[_dirty][familiar] == 1} {
         #if {$gstin[_draw_count] == 0} {#screen cursor hide};
         gstin_render_room_info;
         #variable {gstin[_dirty][room]} {0};
+        #variable {gstin[_dirty][familiar]} {0};
         #math {gstin[_draw_count]} {$gstin[_draw_count] + 1};
     };
     #if {$gstin[_dirty][spells] == 1 && $gstin[ui][right_active] == 1} {
@@ -1075,6 +1262,10 @@ gstin_calc_status_layout;
         gstin_calc_status_layout;
         gstin_chat_rewrap;
         #variable {gstin[_chat_dirty]} {1};
+        #if {$gstin[familiar][active] == 1} {
+            gstin_familiar_rewrap;
+            #variable {gstin[_familiar_dirty]} {1};
+        };
         #variable {gstin[_prev_rbar]} {};
         gstin_dirty_all;
         gstin_render_all;

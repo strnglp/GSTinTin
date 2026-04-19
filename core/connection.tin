@@ -28,6 +28,11 @@
     #variable {gstin[stream][current]} {};
     #variable {gstin[stream][dropping]} {};
 
+    #nop -- Reset familiar panel: will auto-show if familiar content arrives --;
+    #variable {gstin[familiar][active]} {0};
+    #variable {gstin[familiar][height]} {0};
+    #variable {gstin[_familiar_hidden]} {0};
+
     #if {"$gstin[connection][mode]" == "detachable"} {
         #send {SET_FRONTEND_PID $gstin_pid[1]};
         #nop -- Detachable mode: lich won't send endSetup, open the gate immediately --;
@@ -104,7 +109,7 @@
     #variable {gstin[rawlog]} {0};
     #showme {$gstin[colors][system][status]--- Raw logging OFF<099>};
 }
-#nop -- Raw log disabled by default (gstin_rawlog_start to enable) --;
-#variable {gstin[rawlog]} {0}
+#nop -- Raw log default --;
+#variable {gstin[rawlog]} {1}
 
 #class {gstin_connection} {close}

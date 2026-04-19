@@ -668,6 +668,24 @@
         };
     };
 
+    #nop -- Familiar dismiss: hide panel + remove spell from bar --;
+    #regexp {$_line} {<closeDialog id='familiar'/>} {
+        gstin_hide_familiar_panel;
+        #variable {gstin[_familiar_hidden]} {0};
+        #if {&gstin[effects_raw][spell][Call Familiar]} {
+            #unvariable {gstin[effects_raw][spell][Call Familiar]};
+            gstin_effects_rebuild;
+        };
+    };
+    #regexp {$_line} {<closeDialog id="familiar"/>} {
+        gstin_hide_familiar_panel;
+        #variable {gstin[_familiar_hidden]} {0};
+        #if {&gstin[effects_raw][spell][Call Familiar]} {
+            #unvariable {gstin[effects_raw][spell][Call Familiar]};
+            gstin_effects_rebuild;
+        };
+    };
+
     #nop -- streamWindow drop mode: gag duplicate stream content from main scroll --;
     #nop -- When <streamWindow> arrives, gag stream infrastructure lines --;
     #nop -- On first non-stream content line: --;
@@ -742,20 +760,22 @@
     #regexp {$_line} {<clearStream id="percWindow"/>} {#variable {gstin[spells]} {}};
 
     #nop -- Track pushStream/popStream for stream routing --;
-    #regexp {$_line} {<pushStream id='{[^']+}'/>} {
-        #variable {gstin[stream][current]} {&1};
-        #if {"&1" == "room"} {};
-    };
-    #regexp {$_line} {<pushStream id="{[^"]+}"/>} {
-        #variable {gstin[stream][current]} {&1};
-        #if {"&1" == "room"} {};
-    };
+    #nop -- Pop runs before push so push wins on same-line pop+push combos --;
     #regexp {$_line} {<popStream} {
         #if {"$gstin[stream][current]" == "room"} {
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
         #variable {gstin[stream][current]} {};
+    };
+    #nop -- Pattern allows extra attributes after id (e.g. ifClosedStyle on familiar) --;
+    #regexp {$_line} {<pushStream id='{[^']+}'} {
+        #variable {gstin[stream][current]} {&1};
+        #if {"&1" == "room"} {};
+    };
+    #regexp {$_line} {<pushStream id="{[^"]+}"} {
+        #variable {gstin[stream][current]} {&1};
+        #if {"&1" == "room"} {};
     };
 
     #nop -- If in drop mode and stream was cleared by same-line popStream, restore it --;
@@ -992,8 +1012,8 @@
         };
     };
 
-    #nop -- Compass --;
-    #regexp {$_line} {<compass>} {
+    #nop -- Compass (skip during peer to avoid overwriting player's compass) --;
+    #if {$gstin[_peer_active] == 0} {#regexp {$_line} {<compass>} {
         #local {_csnap} {$gstin[compass][n]$gstin[compass][ne]$gstin[compass][e]$gstin[compass][se]$gstin[compass][s]$gstin[compass][sw]$gstin[compass][w]$gstin[compass][nw]$gstin[compass][up]$gstin[compass][down]$gstin[compass][out]};
         #variable {gstin[compass][n]}    {0};
         #variable {gstin[compass][ne]}   {0};
@@ -1033,7 +1053,7 @@
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };
-    };
+    }};
 
     #nop -- Indicators (snapshot before/after for dedup) --;
     #regexp {$_line} {<indicator } {
@@ -1197,24 +1217,39 @@
         };
     };
 
+    #nop -- Peer suppression: detect peer output and block room state overwrites --;
+    #regexp {$_line} {You peer {[a-z]+} and see} {
+        #variable {gstin[_peer_active]} {1};
+    };
+    #nop -- Clear peer flag on next prompt --;
+    #if {$gstin[_peer_active] == 1} {
+        #regexp {$_line} {</prompt>} {
+            #variable {gstin[_peer_active]} {0};
+        };
+    };
+
     #nop -- Room info from style tags (visible in story, also extracted for panels) --;
-    #regexp {$_line} {roomName" />{.+}} {
-        #variable {gstin[room][title]} {&1};
-        gstin_strip_xml {gstin[room][title]};
-        #variable {gstin[_dirty][border]} {1};
-        gstin_request_render;
+    #if {$gstin[_peer_active] == 0} {
+        #regexp {$_line} {roomName" />{.+}} {
+            #variable {gstin[room][title]} {&1};
+            gstin_strip_xml {gstin[room][title]};
+            #variable {gstin[_dirty][border]} {1};
+            gstin_request_render;
+        };
+        #regexp {$_line} {roomName' />{.+}} {
+            #variable {gstin[room][title]} {&1};
+            gstin_strip_xml {gstin[room][title]};
+            #variable {gstin[_dirty][border]} {1};
+            gstin_request_render;
+        };
     };
-    #regexp {$_line} {roomName' />{.+}} {
-        #variable {gstin[room][title]} {&1};
-        gstin_strip_xml {gstin[room][title]};
-        #variable {gstin[_dirty][border]} {1};
-        gstin_request_render;
-    };
-    #regexp {$_line} {roomDesc"/>{.+}} {
-        #variable {gstin[room][desc]} {&1};
-    };
-    #regexp {$_line} {roomDesc'/>{.+}} {
-        #variable {gstin[room][desc]} {&1};
+    #if {$gstin[_peer_active] == 0} {
+        #regexp {$_line} {roomDesc"/>{.+}} {
+            #variable {gstin[room][desc]} {&1};
+        };
+        #regexp {$_line} {roomDesc'/>{.+}} {
+            #variable {gstin[room][desc]} {&1};
+        };
     };
 
     #nop =====================================================================;
@@ -1283,6 +1318,55 @@
             #return;
         };
 
+        #nop Route familiar stream to familiar panel (and dual-route speech/whisper to chat);
+        #nop Skip during streamWindow drop mode (init burst defines familiar window);
+        #if {&gstin[stream_familiar][$_stream] && "$gstin[stream][dropping]" == ""} {
+            #nop -- Merge solo-quote artifact (same as chat) --;
+            #local {_praw_len} {0};
+            #format {_praw_len} {%L} {$gstin[_fam_pending_raw]};
+            #if {$_praw_len > 0} {
+                #local {_line} {$gstin[_fam_pending_raw]$_line};
+                #variable {gstin[_fam_pending_raw]} {};
+            };
+            #variable {gstin[_fam_short]} {0};
+            #regexp {$_line} {<popStream} {
+                #local {_raw_vis} {$_line};
+                #replace {_raw_vis} {<{[^>]+}>} {};
+                #local {_raw_vlen} {0};
+                #format {_raw_vlen} {%L} {$_raw_vis};
+                #if {$_raw_vlen <= 5} {
+                    #variable {gstin[_fam_short]} {1};
+                };
+            };
+            #if {$gstin[_fam_short] == 1} {
+                #variable {gstin[_fam_pending_raw]} {$_line};
+                #line gag;
+                #return;
+            };
+            #if {$gstin[_familiar_hidden] == 0} {
+                gstin_show_familiar_panel;
+            };
+            gstin_familiar_add {$gstin[colors][stream][$_stream]} {$_line};
+            #nop -- Dual-route speech/whisper to chat with [F] prefix --;
+            #variable {gstin[_fam_is_speech]} {0};
+            #regexp {$_line} {<preset id='speech'>} {#variable {gstin[_fam_is_speech]} {1}};
+            #regexp {$_line} {<preset id="speech">} {#variable {gstin[_fam_is_speech]} {1}};
+            #regexp {$_line} {<preset id='whisper'>} {#variable {gstin[_fam_is_speech]} {1}};
+            #regexp {$_line} {<preset id="whisper">} {#variable {gstin[_fam_is_speech]} {1}};
+            #if {$gstin[_fam_is_speech] == 1} {
+                gstin_chat_add {$gstin[colors][stream][$_stream]} {[F] $_line};
+                #screen cursor hide;
+                gstin_render_chat;
+                gstin_redraw_top_border;
+            };
+            #if {$gstin[familiar][active] == 1} {
+                #variable {gstin[_dirty][familiar]} {1};
+                gstin_request_render;
+            };
+            #line gag;
+            #return;
+        };
+
         #nop Route chat streams to left sidebar (word-wrapped);
         #nop -- Skip chat routing during startup burst (before endSetup) --;
         #if {&gstin[stream_chat][$_stream] && $gstin[_setup_done] == 1} {
@@ -1324,30 +1408,33 @@
     #nop -- Room text: extract data for status area (display not gagged here) --;
     #nop -- Gagging of room component updates is handled by the --;
     #nop -- <component id='room '> gag in the XML gag section below --;
-    #regexp {$_line} {^Also here: {.+}} {
-        #variable {gstin[room][players]} {Also here: &1};
-        gstin_strip_xml_colored {gstin[room][players]};
-        #variable {gstin[_dirty][room]} {1};
-        gstin_request_render;
-    };
-    #regexp {$_line} {You also see {.+}} {
-        #variable {gstin[room][objects]} {  You also see &1};
-        gstin_strip_xml_colored {gstin[room][objects]};
-        gstin_consolidate_objects;
-        #variable {gstin[_dirty][room]} {1};
-        gstin_request_render;
-    };
-    #regexp {$_line} {^Obvious paths: {.+}} {
-        #variable {gstin[room][exits]} {Obvious paths: &1};
-        gstin_strip_xml_colored {gstin[room][exits]} {exits};
-        #variable {gstin[_dirty][room]} {1};
-        gstin_request_render;
-    };
-    #regexp {$_line} {^Obvious exits: {.+}} {
-        #variable {gstin[room][exits]} {Obvious exits: &1};
-        gstin_strip_xml_colored {gstin[room][exits]} {exits};
-        #variable {gstin[_dirty][room]} {1};
-        gstin_request_render;
+    #nop -- Skip during peer to avoid overwriting player's room data --;
+    #if {$gstin[_peer_active] == 0} {
+        #regexp {$_line} {^Also here: {.+}} {
+            #variable {gstin[room][players]} {Also here: &1};
+            gstin_strip_xml_colored {gstin[room][players]};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
+        #regexp {$_line} {You also see {.+}} {
+            #variable {gstin[room][objects]} {  You also see &1};
+            gstin_strip_xml_colored {gstin[room][objects]};
+            gstin_consolidate_objects;
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
+        #regexp {$_line} {^Obvious paths: {.+}} {
+            #variable {gstin[room][exits]} {Obvious paths: &1};
+            gstin_strip_xml_colored {gstin[room][exits]} {exits};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
+        #regexp {$_line} {^Obvious exits: {.+}} {
+            #variable {gstin[room][exits]} {Obvious exits: &1};
+            gstin_strip_xml_colored {gstin[room][exits]} {exits};
+            #variable {gstin[_dirty][room]} {1};
+            gstin_request_render;
+        };
     };
 
     #nop -- Extract data from XML lines before gagging --;
@@ -1499,6 +1586,9 @@
         #local {_slen} {0};
         #format {_slen} {%L} {$gstin[_story_line]};
         #line log {/tmp/gstin_space.log} {SHOWME: len=$_slen text=$gstin[_story_line]};
+    };
+    #if {$gstin[_peer_active] == 1} {
+        #variable {gstin[_story_line]} {$gstin[colors][highlight][remote]$gstin[_story_line]};
     };
     #variable {gstin[_showing_story]} {1};
     #showme {$gstin[_story_line]};

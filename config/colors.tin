@@ -24,7 +24,7 @@
 #variable {gstin[colors][stream][logons]}   {$gstin[palette][dark_cyan]}
 #variable {gstin[colors][stream][speech]}   {$gstin[palette][bright_green]}
 #variable {gstin[colors][stream][whisper]}  {$gstin[palette][dark_magenta]}
-#variable {gstin[colors][stream][familiar]} {$gstin[palette][dark_cyan]}
+#variable {gstin[colors][stream][familiar]} {$gstin[colors][highlight][remote]}
 #variable {gstin[colors][stream][voln]}     {$gstin[palette][dark_blue]}
 #variable {gstin[colors][stream][assess]}   {$gstin[palette][dark_yellow]}
 #variable {gstin[colors][stream][group]}         {$gstin[palette][dark_yellow]}
@@ -149,6 +149,7 @@
 #variable {gstin[colors][highlight][hostile_end]}      {$gstin[palette][reset]}
 #variable {gstin[colors][highlight][direction]}       {$gstin[palette][sky_blue]}
 #variable {gstin[colors][highlight][direction_end]}   {$gstin[palette][reset]}
+#variable {gstin[colors][highlight][remote]}           {$gstin[palette][medium_gray]}
 
 #nop ---- Combat Highlight Colors --;
 #variable {gstin[colors][combat][my_attack]}       {$gstin[palette][bright_green]}

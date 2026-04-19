@@ -210,11 +210,29 @@
 #variable {gstin[stream_chat][ooc]}      {1}
 #variable {gstin[stream_chat][speech]}   {1}
 #variable {gstin[stream_chat][whisper]}  {1}
-#variable {gstin[stream_chat][familiar]} {1}
 #variable {gstin[stream_chat][voln]}     {1}
 #variable {gstin[stream_chat][group]}    {1}
 #variable {gstin[stream_chat][logons]}   {1}
 #variable {gstin[stream_chat][death]}         {1}
 #variable {gstin[stream_chat][announcements]} {1}
+
+#nop -- Peer suppression flag (blocks room state updates during peer output) --;
+#variable {gstin[_peer_active]} {0}
+
+#nop -- Familiar panel state --;
+#variable {gstin[familiar][active]}  {0}
+#variable {gstin[familiar][raw]}     {}
+#variable {gstin[familiar][lines]}   {}
+#variable {gstin[familiar][scroll]}  {0}
+#variable {gstin[familiar][height]}  {0}
+#variable {gstin[_familiar_dirty]}   {0}
+#variable {gstin[_dirty][familiar]}  {0}
+#variable {gstin[_familiar_hidden]} {0}
+
+#nop -- Familiar stream pending merge buffer --;
+#variable {gstin[_fam_pending_raw]} {}
+
+#nop -- Streams routed to familiar panel --;
+#variable {gstin[stream_familiar][familiar]} {1}
 
 #class {gstin_state} {close}
