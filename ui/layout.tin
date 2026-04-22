@@ -139,10 +139,13 @@ gstin_calc_status_layout;
 #alias {gstin_find_last_color} {
     #local {_str} {%1};
     #variable {gstin[_last_color]} {};
-    #nop -- Replace all <abc> color codes with a semicolon-delimited marker --;
     #local {_scan} {$_str};
+    #replace {_scan} {<{[FB][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}>} {;GXTC&1;};
     #replace {_scan} {<{[a-z0-9][a-z0-9][a-z0-9]}>} {;GXCOL&1;};
     #foreach {$_scan} {_part} {
+        #regexp {$_part} {GXTC{[FB][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}} {
+            #variable {gstin[_last_color]} {<&1>};
+        };
         #regexp {$_part} {GXCOL{[a-z0-9][a-z0-9][a-z0-9]}} {
             #variable {gstin[_last_color]} {<&1>};
         };
