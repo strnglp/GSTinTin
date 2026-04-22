@@ -376,8 +376,9 @@ gstin_calc_status_layout;
     #replace {$_vn} { - {[0-9]+}]} {]};
 
     #nop -- Context-dependent coloring (safe to insert <abc> after catch-all strip) --;
-    #replace {$_vn} {the body of GXNAM} {$gstin[colors][highlight][personal_danger]the body of<099> GXNAM};
-    #replace {$_vn} {The body of GXNAM} {$gstin[colors][highlight][personal_danger]The body of<099> GXNAM};
+    #nop -- Name may be preceded by a title (e.g. Legendary Lord Hexbane) --;
+    #replace {$_vn} {the body of } {$gstin[colors][highlight][personal_danger]the body of<099> };
+    #replace {$_vn} {The body of } {$gstin[colors][highlight][personal_danger]The body of<099> };
 
     #nop -- Placeholders -> color codes --;
     #if {"$_ctx" == "exits"} {
