@@ -127,6 +127,12 @@
         #math {_extra} {$_extra + $_need};
     };
     #if {$_extra < 1} {#return};
+    #nop -- When familiar is active, room and familiar split content 50/50, so --;
+    #nop -- +N top rows only yields ~N/2 room rows. Double the growth to land --;
+    #nop -- the needed extras on the room side of the split. --;
+    #if {$gstin[familiar][active] == 1} {
+        #math {_extra} {$_extra * 2};
+    };
     #local {_new} {0};
     #math {_new} {$gstin[ui][top_size] + $_extra};
     gstin_clamp_top_size {$_new};

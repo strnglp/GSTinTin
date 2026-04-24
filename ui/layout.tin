@@ -684,7 +684,7 @@ gstin_calc_status_layout;
 #nop -- content rows (see gstin_calc_pane_rows). Room min 3, familiar min 1. --;
 #alias {gstin_render_room_info} {
     gstin_calc_pane_rows;
-    #nop -- Reset the clickable-[More...] map; sections repopulate it on draw. --;
+    #nop -- Reset the clickable-[More...] map, sections repopulate it on draw. --;
     #variable {gstin[_more_row]} {};
     #variable {gstin[_toprow]} {2};
     #local {_max_row} {0};
