@@ -337,6 +337,12 @@ gstin_calc_status_layout;
     #replace {$_vn} {<preset id="thought">}  {GXTHT};
     #nop -- Dont reset on </preset> - let speech color extend to end of line --;
     #replace {$_vn} {</preset>}              {};
+    #nop -- Room name: <style id="roomName" />Title... wraps the title. The --;
+    #nop -- closing <style id=""/> arrives on a later line, so we capture the --;
+    #nop -- title text directly (everything until the next tag) and bracket it --;
+    #nop -- with GXROM/GXRME. Catch-all strip handles the later close tag. --;
+    #replace {$_vn} {<style id='roomName' />{[^<]*}} {GXROM&1GXRME};
+    #replace {$_vn} {<style id="roomName" />{[^<]*}} {GXROM&1GXRME};
 
     #nop -- Collapse nested pushBold/popBold (server sends arbitrary depth) --;
     #replace {$_vn} {GXCRSGXCRS} {GXCRS};
@@ -418,6 +424,8 @@ gstin_calc_status_layout;
     #replace {$_vn} {GXSPC} {$gstin[colors][stream][speech]};
     #replace {$_vn} {GXWSP} {$gstin[colors][stream][whisper]};
     #replace {$_vn} {GXTHT} {$gstin[colors][stream][thoughts]};
+    #replace {$_vn} {GXROM} {\e[1m$gstin[colors][ui][header_text]};
+    #replace {$_vn} {GXRME} {\e[22m<099>};
 
     #nop -- Resolve entity markers to final characters --;
     #replace {$_vn} {GSAMPMARK}  {&&};
