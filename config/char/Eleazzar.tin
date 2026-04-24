@@ -25,7 +25,7 @@
 #variable {gstin[custom_highlights][oel][patterns]} {Bakarus;Zeminar;Aenternoll;Meliyara;Tikba;Berean;Missoni;Khiya;Palau;Tolwynn;Traiva;Alisaire;Raelee;Xorus;Lylia;Stormyrain;Thrassus;Blades;Issiah;Hadya;Naamit;Maylan;Drazaa;Peatwyn;Mosonri}
 
 #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
-#variable {gstin[custom_highlights][friends][patterns]} {Eleazzar;Calphion;Malhander,Raelik,Nikolaii;Aerocus;Darphin;Sythana;Fayotae;Myharl;Jastalyn;Parwyn}
+#variable {gstin[custom_highlights][friends][patterns]} {Eleazzar;Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
 #nop -- Character-specific macros --;
 
 #nop -- Character-specific gags --;

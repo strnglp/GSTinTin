@@ -1,0 +1,169 @@
+#nop =========================================================================;
+#nop  GSTinTin - Priority sorting for the "Also here" player list
+#nop
+#nop  Reorders gstin[room][players] so that character names listed in the
+#nop  active char config appear first (alphabetical), followed by every other
+#nop  name in original server order. Sort is stable.
+#nop
+#nop  Priority set is built by shell-scanning the char config file once at
+#nop  load time. Parsing is intentionally permissive -- we grep any brace
+#nop  group containing a tt++ separator (any such delimited value list,
+#nop  regardless of which tt++ variable it is under) and treat each token
+#nop  as a candidate name. Matching is lowercase-exact, so the non-name
+#nop  tokens (palette refs, color constants, etc.) that inevitably leak in
+#nop  are harmless -- they simply never match a real player name.
+#nop
+#nop  Runs on RAW XML (before gstin_strip_xml_colored) so that each player
+#nop  segment still carries its `<a ...>NAME</a>` wrapper and can be split
+#nop  cleanly on `, ` with the name extracted from the tag.
+#nop =========================================================================;
+
+#class {gstin_priority_sort} {open}
+
+#nop -- Priority name table: key = lowercase name, value = 1 --;
+#variable {gstin[_priority_names]} {}
+
+#nop -- (Re)build the priority set from a char config file. --;
+#nop -- Arg %1: path to the char config, optional, defaults to the active --;
+#nop --         char's file under config/char/. --;
+#nop -- Missing file or empty extraction means empty set (sort is a no-op). --;
+#alias {gstin_load_priority_names} {
+    #local {_arg} {%1};
+    #variable {gstin[_ps_path]} {$_arg};
+    #if {"$gstin[_ps_path]" == ""} {
+        #variable {gstin[_ps_path]} {config/char/$gstin[config][char_name].tin};
+    };
+    #variable {gstin[_priority_names]} {};
+    #if {"$gstin[config][char_name]" == "" && "$_arg" == ""} {#return};
+
+    #nop -- Extraction lives in features/priority_names.sh. The regex needs --;
+    #nop -- literal braces that tt++ would eat inside a #script body. --;
+    #script {_ps_raw} {bash features/priority_names.sh "$gstin[_ps_path]"};
+
+    #local {_rsz} {0};
+    #list {_ps_raw} {size} {_rsz};
+    #local {_i} {1};
+    #while {$_i <= $_rsz} {
+        #local {_n} {$_ps_raw[$_i]};
+        #if {"$_n" != ""} {
+            #variable {gstin[_priority_names][$_n]} {1};
+        };
+        #math {_i} {$_i + 1};
+    };
+}
+
+#nop -- Sort gstin[room][players] (raw XML) in place. --;
+#nop -- Assumptions: --;
+#nop --   * Segments are separated by `, ` (GS never inserts `, ` inside a --;
+#nop --     single player's title/status). --;
+#nop --   * Player name is the text inside an `<a>` tag when present, --;
+#nop --     otherwise the trimmed segment stands in as the match key. --;
+#nop --   * Match is case-insensitive, exact. --;
+#nop -- No-op when priority set is empty, content is empty, or <2 segments. --;
+#nop -- Uses gstin[_ps_*] temps because #local inside #regexp does not --;
+#nop -- propagate out of the regex body. --;
+#alias {gstin_sort_players} {
+    #if {&gstin[_priority_names][] == 0} {#return};
+
+    #variable {gstin[_ps_src]}    {$gstin[room][players]};
+    #variable {gstin[_ps_prefix]} {};
+    #regexp {$gstin[_ps_src]} {^Also here: {.+}} {
+        #variable {gstin[_ps_prefix]} {Also here: };
+        #variable {gstin[_ps_src]}    {&1};
+    };
+    #local {_slen} {0};
+    #format {_slen} {%L} {$gstin[_ps_src]};
+    #if {$_slen == 0} {#return};
+
+    #nop -- Tokenize on `, ` by swapping it for the tt++ list separator, --;
+    #nop -- which GS never embeds inside a player segment. --;
+    #variable {gstin[_ps_tmp]} {$gstin[_ps_src]};
+    #replace {gstin[_ps_tmp]} {, } {;};
+
+    #variable {gstin[_ps_pri]}  {};
+    #variable {gstin[_ps_rest]} {};
+    #variable {gstin[_ps_count]} {0};
+
+    #foreach {$gstin[_ps_tmp]} {_seg} {
+        #math {gstin[_ps_count]} {$gstin[_ps_count] + 1};
+
+        #nop -- Extract the player name from `<a ...>NAME</a>`. In #regexp --;
+        #nop -- only `{...}` is PCRE, so the attributes need their own capture --;
+        #nop -- group. &1 is the attribute blob (discarded), &2 is the name. --;
+        #variable {gstin[_ps_name]} {};
+        #regexp {$_seg} {<a {[^>]+}>{[^<]+}</a>} {
+            #variable {gstin[_ps_name]} {&2};
+        };
+        #local {_nlen} {0};
+        #format {_nlen} {%L} {$gstin[_ps_name]};
+        #if {$_nlen == 0} {
+            #nop -- No <a> tag -- fall back to trimmed segment text. --;
+            #format {gstin[_ps_name]} {%p} {$_seg};
+        };
+        #local {_key} {};
+        #format {_key} {%l} {$gstin[_ps_name]};
+
+        #if {&gstin[_priority_names][$_key]} {
+            #nop -- Prefix with key so #list sort orders alphabetically. --;
+            #nop -- `:::` is our sentinel, never appears in segment text. --;
+            #list {gstin[_ps_pri]} {add} {$_key:::$_seg};
+        } {
+            #list {gstin[_ps_rest]} {add} {$_seg};
+        };
+    };
+
+    #if {$gstin[_ps_count] < 2} {#return};
+
+    #list {gstin[_ps_pri]} {sort};
+
+    #variable {gstin[_ps_out]} {};
+    #local {_pn} {0};
+    #list {gstin[_ps_pri]} {size} {_pn};
+    #local {_i} {1};
+    #while {$_i <= $_pn} {
+        #local {_pair} {$gstin[_ps_pri][$_i]};
+        #variable {gstin[_ps_cur]} {};
+        #nop -- In #regexp only {...} is PCRE -- wrap both groups. --;
+        #regexp {$_pair} {^{[^:]+}:::{.+}} {
+            #variable {gstin[_ps_cur]} {&2};
+        };
+        #local {_olen} {0};
+        #format {_olen} {%L} {$gstin[_ps_out]};
+        #if {$_olen == 0} {
+            #variable {gstin[_ps_out]} {$gstin[_ps_cur]};
+        } {
+            #variable {gstin[_ps_out]} {$gstin[_ps_out], $gstin[_ps_cur]};
+        };
+        #math {_i} {$_i + 1};
+    };
+
+    #local {_rn} {0};
+    #list {gstin[_ps_rest]} {size} {_rn};
+    #local {_i} {1};
+    #while {$_i <= $_rn} {
+        #local {_seg} {$gstin[_ps_rest][$_i]};
+        #local {_olen} {0};
+        #format {_olen} {%L} {$gstin[_ps_out]};
+        #if {$_olen == 0} {
+            #variable {gstin[_ps_out]} {$_seg};
+        } {
+            #variable {gstin[_ps_out]} {$gstin[_ps_out], $_seg};
+        };
+        #math {_i} {$_i + 1};
+    };
+
+    #variable {gstin[room][players]} {$gstin[_ps_prefix]$gstin[_ps_out]};
+}
+
+#nop -- Diagnostic: show the loaded priority set size and a few entries. --;
+#alias {gstin_priority_dump} {
+    #local {_ignored} {%1};
+    #local {_n} {0};
+    #variable {_n} {&gstin[_priority_names][]};
+    #showme {priority names loaded: $_n};
+    #foreach {*gstin[_priority_names][%*]} {_k} {
+        #showme {  $_k};
+    };
+}
+
+#class {gstin_priority_sort} {close}

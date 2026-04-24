@@ -41,6 +41,7 @@
 #read {features/combat.tin}
 #read {features/gags.tin}
 #read {features/macros.tin}
+#read {features/priority_sort.tin}
 
 #nop -- Load per-character config if char_name is set --;
 #if {"$gstin[config][char_name]" != ""} {
@@ -54,6 +55,7 @@
         #showme {$gstin[colors][system][status]--- Loaded character config: $gstin[config][char_name]<099>};
         gstin_apply_highlights;
         gstin_apply_combat;
+        gstin_load_priority_names;
     };
 }
 
