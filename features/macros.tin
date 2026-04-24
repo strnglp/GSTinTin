@@ -359,6 +359,30 @@
     gstin_request_render;
 }
 
+#nop -- Full-page scroll for the main story buffer. Step is bar_bot-bar_top, --;
+#nop -- i.e. the height of the visible scroll region. --;
+#alias {gstin_story_page_up} {
+    #local {_n} {0};
+    #math {_n} {$gstin[ui][bar_bot] - $gstin[ui][bar_top] + 1};
+    #if {$_n < 1} {#local {_n} {1}};
+    #buffer up $_n;
+    gstin_update_story_scroll;
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#alias {gstin_story_page_down} {
+    #local {_n} {0};
+    #math {_n} {$gstin[ui][bar_bot] - $gstin[ui][bar_top] + 1};
+    #if {$_n < 1} {#local {_n} {1}};
+    #buffer down $_n;
+    gstin_update_story_scroll;
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
 #nop -- Jump to the oldest/newest line in the main scrollback. Home parks --;
 #nop -- at the top of the buffer, End returns to live. --;
 #alias {gstin_story_scroll_top} {
@@ -434,6 +458,11 @@
 #macro {\e[4~} {gstin_story_scroll_bottom};
 #macro {\e[7~} {gstin_story_scroll_top};
 #macro {\e[8~} {gstin_story_scroll_bottom};
+#nop -- Emacs-style story scroll: C-v page down, M-v page up, M-< top, M-> bottom --;
+#macro {\x16} {gstin_story_page_down};
+#macro {\ev}  {gstin_story_page_up};
+#macro {\e<}  {gstin_story_scroll_top};
+#macro {\e>}  {gstin_story_scroll_bottom};
 #nop -- Ctrl+Home/End: jump to top/bottom of chat feed --;
 #macro {\e[1;5H} {gstin_chat_scroll_top};
 #macro {\e[1;5F} {gstin_chat_scroll_bottom};
@@ -774,8 +803,8 @@
     #showme {$gstin[colors][system][status]--- UI redrawn<099>};
 }
 
-#nop -- Toggle familiar panel (Ctrl+F) --;
-#macro {\x06} {
+#nop -- Toggle familiar panel (Ctrl+L) --;
+#macro {\x0c} {
     #if {$gstin[familiar][active] == 1} {
         #variable {gstin[_familiar_hidden]} {1};
         gstin_hide_familiar_panel;
