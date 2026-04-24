@@ -88,6 +88,22 @@
     };
 }
 
+#nop -- Reset terminal fg/bg/cursor to user defaults on exit --;
+#nop -- OSC 110/111/112 reset what OSC 10/11/12 set in gstin_load_theme --;
+#alias {gstin_reset_terminal_colors} {
+    #system {printf '\e]110\e\\\e]111\e\\\e]112\e\\'};
+}
+
+#nop -- Fires on #end and ctrl-d (clean exit) --;
+#event {PROGRAM TERMINATION} {
+    gstin_reset_terminal_colors;
+}
+
+#nop -- Fires on signal-based exits (SIGTERM, SIGSEGV, etc.) --;
+#event {SYSTEM CRASH} {
+    gstin_reset_terminal_colors;
+}
+
 #alias {gstin_stop_reconnect} {
     #undelay {gstin_reconnect};
     #showme {$gstin[colors][system][status]--- Auto-reconnect cancelled. Use 'gstin_connect' to reconnect manually.<099>};

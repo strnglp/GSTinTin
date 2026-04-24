@@ -20,12 +20,16 @@
 #nop --   #variable {gstin[custom_highlights][enemies][color]}    {$gstin[palette][bright_red]}   --;
 #nop --   #variable {gstin[custom_highlights][enemies][patterns]} {Sauron;Saruman}               --;
 
-#variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][dark_green]}
+#variable {gstin[custom_highlights][attention][color]}    {$gstin[palette][default_fg]}
+#variable {gstin[custom_highlights][attention][bg_color]}  {$gstin[palette][bg_yellow]}
+#variable {gstin[custom_highlights][attention][patterns]} {Eleazzar}
+
+#variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][green]}
 #variable {gstin[custom_highlights][oel][bg_color]}  {$gstin[palette][bg_light_gray]}
 #variable {gstin[custom_highlights][oel][patterns]} {Bakarus;Zeminar;Aenternoll;Meliyara;Tikba;Berean;Missoni;Khiya;Palau;Tolwynn;Traiva;Alisaire;Raelee;Xorus;Lylia;Stormyrain;Thrassus;Blades;Issiah;Hadya;Naamit;Maylan;Drazaa;Peatwyn;Mosonri}
 
 #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
-#variable {gstin[custom_highlights][friends][patterns]} {Eleazzar;Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
+#variable {gstin[custom_highlights][friends][patterns]} {Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
 #nop -- Character-specific macros --;
 
 #nop -- Character-specific gags --;

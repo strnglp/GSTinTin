@@ -7,53 +7,60 @@
 
 #class {gstin_palette} {open}
 
-#nop ---- Bright foreground colors --;
+#nop ---- Foreground colors (legible against terminal bg) --;
+#variable {gstin[palette][red]}            {<Feba0ac>}
+#variable {gstin[palette][green]}          {<F80b880>}
+#variable {gstin[palette][blue]}           {<F7090c0>}
+#variable {gstin[palette][yellow]}         {<Fc8b888>}
+#variable {gstin[palette][cyan]}           {<F70b8a8>}
+#variable {gstin[palette][magenta]}        {<Fa088c8>}
+#variable {gstin[palette][orange]}         {<Ffab387>}
+
+#nop ---- Bright foreground colors (ANSI bright / bold variants) --;
 #variable {gstin[palette][bright_red]}     {<Ff38ba8>}
 #variable {gstin[palette][bright_green]}   {<Fa6e3a1>}
 #variable {gstin[palette][bright_blue]}    {<F89b4fa>}
 #variable {gstin[palette][bright_yellow]}  {<Ff9e2af>}
 #variable {gstin[palette][bright_cyan]}    {<F94e2d5>}
-#variable {gstin[palette][bright_magenta]} {<Fcba6f7>}
-
-#nop ---- Dark foreground colors (muted variants for dark bg) --;
-#variable {gstin[palette][dark_red]}       {<Feba0ac>}
-#variable {gstin[palette][dark_green]}     {<F80b880>}
-#variable {gstin[palette][dark_blue]}      {<F7090c0>}
-#variable {gstin[palette][dark_yellow]}    {<Fc8b888>}
-#variable {gstin[palette][dark_cyan]}      {<F70b8a8>}
-#variable {gstin[palette][dark_magenta]}   {<Fa088c8>}
-
-#nop ---- Accent foreground colors --;
-#variable {gstin[palette][orange]}         {<Ffab387>}
-#variable {gstin[palette][sky_blue]}       {<F89dceb>}
-#variable {gstin[palette][cornflower]}     {<F74c7ec>}
-#variable {gstin[palette][turquoise]}      {<F94e2d5>}
-#variable {gstin[palette][violet]}         {<Fb4befe>}
+#variable {gstin[palette][bright_magenta]} {<Ff5c2e7>}
 
 #nop ---- Gray foreground colors --;
 #variable {gstin[palette][dim_gray]}       {<F6c7086>}
 #variable {gstin[palette][medium_gray]}    {<F7f849c>}
 
 #nop ---- Grayscale foreground --;
-#variable {gstin[palette][near_black]}     {<Fcdd6f4>}
+#variable {gstin[palette][default_fg]}     {<Fcdd6f4>}
 #variable {gstin[palette][charcoal]}       {<F6c7086>}
 #variable {gstin[palette][dark_gray]}      {<F45475a>}
 #variable {gstin[palette][gray]}           {<F7f849c>}
 #variable {gstin[palette][silver]}         {<F9399b2>}
 #variable {gstin[palette][near_white]}     {<Fcdd6f4>}
 
-#nop ---- Bright background colors --;
-#variable {gstin[palette][bg_bright_red]}     {<B3e2535>}
-#variable {gstin[palette][bg_bright_green]}   {<B253828>}
-#variable {gstin[palette][bg_bright_blue]}    {<B252840>}
-#variable {gstin[palette][bg_bright_yellow]}  {<B383525>}
-#variable {gstin[palette][bg_bright_cyan]}    {<B253838>}
-#variable {gstin[palette][bg_bright_magenta]} {<B302540>}
+#nop ---- Background colors (mirror of fg with B prefix) --;
+#variable {gstin[palette][bg_red]}            {<Beba0ac>}
+#variable {gstin[palette][bg_green]}          {<B80b880>}
+#variable {gstin[palette][bg_blue]}           {<B7090c0>}
+#variable {gstin[palette][bg_yellow]}         {<Bc8b888>}
+#variable {gstin[palette][bg_cyan]}           {<B70b8a8>}
+#variable {gstin[palette][bg_magenta]}        {<Ba088c8>}
+#variable {gstin[palette][bg_orange]}         {<Bfab387>}
 
-#nop ---- Accent background colors --;
-#variable {gstin[palette][bg_orange]}      {<B383025>}
-#variable {gstin[palette][bg_cornflower]}  {<B252840>}
-#variable {gstin[palette][bg_dark_yellow]} {<B383525>}
+#nop ---- Bright background colors --;
+#variable {gstin[palette][bg_bright_red]}     {<Bf38ba8>}
+#variable {gstin[palette][bg_bright_green]}   {<Ba6e3a1>}
+#variable {gstin[palette][bg_bright_blue]}    {<B89b4fa>}
+#variable {gstin[palette][bg_bright_yellow]}  {<Bf9e2af>}
+#variable {gstin[palette][bg_bright_cyan]}    {<B94e2d5>}
+#variable {gstin[palette][bg_bright_magenta]} {<Bf5c2e7>}
+
+#nop ---- Progress bar fill colors (dark theme -> bright primaries darkened toward bg) --;
+#variable {gstin[palette][bg_bar_red]}     {<B854c5c>}
+#variable {gstin[palette][bg_bar_green]}   {<B5b7c58>}
+#variable {gstin[palette][bg_bar_blue]}    {<B4b6389>}
+#variable {gstin[palette][bg_bar_yellow]}  {<B887c60>}
+#variable {gstin[palette][bg_bar_cyan]}    {<B517c75>}
+#variable {gstin[palette][bg_bar_magenta]} {<B866a7f>}
+#variable {gstin[palette][bg_bar_orange]}  {<B89624a>}
 
 #nop ---- Grayscale background --;
 #variable {gstin[palette][bg_charcoal]}    {<B11111b>}
@@ -62,7 +69,7 @@
 #nop ---- Terminal colors (OSC 10/11 hex values) --;
 #variable {gstin[palette][terminal_fg]}    {#cdd6f4}
 #variable {gstin[palette][terminal_bg]}    {#1e1e2e}
-#variable {gstin[palette][terminal_cursor]} {#cdd6f4}
+#variable {gstin[palette][terminal_cursor]} {#f5e0dc}
 
 #nop ---- Special --;
 #variable {gstin[palette][reset]}          {<099>}

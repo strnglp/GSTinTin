@@ -35,7 +35,7 @@
 
 #nop -- Decode XML entities in gstin[_rl] to safe marker tokens --;
 #nop -- Uses flat var + #line substitute {none} to prevent & mangling by SUB_VAR --;
-#nop -- \\; matches escaped semicolons (RECEIVED LINE stores ; as \; internally) --;
+#nop -- Pattern matches escaped semicolons stored by RECEIVED LINE --;
 #alias {gstin_decode_entities} {
     #variable {_edtmp} {$gstin[_rl]};
     #line substitute {none} {#replace {_edtmp} {&amp\\;}  {GSAMPMARK}};
@@ -47,7 +47,7 @@
 }
 
 #nop -- Generic XML gag helper: strip tags, show remaining text, gag line --;
-#nop -- Call from #regexp body as: gstin_gag_xml; #return --;
+#nop -- Call from #regexp body as gstin_gag_xml then #return --;
 #nop -- Reads gstin[_gag_line] which must be set to $_line before gag section --;
 #nop -- Two-step strip: --;
 #nop --   1. Remove data-wrapping paired tags WITH their content --;
