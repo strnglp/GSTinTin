@@ -104,7 +104,7 @@ gstin_calc_status_layout;
     #local {_w} {0};
     #math {_w} {$gstin[ui][left_w] - 1};
     #format {_txt} {%-${_w}.${_w}s} {$_txt};
-    #showme {${_txt}\e[0m} {${_row}} {1};
+    #showme {\e[0m${_txt}\e[0m} {${_row}} {1};
 }
 
 #nop -- Helper: draw text in right sidebar at given row --;
@@ -119,7 +119,7 @@ gstin_calc_status_layout;
     #math {_endcol} {$gstin[ui][right_col] + $_w};
     #if {$_endcol > $gstin[ui][cols] || $_row > $gstin[ui][rows]} {#return};
     #format {_txt} {%-${_w}.${_w}s} {$_txt};
-    #showme {│${_txt}<099>} {${_row}} {$gstin[ui][right_col]};
+    #showme {\e[0m│${_txt}<099>} {${_row}} {$gstin[ui][right_col]};
 }
 
 #nop -- Helper: draw text on full-width row using {row} parameter --;
@@ -131,13 +131,16 @@ gstin_calc_status_layout;
 
 #nop -- Helper: draw text on a top-bar row --;
 #nop -- Uses {N} split row targeting, no side borders --;
+#nop -- Prefixes \e[0m so prior terminal SGR state (e.g. yellow from bottom-bar --;
+#nop -- posture indicators) doesnt bleed into uncolored glyphs like the exits --;
+#nop -- icon at the head of the row. --;
 #alias {gstin_drawtop} {
     #local {_row} {%1};
     #local {_txt} {%2};
     #local {_w} {0};
     #math {_w} {$gstin[ui][cols] - 2};
     #format {_txt} {%-${_w}.${_w}s} {$_txt};
-    #showme {${_txt}\e[0m} {${_row}} {2};
+    #showme {\e[0m${_txt}\e[0m} {${_row}} {2};
 }
 
 #nop -- Word-wrap text to a given visible width --;
@@ -424,8 +427,8 @@ gstin_calc_status_layout;
     #replace {$_vn} {GXSPC} {$gstin[colors][stream][speech]};
     #replace {$_vn} {GXWSP} {$gstin[colors][stream][whisper]};
     #replace {$_vn} {GXTHT} {$gstin[colors][stream][thoughts]};
-    #replace {$_vn} {GXROM} {\e[1m$gstin[colors][ui][header_text]};
-    #replace {$_vn} {GXRME} {\e[22m<099>};
+    #replace {$_vn} {GXROM} {$gstin[colors][ui][header_text]};
+    #replace {$_vn} {GXRME} {\e[0m};
 
     #nop -- Resolve entity markers to final characters --;
     #replace {$_vn} {GSAMPMARK}  {&&};
