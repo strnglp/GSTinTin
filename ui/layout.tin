@@ -479,9 +479,10 @@ gstin_calc_status_layout;
 #nop -- Compute room/familiar row boundaries from the current top_size. --;
 #nop -- Layout rows: 1=top border, 2..room_end=room, fam_sep=separator, --;
 #nop -- fam_sep+1..top_size-1=familiar, top_size=bottom border. --;
-#nop -- Proportional split: content is divided 50/50 between room and --;
-#nop -- familiar. Odd extra content row goes to the room pane. Room min 3, --;
-#nop -- familiar min 1, enforced by the top_size minimums above. --;
+#nop -- Split ratio: room gets user_room_pct (0 = auto 50/50) of content --;
+#nop -- rows. Drag on the top bar changes top_size but keeps user_room_pct --;
+#nop -- fixed so both panes resize proportionally. Hard invariants: --;
+#nop -- room >= 3 contentful rows, familiar >= 1. --;
 #alias {gstin_calc_pane_rows} {
     #local {_inner} {0};
     #math {_inner} {$gstin[ui][top_size] - 2};
@@ -491,7 +492,12 @@ gstin_calc_status_layout;
         #math {_content} {$_inner - 1};
         #if {$_content < 4} {#local {_content} {4}};
         #local {_room_rows} {0};
-        #math {_room_rows} {($_content + 1) / 2};
+        #if {$gstin[ui][user_room_pct] > 0} {
+            #nop -- Round: (content * pct + 50) / 100 --;
+            #math {_room_rows} {($_content * $gstin[ui][user_room_pct] + 50) / 100};
+        } {
+            #math {_room_rows} {($_content + 1) / 2};
+        };
         #if {$_room_rows < 3} {#local {_room_rows} {3}};
         #local {_fam_rows} {0};
         #math {_fam_rows} {$_content - $_room_rows};
@@ -909,15 +915,27 @@ gstin_calc_status_layout;
     };
 }
 
+#nop -- Paint the familiar separator row yellow during a familiar drag. --;
+#nop -- Overlays the ├── [Familiar] ─┤ border, restored by the next render. --;
+#alias {gstin_redraw_fam_separator} {
+    #if {$gstin[_resize][active] != 1 || "$gstin[_resize][axis]" != "familiar"} {#return};
+    #if {$gstin[familiar][active] == 0 || $gstin[ui][fam_sep] < 2} {#return};
+    #local {_pad} {};
+    #format {_pad} {%$gstin[ui][cols]s} {};
+    #replace {_pad} { } {─};
+    #showme {$gstin[colors][ui][resize_active]${_pad}\e[0m} {$gstin[ui][fam_sep]};
+}
+
 #nop -- Paint whichever split bar is being dragged. Called at end of --;
 #nop -- gstin_render_all so renderers that write into the bar column --;
 #nop -- (e.g. gstin_render_spells) don't clobber the highlight. --;
 #alias {gstin_paint_resize_highlight} {
     #if {$gstin[_resize][active] != 1} {#return};
     #switch {"$gstin[_resize][axis]"} {
-        #case {"top"}   {gstin_redraw_bottom_border};
-        #case {"left"}  {gstin_redraw_left_bar};
-        #case {"right"} {gstin_redraw_right_bar};
+        #case {"top"}      {gstin_redraw_bottom_border};
+        #case {"left"}     {gstin_redraw_left_bar};
+        #case {"right"}    {gstin_redraw_right_bar};
+        #case {"familiar"} {gstin_redraw_fam_separator};
     };
 }
 

@@ -146,6 +146,37 @@
     #variable {gstin[_resize][last_col]} {$_col};
 }
 
+#nop -- Apply a new room/familiar ratio from a drag on the familiar separator. --;
+#nop -- Cursor row is the would-be fam_sep position; room_rows = row - 2 --;
+#nop -- (rows 2..row-1 = room content, row = separator). Content rows are --;
+#nop -- (top_size - 2 - 1) = top_size-3 with familiar active. Room must keep --;
+#nop -- >=3 contentful rows, familiar >=1. Ratio stored as percent so a later --;
+#nop -- top_size change resizes both panes proportionally. --;
+#alias {gstin_apply_drag_fam} {
+    #local {_row} {%1};
+    #if {$gstin[familiar][active] == 0} {#return};
+    #local {_inner} {0};
+    #math {_inner} {$gstin[ui][top_size] - 2};
+    #local {_content} {0};
+    #math {_content} {$_inner - 1};
+    #if {$_content < 4} {#local {_content} {4}};
+    #local {_rrows} {0};
+    #math {_rrows} {$_row - 2};
+    #if {$_rrows < 3} {#local {_rrows} {3}};
+    #local {_max_rrows} {0};
+    #math {_max_rrows} {$_content - 1};
+    #if {$_rrows > $_max_rrows} {#local {_rrows} {$_max_rrows}};
+    #local {_pct} {0};
+    #math {_pct} {($_rrows * 100 + $_content / 2) / $_content};
+    #if {$_pct < 1}  {#local {_pct} {1}};
+    #if {$_pct > 99} {#local {_pct} {99}};
+    #if {$_pct != $gstin[ui][user_room_pct]} {
+        #variable {gstin[ui][user_room_pct]} {$_pct};
+        gstin_resize_invalidate;
+    };
+    #variable {gstin[_resize][last_row]} {$_row};
+}
+
 #nop -- Apply a new right_w from a drag. Cursor column defines the left --;
 #nop -- edge of the right pane, so right_w = cols - col + 1. --;
 #alias {gstin_apply_drag_right_w} {
@@ -164,10 +195,11 @@
 }
 
 #nop -- Press arms a drag mode based on where the cursor is. --;
-#nop --   * separator row (top_size)          -> top drag --;
+#nop --   * separator row (top_size)           -> top drag --;
+#nop --   * familiar separator (fam_sep)       -> familiar drag --;
 #nop --   * col left_w within bar_top..bar_bot -> left drag --;
-#nop --   * col right_col (if right_active)   -> right drag --;
-#nop --   * [More...] marker row              -> expand top pane --;
+#nop --   * col right_col (if right_active)    -> right drag --;
+#nop --   * [More...] marker row               -> expand top pane --;
 #event {PRESSED MOUSE BUTTON ONE} {
     #local {_r} {%0};
     #local {_c} {%1};
@@ -177,6 +209,13 @@
         #variable {gstin[_resize][axis]} {top};
         #variable {gstin[_resize][last_row]} {$_r};
         gstin_redraw_bottom_border;
+        #return;
+    };
+    #if {$gstin[familiar][active] == 1 && $gstin[ui][fam_sep] > 0 && $_r == $gstin[ui][fam_sep]} {
+        #variable {gstin[_resize][active]} {1};
+        #variable {gstin[_resize][axis]} {familiar};
+        #variable {gstin[_resize][last_row]} {$_r};
+        gstin_redraw_fam_separator;
         #return;
     };
     #if {$_r >= $gstin[ui][bar_top] && $_r <= $gstin[ui][bar_bot] && $_c == $gstin[ui][left_w]} {
@@ -208,11 +247,21 @@
         #math {_extra} {$_extra + $_need};
     };
     #if {$_extra < 1} {#return};
-    #nop -- When familiar is active, room and familiar split content 50/50, so --;
-    #nop -- +N top rows only yields ~N/2 room rows. Double the growth to land --;
-    #nop -- the needed extras on the room side of the split. --;
+    #nop -- Familiar active: room gets only pct% of content growth, so scale --;
+    #nop -- the requested room delta up by 100/pct. Effective pct comes from --;
+    #nop -- current row_end placement so a user-dragged ratio is honored. --;
     #if {$gstin[familiar][active] == 1} {
-        #math {_extra} {$_extra * 2};
+        gstin_calc_pane_rows;
+        #local {_inner} {0};
+        #math {_inner} {$gstin[ui][top_size] - 2};
+        #local {_content} {0};
+        #math {_content} {$_inner - 1};
+        #if {$_content < 4} {#local {_content} {4}};
+        #local {_rrows} {0};
+        #math {_rrows} {$gstin[ui][room_end] - 1};
+        #if {$_rrows < 1} {#local {_rrows} {1}};
+        #nop -- extra_top = ceil(need * content / rrows) --;
+        #math {_extra} {($_extra * $_content + $_rrows - 1) / $_rrows};
     };
     #local {_new} {0};
     #math {_new} {$gstin[ui][top_size] + $_extra};
@@ -234,6 +283,11 @@
         #case {"top"} {
             #if {$_r != $gstin[_resize][last_row]} {
                 gstin_apply_drag_top_size {$_r};
+            };
+        };
+        #case {"familiar"} {
+            #if {$_r != $gstin[_resize][last_row]} {
+                gstin_apply_drag_fam {$_r};
             };
         };
         #case {"left"} {

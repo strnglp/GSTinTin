@@ -200,6 +200,11 @@
 #variable {gstin[ui][user_top_size]}  {0}
 #variable {gstin[ui][user_left_w]}    {0}
 #variable {gstin[ui][user_right_w]}   {0}
+#nop -- user_room_pct: room share of top-pane content as a percent (1-99). --;
+#nop -- 0 = auto 50/50 split. Top-bar drag changes top_size but keeps this --;
+#nop -- fixed so the two panes resize proportionally. Familiar-separator drag --;
+#nop -- sets this to a new ratio within the current top_size. --;
+#variable {gstin[ui][user_room_pct]}  {0}
 #variable {gstin[_resize][active]}    {0}
 #variable {gstin[_resize][axis]}      {}
 #variable {gstin[_resize][last_row]}  {0}
