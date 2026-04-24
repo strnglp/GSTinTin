@@ -56,7 +56,7 @@
     };
 }
 
-#nop ---- Top-split drag resize -------------------------------------------;
+#nop ---- Split drag resize -----------------------------------------------;
 #nop -- Clamp a candidate top_size into a safe range. Keep at least 3 rows --;
 #nop -- for the scrolling region and one row of bottom bar + input. --;
 #alias {gstin_clamp_top_size} {
@@ -69,11 +69,56 @@
     #variable {gstin[_resize][clamped]} {$_v};
 }
 
+#nop -- Clamp a candidate left pane width. Respect chat_min_width (hard min --;
+#nop -- 31 for vitals/status) and leave >=10 cols for center scroll. --;
+#alias {gstin_clamp_left_w} {
+    #local {_v} {%1};
+    #local {_min} {$gstin[config][chat_min_width]};
+    #if {$_min < 31} {#local {_min} {31}};
+    #local {_max} {0};
+    #math {_max} {$gstin[ui][cols] - $gstin[ui][right_w] - 10};
+    #if {$_max < $_min} {#local {_max} {$_min}};
+    #if {$_v < $_min} {#local {_v} {$_min}};
+    #if {$_v > $_max} {#local {_v} {$_max}};
+    #variable {gstin[_resize][clamped]} {$_v};
+}
+
+#nop -- Clamp a candidate right pane width. Min 10 so effect bars fit, and --;
+#nop -- leave >=10 cols for center scroll after accounting for left pane. --;
+#alias {gstin_clamp_right_w} {
+    #local {_v} {%1};
+    #local {_min} {10};
+    #local {_max} {0};
+    #math {_max} {$gstin[ui][cols] - $gstin[ui][left_w] - 10};
+    #if {$_max < $_min} {#local {_max} {$_min}};
+    #if {$_v < $_min} {#local {_v} {$_min}};
+    #if {$_v > $_max} {#local {_v} {$_max}};
+    #variable {gstin[_resize][clamped]} {$_v};
+}
+
+#nop -- Common post-resize housekeeping: invalidate snapshot caches so every --;
+#nop -- piece of chrome (room box, vitals header, sidebar bars) gets rebuilt --;
+#nop -- at the new geometry, then request a coalesced full render. --;
+#alias {gstin_resize_invalidate} {
+    #variable {gstin[_split_needed]} {1};
+    #variable {gstin[_prev_rbar]} {};
+    #variable {gstin[_prev][header]}     {0};
+    #variable {gstin[_prev][body]}       {_};
+    #variable {gstin[_prev][vitals]}     {_};
+    #variable {gstin[_prev][mind]}       {_};
+    #variable {gstin[_prev][enc]}        {_};
+    #variable {gstin[_prev][conditions]} {_};
+    #variable {gstin[_prev][spell]}      {_};
+    #variable {gstin[_prev][hands]}      {_};
+    #variable {gstin[_prev][bottom]}     {_};
+    #variable {gstin[_prev][chat]}       {_};
+    #variable {gstin[_chat_dirty]} {1};
+    gstin_dirty_all;
+    gstin_request_render;
+}
+
 #nop -- Apply a new top_size from a drag. Only runs when the cursor row --;
 #nop -- differs from the last applied row, so in-row mouse jitter is free. --;
-#nop -- Resets per-component snapshot caches so every piece of chrome (room --;
-#nop -- box corners, vitals header, side-pane connectors) gets rebuilt at --;
-#nop -- the new geometry. --;
 #alias {gstin_apply_drag_top_size} {
     #local {_row} {%1};
     gstin_clamp_top_size {$_row};
@@ -81,39 +126,75 @@
     #if {$_new != $gstin[ui][top_size]} {
         #variable {gstin[ui][user_top_size]} {$_new};
         #variable {gstin[_resize_needed]} {$_new};
-        #variable {gstin[_split_needed]} {1};
-        #variable {gstin[_prev_rbar]} {};
-        #variable {gstin[_prev][header]}     {0};
-        #variable {gstin[_prev][body]}       {_};
-        #variable {gstin[_prev][vitals]}     {_};
-        #variable {gstin[_prev][mind]}       {_};
-        #variable {gstin[_prev][enc]}        {_};
-        #variable {gstin[_prev][conditions]} {_};
-        #variable {gstin[_prev][spell]}      {_};
-        #variable {gstin[_prev][hands]}      {_};
-        #variable {gstin[_prev][bottom]}     {_};
-        #variable {gstin[_prev][chat]}       {_};
-        #variable {gstin[_chat_dirty]} {1};
-        gstin_dirty_all;
-        gstin_request_render;
+        gstin_resize_invalidate;
     };
     #variable {gstin[_resize][last_row]} {$_row};
 }
 
-#nop -- Press on the separator row arms resize mode. No relayout yet — --;
-#nop -- just flip the flag and repaint the separator so the user sees feedback. --;
-#nop -- Press on a row carrying a [More...] marker grows the top pane so all --;
-#nop -- hidden room content becomes visible. --;
+#nop -- Apply a new left_w from a drag. Cursor column is the target width --;
+#nop -- (left pane spans cols 1..left_w). Chat buffer is rewrapped by --;
+#nop -- gstin_apply_resize's existing #split path. --;
+#alias {gstin_apply_drag_left_w} {
+    #local {_col} {%1};
+    gstin_clamp_left_w {$_col};
+    #local {_new} {$gstin[_resize][clamped]};
+    #if {$_new != $gstin[ui][left_w]} {
+        #variable {gstin[ui][user_left_w]} {$_new};
+        #variable {gstin[ui][left_w]} {$_new};
+        gstin_resize_invalidate;
+    };
+    #variable {gstin[_resize][last_col]} {$_col};
+}
+
+#nop -- Apply a new right_w from a drag. Cursor column defines the left --;
+#nop -- edge of the right pane, so right_w = cols - col + 1. --;
+#alias {gstin_apply_drag_right_w} {
+    #local {_col} {%1};
+    #local {_want} {0};
+    #math {_want} {$gstin[ui][cols] - $_col + 1};
+    gstin_clamp_right_w {$_want};
+    #local {_new} {$gstin[_resize][clamped]};
+    #if {$_new != $gstin[ui][right_w]} {
+        #variable {gstin[ui][user_right_w]} {$_new};
+        #variable {gstin[ui][right_w]} {$_new};
+        #math {gstin[ui][right_col]} {$gstin[ui][cols] - $_new + 1};
+        gstin_resize_invalidate;
+    };
+    #variable {gstin[_resize][last_col]} {$_col};
+}
+
+#nop -- Press arms a drag mode based on where the cursor is. --;
+#nop --   * separator row (top_size)          -> top drag --;
+#nop --   * col left_w within bar_top..bar_bot -> left drag --;
+#nop --   * col right_col (if right_active)   -> right drag --;
+#nop --   * [More...] marker row              -> expand top pane --;
 #event {PRESSED MOUSE BUTTON ONE} {
     #local {_r} {%0};
-    #if {$_r == $gstin[ui][top_size] && $gstin[_resize][active] == 0} {
+    #local {_c} {%1};
+    #if {$gstin[_resize][active] == 1} {#return};
+    #if {$_r == $gstin[ui][top_size]} {
         #variable {gstin[_resize][active]} {1};
+        #variable {gstin[_resize][axis]} {top};
         #variable {gstin[_resize][last_row]} {$_r};
         gstin_redraw_bottom_border;
-    } {
-        #if {&gstin[_more_row][$_r]} {
-            gstin_expand_for_more;
-        };
+        #return;
+    };
+    #if {$_r >= $gstin[ui][bar_top] && $_r <= $gstin[ui][bar_bot] && $_c == $gstin[ui][left_w]} {
+        #variable {gstin[_resize][active]} {1};
+        #variable {gstin[_resize][axis]} {left};
+        #variable {gstin[_resize][last_col]} {$_c};
+        gstin_redraw_left_bar;
+        #return;
+    };
+    #if {$gstin[ui][right_active] == 1 && $_r >= $gstin[ui][bar_top] && $_r <= $gstin[ui][bar_bot] && $_c == $gstin[ui][right_col]} {
+        #variable {gstin[_resize][active]} {1};
+        #variable {gstin[_resize][axis]} {right};
+        #variable {gstin[_resize][last_col]} {$_c};
+        gstin_redraw_right_bar;
+        #return;
+    };
+    #if {&gstin[_more_row][$_r]} {
+        gstin_expand_for_more;
     };
 }
 
@@ -140,29 +221,31 @@
     #if {$_clamped == $gstin[ui][top_size]} {#return};
     #variable {gstin[ui][user_top_size]} {$_clamped};
     #variable {gstin[_resize_needed]} {$_clamped};
-    #variable {gstin[_split_needed]} {1};
-    #variable {gstin[_prev_rbar]} {};
-    #variable {gstin[_prev][header]}     {0};
-    #variable {gstin[_prev][body]}       {_};
-    #variable {gstin[_prev][vitals]}     {_};
-    #variable {gstin[_prev][mind]}       {_};
-    #variable {gstin[_prev][enc]}        {_};
-    #variable {gstin[_prev][conditions]} {_};
-    #variable {gstin[_prev][spell]}      {_};
-    #variable {gstin[_prev][hands]}      {_};
-    #variable {gstin[_prev][bottom]}     {_};
-    #variable {gstin[_prev][chat]}       {_};
-    #variable {gstin[_chat_dirty]} {1};
-    gstin_dirty_all;
-    gstin_request_render;
+    gstin_resize_invalidate;
 }
 
-#nop -- Drag: only relayout when the row crosses a boundary. Rapid moves --;
-#nop -- across multiple rows coalesce via gstin_request_render's #delay 0. --;
+#nop -- Drag: only relayout when the cursor crosses a boundary. Rapid moves --;
+#nop -- coalesce via gstin_request_render's #delay 0. Dispatch by axis. --;
 #event {MOVED MOUSE BUTTON ONE} {
     #local {_r} {%0};
-    #if {$gstin[_resize][active] == 1 && $_r != $gstin[_resize][last_row]} {
-        gstin_apply_drag_top_size {$_r};
+    #local {_c} {%1};
+    #if {$gstin[_resize][active] != 1} {#return};
+    #switch {"$gstin[_resize][axis]"} {
+        #case {"top"} {
+            #if {$_r != $gstin[_resize][last_row]} {
+                gstin_apply_drag_top_size {$_r};
+            };
+        };
+        #case {"left"} {
+            #if {$_c != $gstin[_resize][last_col]} {
+                gstin_apply_drag_left_w {$_c};
+            };
+        };
+        #case {"right"} {
+            #if {$_c != $gstin[_resize][last_col]} {
+                gstin_apply_drag_right_w {$_c};
+            };
+        };
     };
 }
 
@@ -173,25 +256,8 @@
 #event {RELEASED MOUSE BUTTON ONE} {
     #if {$gstin[_resize][active] == 1} {
         #variable {gstin[_resize][active]} {0};
-        #variable {gstin[_split_needed]} {1};
-        #variable {gstin[_prev_rbar]} {};
-        #variable {gstin[_prev][header]}     {0};
-        #variable {gstin[_prev][body]}       {_};
-        #variable {gstin[_prev][vitals]}     {_};
-        #variable {gstin[_prev][mind]}       {_};
-        #variable {gstin[_prev][enc]}        {_};
-        #variable {gstin[_prev][conditions]} {_};
-        #variable {gstin[_prev][spell]}      {_};
-        #variable {gstin[_prev][hands]}      {_};
-        #variable {gstin[_prev][bottom]}     {_};
-        #variable {gstin[_prev][chat]}       {_};
-        #variable {gstin[_chat_dirty]} {1};
-        gstin_dirty_all;
-        #nop -- Route through gstin_request_render so the render lands on the --;
-        #nop -- next tick after tt++ has finished its own #split frame draw. --;
-        #nop -- Calling gstin_render_all synchronously here races tt++'s chrome --;
-        #nop -- redraw and the row-1 ┌─ ─┐ ends up clobbered by tt++'s frame. --;
-        gstin_request_render;
+        #variable {gstin[_resize][axis]} {};
+        gstin_resize_invalidate;
         #nop -- Extra deferred top-border repaint: row 1 #showme is fragile --;
         #nop -- right after a #split (per CLAUDE.md gotcha #8). One more pass --;
         #nop -- after everything settles guarantees the corners. Do NOT repaint --;
@@ -233,6 +299,24 @@
 
 #alias {gstin_story_scroll_down} {
     #buffer down 2;
+    gstin_update_story_scroll;
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#nop -- Jump to the oldest/newest line in the main scrollback. Home parks --;
+#nop -- at the top of the buffer, End returns to live. --;
+#alias {gstin_story_scroll_top} {
+    #buffer home;
+    gstin_update_story_scroll;
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#alias {gstin_story_scroll_bottom} {
+    #buffer end;
     gstin_update_story_scroll;
     #variable {gstin[_chat_dirty]} {1};
     #variable {gstin[_dirty][chat]} {1};
@@ -286,6 +370,26 @@
 #nop -- Shift+Up/Down: single-line familiar scroll --;
 #macro {\e[1;2A} {gstin_familiar_scroll_line_up};
 #macro {\e[1;2B} {gstin_familiar_scroll_line_down};
+#nop -- Home/End: jump to top/bottom of main story scrollback. xterm emits --;
+#nop -- \e[H / \e[F or \eOH / \eOF depending on keypad mode -- bind both. --;
+#macro {\e[H} {gstin_story_scroll_top};
+#macro {\e[F} {gstin_story_scroll_bottom};
+#macro {\eOH} {gstin_story_scroll_top};
+#macro {\eOF} {gstin_story_scroll_bottom};
+#macro {\e[1~} {gstin_story_scroll_top};
+#macro {\e[4~} {gstin_story_scroll_bottom};
+#macro {\e[7~} {gstin_story_scroll_top};
+#macro {\e[8~} {gstin_story_scroll_bottom};
+#nop -- Ctrl+Home/End: jump to top/bottom of chat feed --;
+#macro {\e[1;5H} {gstin_chat_scroll_top};
+#macro {\e[1;5F} {gstin_chat_scroll_bottom};
+#macro {\e[7;5~} {gstin_chat_scroll_top};
+#macro {\e[8;5~} {gstin_chat_scroll_bottom};
+#nop -- Shift+Home/End: jump to top/bottom of familiar feed --;
+#macro {\e[1;2H} {gstin_familiar_scroll_top};
+#macro {\e[1;2F} {gstin_familiar_scroll_bottom};
+#macro {\e[7;2~} {gstin_familiar_scroll_top};
+#macro {\e[8;2~} {gstin_familiar_scroll_bottom};
 
 #nop -- Half the chat window row count. Stored in gstin[_chat_page_size] so --;
 #nop -- callers can read it. Could be replaced with a config var later. --;
@@ -343,6 +447,25 @@
 #alias {gstin_chat_scroll_line_down} {
     #if {$gstin[chat][scroll] > 0} {
         #math {gstin[chat][scroll]} {$gstin[chat][scroll] - 1};
+        #variable {gstin[_chat_dirty]} {1};
+        #variable {gstin[_dirty][chat]} {1};
+        gstin_request_render;
+    };
+}
+
+#nop -- Jump to oldest/newest line in the chat feed. Top snaps to the --;
+#nop -- max scroll offset, bottom pins live at offset 0. --;
+#alias {gstin_chat_scroll_top} {
+    gstin_chat_scroll_max;
+    #variable {gstin[chat][scroll]} {$gstin[_chat_scroll_max]};
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#alias {gstin_chat_scroll_bottom} {
+    #if {$gstin[chat][scroll] > 0} {
+        #variable {gstin[chat][scroll]} {0};
         #variable {gstin[_chat_dirty]} {1};
         #variable {gstin[_dirty][chat]} {1};
         gstin_request_render;
@@ -417,6 +540,24 @@
 #alias {gstin_familiar_scroll_line_down} {
     #if {$gstin[familiar][active] == 1 && $gstin[familiar][scroll] > 0} {
         #math {gstin[familiar][scroll]} {$gstin[familiar][scroll] - 1};
+        #variable {gstin[_dirty][familiar]} {1};
+        gstin_request_render;
+    };
+}
+
+#nop -- Jump to oldest/newest line in the familiar feed. --;
+#alias {gstin_familiar_scroll_top} {
+    #if {$gstin[familiar][active] == 1} {
+        gstin_familiar_scroll_max;
+        #variable {gstin[familiar][scroll]} {$gstin[_familiar_scroll_max]};
+        #variable {gstin[_dirty][familiar]} {1};
+        gstin_request_render;
+    };
+}
+
+#alias {gstin_familiar_scroll_bottom} {
+    #if {$gstin[familiar][active] == 1 && $gstin[familiar][scroll] > 0} {
+        #variable {gstin[familiar][scroll]} {0};
         #variable {gstin[_dirty][familiar]} {1};
         gstin_request_render;
     };

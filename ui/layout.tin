@@ -12,13 +12,18 @@
 #screen get rows gstin[ui][rows];
 #screen get cols gstin[ui][cols];
 
-#math {gstin[ui][left_w]}    {$gstin[ui][cols] / 4};
-#nop -- Clamp to configured range (hard minimum 31) --;
-#local {_cmin} {$gstin[config][chat_min_width]};
-#if {$_cmin < 31} {#local {_cmin} {31}};
-#if {$gstin[ui][left_w] < $_cmin} {#variable {gstin[ui][left_w]} {$_cmin}};
-#if {$gstin[config][chat_max_width] > 0 && $gstin[ui][left_w] > $gstin[config][chat_max_width]} {
-    #variable {gstin[ui][left_w]} {$gstin[config][chat_max_width]};
+#nop -- Default left_w: a quarter of cols, clamped to chat_min/max_width. --;
+#nop -- User drag override (gstin[ui][user_left_w]) wins when set. --;
+#if {$gstin[ui][user_left_w] > 0} {
+    #variable {gstin[ui][left_w]} {$gstin[ui][user_left_w]};
+} {
+    #math {gstin[ui][left_w]}    {$gstin[ui][cols] / 4};
+    #local {_cmin} {$gstin[config][chat_min_width]};
+    #if {$_cmin < 31} {#local {_cmin} {31}};
+    #if {$gstin[ui][left_w] < $_cmin} {#variable {gstin[ui][left_w]} {$_cmin}};
+    #if {$gstin[config][chat_max_width] > 0 && $gstin[ui][left_w] > $gstin[config][chat_max_width]} {
+        #variable {gstin[ui][left_w]} {$gstin[config][chat_max_width]};
+    };
 };
 #nop -- Right sidebar starts hidden (no spells/effects yet) --;
 #variable {gstin[ui][right_w]} {0};
@@ -56,8 +61,10 @@ gstin_calc_status_layout;
 #alias {gstin_show_right_sidebar} {
     #if {$gstin[ui][right_active] == 0} {
         #variable {gstin[ui][right_active]} {1};
-        #variable {gstin[ui][right_w]} {32};
-        #math {gstin[ui][right_col]} {$gstin[ui][cols] - 32 + 1};
+        #local {_rw} {32};
+        #if {$gstin[ui][user_right_w] > 0} {#local {_rw} {$gstin[ui][user_right_w]}};
+        #variable {gstin[ui][right_w]} {$_rw};
+        #math {gstin[ui][right_col]} {$gstin[ui][cols] - $_rw + 1};
         #math {gstin[ui][bar_top]} {$gstin[ui][top_size] + 1};
         #math {gstin[ui][bar_bot]} {$gstin[ui][rows] - 2};
         #variable {gstin[_split_needed]} {1};
@@ -511,14 +518,14 @@ gstin_calc_status_layout;
         #variable {gstin[_split_needed]} {1};
     };
     #if {$gstin[_split_needed] == 1} {
+        #nop -- left_w may have changed via drag, so recalc status column layout --;
+        gstin_calc_status_layout;
         #split {$gstin[ui][top_size]} 1 {$gstin[ui][left_w]} {$gstin[ui][right_w]} 1;
         #variable {gstin[_split_needed]} {0};
-        #nop -- During drag, repaint our yellow separator. Do NOT touch the --;
-        #nop -- bottom border otherwise -- it would overwrite tt++'s native --;
-        #nop -- └ ┴ ┘ corner glyphs with plain dashes. --;
-        #if {$gstin[_resize][active] == 1} {
-            gstin_redraw_bottom_border;
-        };
+        #nop -- During drag, repaint the axis-specific yellow separator. Do NOT --;
+        #nop -- touch the bottom border outside a top-drag -- it would overwrite --;
+        #nop -- tt++'s native └ ┴ ┘ corner glyphs with plain dashes. --;
+        gstin_paint_resize_highlight;
         #nop -- Invalidate prev-state cache and dirty all sections after split --;
         gstin_dirty_all;
         #variable {gstin[_prev_rbar]} {};
@@ -866,10 +873,51 @@ gstin_calc_status_layout;
     #local {_pad} {};
     #format {_pad} {%$gstin[ui][cols]s} {};
     #replace {_pad} { } {─};
-    #if {$gstin[_resize][active] == 1} {
+    #if {$gstin[_resize][active] == 1 && "$gstin[_resize][axis]" == "top"} {
         #showme {$gstin[colors][ui][resize_active]${_pad}\e[0m} {$gstin[ui][top_size]};
     } {
         #showme {$_pad} {$gstin[ui][top_size]};
+    };
+}
+
+#nop -- Paint the left split bar yellow during a left drag. Column left_w is --;
+#nop -- tt++'s native separator; #showme overrides it for each row in the --;
+#nop -- side-pane zone. Safe to call outside a drag too (no-ops). --;
+#alias {gstin_redraw_left_bar} {
+    #if {$gstin[_resize][active] != 1 || "$gstin[_resize][axis]" != "left"} {#return};
+    #local {_r} {$gstin[ui][bar_top]};
+    #local {_c} {$gstin[ui][left_w]};
+    #local {_color} {$gstin[colors][ui][resize_active]};
+    #while {$_r <= $gstin[ui][bar_bot]} {
+        #showme {${_color}│\e[0m} {$_r} {$_c};
+        #math {_r} {$_r + 1};
+    };
+}
+
+#nop -- Paint the right split bar yellow during a right drag. Column right_col --;
+#nop -- is where gstin_drawright writes │; painting after gstin_render_spells --;
+#nop -- keeps the highlight from being clobbered. --;
+#alias {gstin_redraw_right_bar} {
+    #if {$gstin[_resize][active] != 1 || "$gstin[_resize][axis]" != "right"} {#return};
+    #if {$gstin[ui][right_active] == 0} {#return};
+    #local {_r} {$gstin[ui][bar_top]};
+    #local {_c} {$gstin[ui][right_col]};
+    #local {_color} {$gstin[colors][ui][resize_active]};
+    #while {$_r <= $gstin[ui][bar_bot]} {
+        #showme {${_color}│\e[0m} {$_r} {$_c};
+        #math {_r} {$_r + 1};
+    };
+}
+
+#nop -- Paint whichever split bar is being dragged. Called at end of --;
+#nop -- gstin_render_all so renderers that write into the bar column --;
+#nop -- (e.g. gstin_render_spells) don't clobber the highlight. --;
+#alias {gstin_paint_resize_highlight} {
+    #if {$gstin[_resize][active] != 1} {#return};
+    #switch {"$gstin[_resize][axis]"} {
+        #case {"top"}   {gstin_redraw_bottom_border};
+        #case {"left"}  {gstin_redraw_left_bar};
+        #case {"right"} {gstin_redraw_right_bar};
     };
 }
 
@@ -1410,6 +1458,9 @@ gstin_calc_status_layout;
             #screen cursor show;
         };
     };
+    #nop -- Paint drag highlight last so section renderers (spells sidebar --;
+    #nop -- writes │ at right_col on every row) don't clobber it. --;
+    gstin_paint_resize_highlight;
     #screen sync end;
 }
 
@@ -1452,16 +1503,37 @@ gstin_calc_status_layout;
     #delay {gstin_resize_delay} {
         #screen get rows gstin[ui][rows];
         #screen get cols gstin[ui][cols];
-        #math {gstin[ui][left_w]}    {$gstin[ui][cols] / 4};
-        #local {_cmin} {$gstin[config][chat_min_width]};
-        #if {$_cmin < 31} {#local {_cmin} {31}};
-        #if {$gstin[ui][left_w] < $_cmin} {#variable {gstin[ui][left_w]} {$_cmin}};
-        #if {$gstin[config][chat_max_width] > 0 && $gstin[ui][left_w] > $gstin[config][chat_max_width]} {
-            #variable {gstin[ui][left_w]} {$gstin[config][chat_max_width]};
+        #if {$gstin[ui][user_left_w] > 0} {
+            #nop -- Re-clamp the drag override so it still fits a narrower terminal --;
+            #local {_lmax} {0};
+            #math {_lmax} {$gstin[ui][cols] - 10};
+            #if {$gstin[ui][user_left_w] > $_lmax && $_lmax > 0} {
+                #variable {gstin[ui][user_left_w]} {$_lmax};
+            };
+            #variable {gstin[ui][left_w]} {$gstin[ui][user_left_w]};
+        } {
+            #math {gstin[ui][left_w]}    {$gstin[ui][cols] / 4};
+            #local {_cmin} {$gstin[config][chat_min_width]};
+            #if {$_cmin < 31} {#local {_cmin} {31}};
+            #if {$gstin[ui][left_w] < $_cmin} {#variable {gstin[ui][left_w]} {$_cmin}};
+            #if {$gstin[config][chat_max_width] > 0 && $gstin[ui][left_w] > $gstin[config][chat_max_width]} {
+                #variable {gstin[ui][left_w]} {$gstin[config][chat_max_width]};
+            };
         };
         #if {$gstin[ui][right_active] == 1} {
-            #variable {gstin[ui][right_w]} {32};
-            #math {gstin[ui][right_col]} {$gstin[ui][cols] - 32 + 1};
+            #local {_rw} {32};
+            #if {$gstin[ui][user_right_w] > 0} {#local {_rw} {$gstin[ui][user_right_w]}};
+            #nop -- Re-clamp so the right pane still leaves room for the center --;
+            #local {_rmax} {0};
+            #math {_rmax} {$gstin[ui][cols] - $gstin[ui][left_w] - 4};
+            #if {$_rw > $_rmax && $_rmax > 0} {
+                #local {_rw} {$_rmax};
+                #if {$gstin[ui][user_right_w] > 0} {
+                    #variable {gstin[ui][user_right_w]} {$_rw};
+                };
+            };
+            #variable {gstin[ui][right_w]} {$_rw};
+            #math {gstin[ui][right_col]} {$gstin[ui][cols] - $_rw + 1};
         } {
             #variable {gstin[ui][right_w]} {0};
             #variable {gstin[ui][right_col]} {0};

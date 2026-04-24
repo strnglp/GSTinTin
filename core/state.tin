@@ -192,13 +192,18 @@
 #variable {gstin[ui][right_active]}   {0}
 #variable {gstin[ui][right_disabled]} {0}
 
-#nop -- Top split drag-resize state. user_top_size > 0 overrides the auto --;
-#nop -- fixed sizing in gstin_calc_top_size. _resize[active]==1 while the --;
-#nop -- user is holding MOUSE BUTTON ONE on the separator row. _resize[last_row] --;
-#nop -- is the last row we applied during drag (relayout only fires on row change). --;
+#nop -- Split drag-resize state. user_top_size/user_left_w/user_right_w > 0 --;
+#nop -- override the defaults. _resize[active]==1 while a drag is in progress. --;
+#nop -- _resize[axis] is top|left|right to dispatch the MOVED handler. --;
+#nop -- _resize[last_row|last_col] records the last applied coordinate so we --;
+#nop -- only relayout when the cursor actually crosses a boundary. --;
 #variable {gstin[ui][user_top_size]}  {0}
+#variable {gstin[ui][user_left_w]}    {0}
+#variable {gstin[ui][user_right_w]}   {0}
 #variable {gstin[_resize][active]}    {0}
+#variable {gstin[_resize][axis]}      {}
 #variable {gstin[_resize][last_row]}  {0}
+#variable {gstin[_resize][last_col]}  {0}
 
 #nop -- Per-row dirty cache for right sidebar (cleared on resize/toggle) --;
 #variable {gstin[_prev_rbar]} {}
