@@ -137,15 +137,22 @@
     #local {_end} {0};
     #math {_end} {$_now + $_secs};
     #nop -- Compute total duration from value pct: total = remaining * 100 / pct --;
-    #nop -- Only on first see or refresh (value=0 at low pct causes bar to fill 100%) --;
+    #nop -- value=0 (rounded from <1%) would collapse total=remaining and make bar --;
+    #nop -- look 100% full near end-of-life. Preserve prior duration from both --;
+    #nop -- effects_raw (intra-update) and _effects_prev (saved before clear='t'). --;
     #local {_total} {$_secs};
     #if {$gstin[_ep_val] > 0} {
         #math {_total} {$_secs * 100 / $gstin[_ep_val]};
     };
+    #local {_prev_dur} {0};
     #if {&gstin[effects_raw][$_cat][$gstin[_ep_name]][duration]} {
-        #if {$gstin[effects_raw][$_cat][$gstin[_ep_name]][duration] > $_total} {
-            #local {_total} {$gstin[effects_raw][$_cat][$gstin[_ep_name]][duration]};
-        };
+        #local {_prev_dur} {$gstin[effects_raw][$_cat][$gstin[_ep_name]][duration]};
+    };
+    #if {$_prev_dur == 0 && &gstin[_effects_prev][$_cat][$gstin[_ep_name]][duration]} {
+        #local {_prev_dur} {$gstin[_effects_prev][$_cat][$gstin[_ep_name]][duration]};
+    };
+    #if {$_prev_dur > $_total} {
+        #local {_total} {$_prev_dur};
     };
     #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][end_time]} {$_end};
     #variable {gstin[effects_raw][$_cat][$gstin[_ep_name]][value]} {$gstin[_ep_val]};
