@@ -301,12 +301,13 @@ gstin_calc_status_layout;
     gstin_cons_build;
 }
 
-#nop -- Strip XML from text, injecting color codes for semantic tags --;
-#nop -- Mirrors the #substitute pipeline so room window matches main scroll --;
+#nop -- Theme-neutral XML strip: produces placeholder form (GX*, GS*) --;
+#nop -- Output is safe to store long-term, gstin_resolve_placeholders injects --;
+#nop -- the current theme's colors at render/rewrap time, so a theme swap --;
+#nop -- re-colorizes existing buffers without needing fresh server data. --;
 #nop -- Takes a variable NAME (not value), modifies in place --;
-#alias {gstin_strip_xml_colored} {
+#alias {gstin_strip_xml_placeholders} {
     #local {_vn} {%1};
-    #local {_ctx} {%2};
 
     #nop -- Entity markers (GSLTMARK etc) injected in RECEIVED LINE --;
     #nop -- No entity decoding needed here -- markers pass through XML stripping --;
@@ -377,6 +378,15 @@ gstin_calc_status_layout;
     #replace {$_vn} { (u{[0-9]+})} {};
     #replace {$_vn} {] ({[0-9]+})} {]};
     #replace {$_vn} { - {[0-9]+}]} {]};
+}
+
+#nop -- Resolve placeholder form to final color codes using the current theme --;
+#nop -- Safe to call repeatedly after theme swaps, reads $gstin[colors][...] live. --;
+#nop -- Takes a variable NAME (not value), modifies in place --;
+#nop -- Optional 2nd arg: "exits" context (GXNAM -> direction color, strip header) --;
+#alias {gstin_resolve_placeholders} {
+    #local {_vn} {%1};
+    #local {_ctx} {%2};
 
     #nop -- Context-dependent coloring (safe to insert <abc> after catch-all strip) --;
     #nop -- Name may be preceded by a title (e.g. Legendary Lord Hexbane) --;
@@ -408,6 +418,16 @@ gstin_calc_status_layout;
     #replace {$_vn} {GSLTMARK}   {<};
     #replace {$_vn} {GSQUOTMARK} {"};
     #replace {$_vn} {GSAPOSMARK} {'};
+}
+
+#nop -- One-shot ephemeral colorization: strip + resolve in one pass --;
+#nop -- Used by the main-scroll display path where the result is displayed --;
+#nop -- immediately and not stored for later re-rendering. --;
+#alias {gstin_strip_xml_colored} {
+    #local {_vn} {%1};
+    #local {_ctx} {%2};
+    gstin_strip_xml_placeholders {$_vn};
+    gstin_resolve_placeholders {$_vn} {$_ctx};
 }
 
 #nop -- Count wrapped lines needed for a text string --;
@@ -531,10 +551,22 @@ gstin_calc_status_layout;
     #math {_w} {$gstin[ui][cols] - 2};
     #variable {gstin[_room_w]} {$_w};
 
+    #nop -- Resolve placeholders to current theme colors (exits uses the --;
+    #nop -- {exits} context so GXNAM -> direction and the "Obvious paths/exits:" --;
+    #nop -- header is stripped). Work against gstin temps since #replace inside --;
+    #nop -- gstin_resolve_placeholders reads $gstin[colors][...] which requires --;
+    #nop -- a variable NAME (local names don't expand in #replace). --;
+    #variable {gstin[_ri_exits]}   {$gstin[room][exits]};
+    #variable {gstin[_ri_players]} {$gstin[room][players]};
+    #variable {gstin[_ri_objects]} {$gstin[room][objects]};
+    gstin_resolve_placeholders {gstin[_ri_exits]} {exits};
+    gstin_resolve_placeholders {gstin[_ri_players]};
+    gstin_resolve_placeholders {gstin[_ri_objects]};
+
     #nop -- Build display copies with icon prefixes (always show icons) --;
-    #local {_exits} {$gstin[room][exits]};
-    #local {_players} {$gstin[room][players]};
-    #local {_objects} {$gstin[room][objects]};
+    #local {_exits} {$gstin[_ri_exits]};
+    #local {_players} {$gstin[_ri_players]};
+    #local {_objects} {$gstin[_ri_objects]};
     #if {"$_exits" != ""} {
         #local {_exits} {󰀹 $_exits};
     } {
@@ -841,16 +873,17 @@ gstin_calc_status_layout;
     };
 }
 
-#nop -- Add a chat message: store raw, strip/colorize, rewrap --;
+#nop -- Add a chat message: store raw placeholder form, rewrap --;
+#nop -- Raw entries are "stream_name|placeholder_text" so theme swaps can --;
+#nop -- rebuild gstin[chat][lines] from current $gstin[colors][...]. --;
 #alias {gstin_chat_add} {
-    #local {_color} {%1};
+    #local {_stream} {%1};
     #local {_text} {%2};
 
-    #nop -- Colorize once and store in raw buffer --;
+    #nop -- Strip to placeholder form and store, colors resolved at rewrap --;
     #variable {gstin[_chat_temp]} {$_text};
-    gstin_strip_xml_colored {gstin[_chat_temp]};
-    #replace {gstin[_chat_temp]} {<099>} {$_color};
-    #list {gstin[chat][raw]} {add} {${_color}|$gstin[_chat_temp]};
+    gstin_strip_xml_placeholders {gstin[_chat_temp]};
+    #list {gstin[chat][raw]} {add} {${_stream}|$gstin[_chat_temp]};
 
     #nop -- Trim raw buffer to a reasonable max --;
     #local {_rsz} {0};
@@ -891,17 +924,21 @@ gstin_calc_status_layout;
     #local {_ri} {1};
     #while {$_ri <= $_rsz} {
         #local {_entry} {$gstin[chat][raw][$_ri]};
-        #nop -- Split color|text on first pipe --;
-        #local {_color} {};
-        #local {_text} {};
+        #nop -- Split stream|text on first pipe --;
         #regexp {$_entry} {{[^|]+}|{.*}} {
-            #variable {gstin[_chat_color]} {&1};
+            #variable {gstin[_chat_stream]} {&1};
             #variable {gstin[_chat_text]} {&2};
         };
-        #local {_color} {$gstin[_chat_color]};
-        #local {_text} {$gstin[_chat_text]};
+        #local {_stream} {$gstin[_chat_stream]};
+        #variable {gstin[_chat_rcolor]} {$gstin[colors][stream][$_stream]};
+        #local {_color} {$gstin[_chat_rcolor]};
+        #nop -- Resolve placeholders against current theme, then bind <099> to --;
+        #nop -- stream color so mid-line resets return to channel tint (preserves --;
+        #nop -- the prior GXDFT->channel-color behavior without baking it in). --;
+        gstin_resolve_placeholders {gstin[_chat_text]};
+        #replace {gstin[_chat_text]} {<099>} {$gstin[_chat_rcolor]};
 
-        gstin_wordwrap {$_text} {$_w};
+        gstin_wordwrap {$gstin[_chat_text]} {$_w};
 
         #local {_sz} {0};
         #list {gstin[_wrap_result]} {size} {_sz};
@@ -918,15 +955,15 @@ gstin_calc_status_layout;
     };
 }
 
-#nop -- Add a familiar line: store raw, strip/colorize, rewrap --;
+#nop -- Add a familiar line: store raw placeholder form, rewrap --;
+#nop -- Raw entries are "stream_name|placeholder_text" (see gstin_chat_add). --;
 #alias {gstin_familiar_add} {
-    #local {_color} {%1};
+    #local {_stream} {%1};
     #local {_text} {%2};
 
     #variable {gstin[_fam_temp]} {$_text};
-    gstin_strip_xml_colored {gstin[_fam_temp]};
-    #replace {gstin[_fam_temp]} {<099>} {$_color};
-    #list {gstin[familiar][raw]} {add} {${_color}|$gstin[_fam_temp]};
+    gstin_strip_xml_placeholders {gstin[_fam_temp]};
+    #list {gstin[familiar][raw]} {add} {${_stream}|$gstin[_fam_temp]};
 
     #local {_rsz} {0};
     #list {gstin[familiar][raw]} {size} {_rsz};
@@ -965,16 +1002,17 @@ gstin_calc_status_layout;
     #local {_ri} {1};
     #while {$_ri <= $_rsz} {
         #local {_entry} {$gstin[familiar][raw][$_ri]};
-        #local {_color} {};
-        #local {_text} {};
         #regexp {$_entry} {{[^|]+}|{.*}} {
-            #variable {gstin[_fam_color]} {&1};
+            #variable {gstin[_fam_stream]} {&1};
             #variable {gstin[_fam_text]} {&2};
         };
-        #local {_color} {$gstin[_fam_color]};
-        #local {_text} {$gstin[_fam_text]};
+        #local {_stream} {$gstin[_fam_stream]};
+        #variable {gstin[_fam_rcolor]} {$gstin[colors][stream][$_stream]};
+        #local {_color} {$gstin[_fam_rcolor]};
+        gstin_resolve_placeholders {gstin[_fam_text]};
+        #replace {gstin[_fam_text]} {<099>} {$gstin[_fam_rcolor]};
 
-        gstin_wordwrap {$_text} {$_w};
+        gstin_wordwrap {$gstin[_fam_text]} {$_w};
 
         #local {_sz} {0};
         #list {gstin[_wrap_result]} {size} {_sz};

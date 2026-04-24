@@ -502,6 +502,11 @@
     #variable {gstin[_prev][hands]}      {_};
     #variable {gstin[_prev][bottom]}     {_};
     #variable {gstin[_chat_dirty]} {1};
+    #nop -- Rewrap chat/familiar against new theme: their raw buffers hold --;
+    #nop -- theme-neutral placeholder form, so rewrap re-resolves colors. --;
+    #nop -- Room placeholders resolve via gstin_prepare_room_info on render. --;
+    gstin_chat_rewrap;
+    gstin_familiar_rewrap;
     gstin_dirty_all;
     gstin_request_render;
 }

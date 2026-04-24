@@ -842,7 +842,7 @@
     #regexp {$_line} {<component id='room objs'>{.+}</component>} {
         #local {_prev_objs} {$gstin[room][objects]};
         #variable {gstin[room][objects]} {&1};
-        gstin_strip_xml_colored {gstin[room][objects]};
+        gstin_strip_xml_placeholders {gstin[room][objects]};
         gstin_consolidate_objects;
         #if {"$gstin[room][objects]" != "$_prev_objs"} {
             #variable {gstin[_dirty][room]} {1};
@@ -852,7 +852,7 @@
     #regexp {$_line} {<component id="room objs">{.+}</component>} {
         #local {_prev_objs} {$gstin[room][objects]};
         #variable {gstin[room][objects]} {&1};
-        gstin_strip_xml_colored {gstin[room][objects]};
+        gstin_strip_xml_placeholders {gstin[room][objects]};
         gstin_consolidate_objects;
         #if {"$gstin[room][objects]" != "$_prev_objs"} {
             #variable {gstin[_dirty][room]} {1};
@@ -863,7 +863,7 @@
         #local {_prev_players} {$gstin[room][players]};
         #variable {gstin[room][players]} {&1};
         gstin_sort_players;
-        gstin_strip_xml_colored {gstin[room][players]};
+        gstin_strip_xml_placeholders {gstin[room][players]};
         #if {"$gstin[room][players]" != "$_prev_players"} {
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
@@ -873,7 +873,7 @@
         #local {_prev_players} {$gstin[room][players]};
         #variable {gstin[room][players]} {&1};
         gstin_sort_players;
-        gstin_strip_xml_colored {gstin[room][players]};
+        gstin_strip_xml_placeholders {gstin[room][players]};
         #if {"$gstin[room][players]" != "$_prev_players"} {
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
@@ -882,7 +882,7 @@
     #regexp {$_line} {<component id='room exits'>{.+}</component>} {
         #local {_prev_exits} {$gstin[room][exits]};
         #variable {gstin[room][exits]} {&1};
-        gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        gstin_strip_xml_placeholders {gstin[room][exits]};
         #if {"$gstin[room][exits]" != "$_prev_exits"} {
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
@@ -891,7 +891,7 @@
     #regexp {$_line} {<component id="room exits">{.+}</component>} {
         #local {_prev_exits} {$gstin[room][exits]};
         #variable {gstin[room][exits]} {&1};
-        gstin_strip_xml_colored {gstin[room][exits]} {exits};
+        gstin_strip_xml_placeholders {gstin[room][exits]};
         #if {"$gstin[room][exits]" != "$_prev_exits"} {
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
@@ -1295,31 +1295,31 @@
             };
             #regexp {$_line} {<compDef id='room objs'>{.*}</compDef>} {
                 #variable {gstin[room][objects]} {&1};
-                gstin_strip_xml_colored {gstin[room][objects]};
+                gstin_strip_xml_placeholders {gstin[room][objects]};
                 gstin_consolidate_objects;
             };
             #regexp {$_line} {<compDef id="room objs">{.*}</compDef>} {
                 #variable {gstin[room][objects]} {&1};
-                gstin_strip_xml_colored {gstin[room][objects]};
+                gstin_strip_xml_placeholders {gstin[room][objects]};
                 gstin_consolidate_objects;
             };
             #regexp {$_line} {<compDef id='room players'>{.*}</compDef>} {
                 #variable {gstin[room][players]} {&1};
                 gstin_sort_players;
-                gstin_strip_xml_colored {gstin[room][players]};
+                gstin_strip_xml_placeholders {gstin[room][players]};
             };
             #regexp {$_line} {<compDef id="room players">{.*}</compDef>} {
                 #variable {gstin[room][players]} {&1};
                 gstin_sort_players;
-                gstin_strip_xml_colored {gstin[room][players]};
+                gstin_strip_xml_placeholders {gstin[room][players]};
             };
             #regexp {$_line} {<compDef id='room exits'>{.+}</compDef>} {
                 #variable {gstin[room][exits]} {&1};
-                gstin_strip_xml_colored {gstin[room][exits]} {exits};
+                gstin_strip_xml_placeholders {gstin[room][exits]};
             };
             #regexp {$_line} {<compDef id="room exits">{.+}</compDef>} {
                 #variable {gstin[room][exits]} {&1};
-                gstin_strip_xml_colored {gstin[room][exits]} {exits};
+                gstin_strip_xml_placeholders {gstin[room][exits]};
             };
             #line gag;
             #return;
@@ -1365,7 +1365,7 @@
             #if {$gstin[_familiar_hidden] == 0} {
                 gstin_show_familiar_panel;
             };
-            gstin_familiar_add {$gstin[colors][stream][$_stream]} {$_line};
+            gstin_familiar_add {$_stream} {$_line};
             #nop -- Dual-route speech/whisper to chat with [F] prefix --;
             #variable {gstin[_fam_is_speech]} {0};
             #regexp {$_line} {<preset id='speech'>} {#variable {gstin[_fam_is_speech]} {1}};
@@ -1373,7 +1373,7 @@
             #regexp {$_line} {<preset id='whisper'>} {#variable {gstin[_fam_is_speech]} {1}};
             #regexp {$_line} {<preset id="whisper">} {#variable {gstin[_fam_is_speech]} {1}};
             #if {$gstin[_fam_is_speech] == 1} {
-                gstin_chat_add {$gstin[colors][stream][$_stream]} {[F] $_line};
+                gstin_chat_add {$_stream} {[F] $_line};
                 #screen cursor hide;
                 gstin_render_chat;
                 gstin_redraw_top_border;
@@ -1413,7 +1413,7 @@
                 #line gag;
                 #return;
             };
-            gstin_chat_add {$gstin[colors][stream][$_stream]} {$_line};
+            gstin_chat_add {$_stream} {$_line};
             #screen cursor hide;
             gstin_render_chat;
             gstin_redraw_top_border;
@@ -1432,26 +1432,26 @@
         #regexp {$_line} {^Also here: {.+}} {
             #variable {gstin[room][players]} {Also here: &1};
             gstin_sort_players;
-            gstin_strip_xml_colored {gstin[room][players]};
+            gstin_strip_xml_placeholders {gstin[room][players]};
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
         #regexp {$_line} {You also see {.+}} {
             #variable {gstin[room][objects]} {  You also see &1};
-            gstin_strip_xml_colored {gstin[room][objects]};
+            gstin_strip_xml_placeholders {gstin[room][objects]};
             gstin_consolidate_objects;
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
         #regexp {$_line} {^Obvious paths: {.+}} {
             #variable {gstin[room][exits]} {Obvious paths: &1};
-            gstin_strip_xml_colored {gstin[room][exits]} {exits};
+            gstin_strip_xml_placeholders {gstin[room][exits]};
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
         #regexp {$_line} {^Obvious exits: {.+}} {
             #variable {gstin[room][exits]} {Obvious exits: &1};
-            gstin_strip_xml_colored {gstin[room][exits]} {exits};
+            gstin_strip_xml_placeholders {gstin[room][exits]};
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
