@@ -5,6 +5,111 @@
 
 #class {gstin_macros} {open}
 
+#nop ---- Mouse support --;
+#nop -- Enables xterm mouse tracking so wheel/click events reach tt++. --;
+#nop -- Without this, mouse wheel gets interpreted by the terminal as arrow --;
+#nop -- keys which move the input line cursor (useless). --;
+#config {mouse tracking} {on};
+
+#nop -- Hit-test the cursor row/col against known regions. --;
+#nop -- Sets gstin[_hit] to: story|chat|familiar|spells|other. --;
+#nop -- Story is rows top_size+1 to bar_bot, cols left_w+1 to right_col-1 (or cols). --;
+#nop -- Chat is rows bar_top to bar_bot-9, cols 1 to left_w-1. --;
+#nop -- Familiar is rows 6 to top_size-1 when active, cols 1 to cols. --;
+#alias {gstin_mouse_hit_test} {
+    #local {_row} {%1};
+    #local {_col} {%2};
+    #variable {gstin[_hit]} {other};
+    #nop -- Familiar panel (inside top pane, rows 6 through top_size-1) --;
+    #if {$gstin[familiar][active] == 1 && $_row >= 6 && $_row < $gstin[ui][top_size]} {
+        #variable {gstin[_hit]} {familiar};
+        #return;
+    };
+    #nop -- Chat sidebar (left column, below top pane, above bottom bars) --;
+    #if {$_col < $gstin[ui][left_w] && $_row >= $gstin[ui][bar_top] && $_row <= $gstin[ui][bar_bot] - 9} {
+        #variable {gstin[_hit]} {chat};
+        #return;
+    };
+    #nop -- Spells sidebar (right column when active) --;
+    #if {$gstin[ui][right_active] == 1 && $_col >= $gstin[ui][right_col] && $_row >= $gstin[ui][bar_top] && $_row <= $gstin[ui][bar_bot]} {
+        #variable {gstin[_hit]} {spells};
+        #return;
+    };
+    #nop -- Story scroll region (middle column, main scrollback) --;
+    #if {$_col >= $gstin[ui][left_w] && $_row > $gstin[ui][top_size] && $_row <= $gstin[ui][bar_bot]} {
+        #variable {gstin[_hit]} {story};
+        #return;
+    };
+}
+
+#nop -- Wheel up: route to whatever window is under the cursor --;
+#nop -- Story uses #buffer up N (default is full page, we want 2-line steps). --;
+#nop -- We maintain gstin[_story_scroll] as a tin-side counter matching how far --;
+#nop -- the user has wheeled back, so the [Story +N] header indicator works. --;
+#nop -- Header renders in gstin_render_chat; mark chat dirty to trigger redraw. --;
+#event {SCROLLED MOUSE WHEEL UP} {
+    gstin_mouse_hit_test {%0} {%1};
+    #switch {"$gstin[_hit]"} {
+        #case {"chat"} {gstin_chat_scroll_line_up};
+        #case {"familiar"} {gstin_familiar_scroll_line_up};
+        #case {"story"} {gstin_story_scroll_up};
+    };
+}
+
+#event {SCROLLED MOUSE WHEEL DOWN} {
+    gstin_mouse_hit_test {%0} {%1};
+    #switch {"$gstin[_hit]"} {
+        #case {"chat"} {gstin_chat_scroll_line_down};
+        #case {"familiar"} {gstin_familiar_scroll_line_down};
+        #case {"story"} {gstin_story_scroll_down};
+    };
+}
+
+#nop -- Read tt++ scrollback offset into gstin[_story_scroll]. LINE == -1 means --;
+#nop -- live (at bottom); otherwise scrolled-back distance = USED - 1 - LINE. --;
+#alias {gstin_update_story_scroll} {
+    #variable {gstin[_bi]} {};
+    #buffer info save {gstin[_bi]};
+    #if {$gstin[_bi][LINE] < 0} {
+        #variable {gstin[_story_scroll]} {0};
+    } {
+        #math {gstin[_story_scroll]} {$gstin[_bi][USED] - 1 - $gstin[_bi][LINE]};
+        #if {$gstin[_story_scroll] < 0} {#variable {gstin[_story_scroll]} {0}};
+    };
+}
+
+#alias {gstin_story_scroll_up} {
+    #buffer up 2;
+    gstin_update_story_scroll;
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#alias {gstin_story_scroll_down} {
+    #buffer down 2;
+    gstin_update_story_scroll;
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#nop -- When a new line arrives in scrollback while the user is scrolled back, --;
+#nop -- the offset grows by 1. Refresh the [Story +N] header to reflect it. --;
+#nop -- Only fires when already scrolled, so no overhead in the live case. --;
+#nop -- Scrollback grew (mud line OR #showme). Refresh [Story +N] header if --;
+#nop -- the user is scrolled back. BUFFER UPDATE fires for both server lines --;
+#nop -- and #showme output, unlike PROCESSED LINE which misses gagged+showme'd --;
+#nop -- text (which is most of our display). --;
+#event {BUFFER UPDATE} {
+    #if {$gstin[_story_scroll] > 0} {
+        gstin_update_story_scroll;
+        #variable {gstin[_chat_dirty]} {1};
+        #variable {gstin[_dirty][chat]} {1};
+        gstin_request_render;
+    };
+}
+
 #nop ---- Numpad directional macros (matching ProfanityFE layout) --;
 #macro {\eOq} {sw\n}
 #macro {\eOr} {s\n}
@@ -24,16 +129,43 @@
 #macro {\eOj} {down\n}
 
 #nop ---- Chat scroll macros --;
-#nop -- Ctrl+PageUp: scroll chat up --;
+#nop -- Ctrl+PageUp/Down: half-page chat scroll --;
 #macro {\e[5;5~} {gstin_chat_scroll_up};
-#nop -- Ctrl+PageDown: scroll chat down --;
 #macro {\e[6;5~} {gstin_chat_scroll_down};
+#nop -- Ctrl+Up/Down: single-line chat scroll --;
+#macro {\e[1;5A} {gstin_chat_scroll_line_up};
+#macro {\e[1;5B} {gstin_chat_scroll_line_down};
+#nop -- Shift+PageUp/Down: half-page familiar scroll --;
+#macro {\e[5;2~} {gstin_familiar_scroll_up};
+#macro {\e[6;2~} {gstin_familiar_scroll_down};
+#nop -- Shift+Up/Down: single-line familiar scroll --;
+#macro {\e[1;2A} {gstin_familiar_scroll_line_up};
+#macro {\e[1;2B} {gstin_familiar_scroll_line_down};
+
+#nop -- Half the chat window row count. Stored in gstin[_chat_page_size] so --;
+#nop -- callers can read it. Could be replaced with a config var later. --;
+#alias {gstin_chat_page_size} {
+    #math {gstin[_chat_page_size]} {($gstin[ui][bar_bot] - 9 - $gstin[ui][bar_top] + 1) / 2};
+    #if {$gstin[_chat_page_size] < 1} {#variable {gstin[_chat_page_size]} {1}};
+}
+
+#nop -- Compute chat scroll ceiling (lines - visible rows). --;
+#alias {gstin_chat_scroll_max} {
+    #local {_sz} {0};
+    #list {gstin[chat][lines]} {size} {_sz};
+    #local {_visible} {0};
+    #math {_visible} {$gstin[ui][bar_bot] - 9 - $gstin[ui][bar_top] + 1};
+    #math {gstin[_chat_scroll_max]} {$_sz - $_visible};
+    #if {$gstin[_chat_scroll_max] < 0} {#variable {gstin[_chat_scroll_max]} {0}};
+}
 
 #alias {gstin_chat_scroll_up} {
-    #local {_page} {0};
-    #math {_page} {($gstin[ui][bar_bot] - 9 - $gstin[ui][bar_top] + 1) / 2};
-    #if {$_page < 1} {#local {_page} {1}};
-    #math {gstin[chat][scroll]} {$gstin[chat][scroll] + $_page};
+    gstin_chat_page_size;
+    gstin_chat_scroll_max;
+    #math {gstin[chat][scroll]} {$gstin[chat][scroll] + $gstin[_chat_page_size]};
+    #if {$gstin[chat][scroll] > $gstin[_chat_scroll_max]} {
+        #variable {gstin[chat][scroll]} {$gstin[_chat_scroll_max]};
+    };
     #variable {gstin[_chat_dirty]} {1};
     #variable {gstin[_dirty][chat]} {1};
     gstin_request_render;
@@ -41,15 +173,92 @@
 
 #alias {gstin_chat_scroll_down} {
     #if {$gstin[chat][scroll] > 0} {
-        #local {_page} {0};
-        #math {_page} {($gstin[ui][bar_bot] - 9 - $gstin[ui][bar_top] + 1) / 2};
-        #if {$_page < 1} {#local {_page} {1}};
-        #math {gstin[chat][scroll]} {$gstin[chat][scroll] - $_page};
+        gstin_chat_page_size;
+        #math {gstin[chat][scroll]} {$gstin[chat][scroll] - $gstin[_chat_page_size]};
         #if {$gstin[chat][scroll] < 0} {
             #variable {gstin[chat][scroll]} {0};
         };
         #variable {gstin[_chat_dirty]} {1};
         #variable {gstin[_dirty][chat]} {1};
+        gstin_request_render;
+    };
+}
+
+#alias {gstin_chat_scroll_line_up} {
+    gstin_chat_scroll_max;
+    #math {gstin[chat][scroll]} {$gstin[chat][scroll] + 1};
+    #if {$gstin[chat][scroll] > $gstin[_chat_scroll_max]} {
+        #variable {gstin[chat][scroll]} {$gstin[_chat_scroll_max]};
+    };
+    #variable {gstin[_chat_dirty]} {1};
+    #variable {gstin[_dirty][chat]} {1};
+    gstin_request_render;
+}
+
+#alias {gstin_chat_scroll_line_down} {
+    #if {$gstin[chat][scroll] > 0} {
+        #math {gstin[chat][scroll]} {$gstin[chat][scroll] - 1};
+        #variable {gstin[_chat_dirty]} {1};
+        #variable {gstin[_dirty][chat]} {1};
+        gstin_request_render;
+    };
+}
+
+#nop -- Familiar panel has a fixed 6 visible rows. Half-page = 3. --;
+#alias {gstin_familiar_page_size} {
+    #variable {gstin[_familiar_page_size]} {3};
+}
+
+#nop -- Compute familiar scroll ceiling (lines - visible rows). Clamps scroll-up --;
+#nop -- so you cannot scroll past what exists. 6 visible rows matches layout. --;
+#alias {gstin_familiar_scroll_max} {
+    #local {_sz} {0};
+    #list {gstin[familiar][lines]} {size} {_sz};
+    #math {gstin[_familiar_scroll_max]} {$_sz - 6};
+    #if {$gstin[_familiar_scroll_max] < 0} {#variable {gstin[_familiar_scroll_max]} {0}};
+}
+
+#alias {gstin_familiar_scroll_up} {
+    #if {$gstin[familiar][active] == 1} {
+        gstin_familiar_page_size;
+        gstin_familiar_scroll_max;
+        #math {gstin[familiar][scroll]} {$gstin[familiar][scroll] + $gstin[_familiar_page_size]};
+        #if {$gstin[familiar][scroll] > $gstin[_familiar_scroll_max]} {
+            #variable {gstin[familiar][scroll]} {$gstin[_familiar_scroll_max]};
+        };
+        #variable {gstin[_dirty][familiar]} {1};
+        gstin_request_render;
+    };
+}
+
+#alias {gstin_familiar_scroll_down} {
+    #if {$gstin[familiar][active] == 1 && $gstin[familiar][scroll] > 0} {
+        gstin_familiar_page_size;
+        #math {gstin[familiar][scroll]} {$gstin[familiar][scroll] - $gstin[_familiar_page_size]};
+        #if {$gstin[familiar][scroll] < 0} {
+            #variable {gstin[familiar][scroll]} {0};
+        };
+        #variable {gstin[_dirty][familiar]} {1};
+        gstin_request_render;
+    };
+}
+
+#alias {gstin_familiar_scroll_line_up} {
+    #if {$gstin[familiar][active] == 1} {
+        gstin_familiar_scroll_max;
+        #math {gstin[familiar][scroll]} {$gstin[familiar][scroll] + 1};
+        #if {$gstin[familiar][scroll] > $gstin[_familiar_scroll_max]} {
+            #variable {gstin[familiar][scroll]} {$gstin[_familiar_scroll_max]};
+        };
+        #variable {gstin[_dirty][familiar]} {1};
+        gstin_request_render;
+    };
+}
+
+#alias {gstin_familiar_scroll_line_down} {
+    #if {$gstin[familiar][active] == 1 && $gstin[familiar][scroll] > 0} {
+        #math {gstin[familiar][scroll]} {$gstin[familiar][scroll] - 1};
+        #variable {gstin[_dirty][familiar]} {1};
         gstin_request_render;
     };
 }

@@ -264,9 +264,11 @@
 
 #nop -- Parse hostile creature names from dDBTarget content_text --;
 #nop -- Input: comma-separated list like "none,ice troll,cold guardian" --;
+#nop -- Hostiles list grows over the session. Duplicates are naturally dedup'd --;
+#nop -- because we use the name as the key. No clear on room change or dDBTarget --;
+#nop -- update, so creatures seen once stay red-colored on later encounters. --;
 #alias {gstin_parse_hostiles} {
     #local {_raw} {%1};
-    #variable {gstin[hostiles]} {};
     #replace {_raw} {,} {;};
     #local {_items} {};
     #list {_items} {create} {$_raw};
@@ -1662,7 +1664,11 @@
     };
     #local {_scol} {0};
     #math {_scol} {$gstin[ui][left_w] + 2};
-    gstin_status_at {$_hrow} {$_scol} {$gstin[colors][ui][header_text] [Story] \e[0m};
+    #if {$gstin[_story_scroll] > 0} {
+        gstin_status_at {$_hrow} {$_scol} {$gstin[colors][ui][header_text] [Story +$gstin[_story_scroll]] \e[0m};
+    } {
+        gstin_status_at {$_hrow} {$_scol} {$gstin[colors][ui][header_text] [Story] \e[0m──────};
+    };
     #if {$gstin[ui][right_active] == 1} {
         #local {_spcol} {0};
         #math {_spcol} {$gstin[ui][right_col] + 2};

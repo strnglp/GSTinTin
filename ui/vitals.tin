@@ -459,11 +459,21 @@
 #nop -- Repaint bottom bar after enter clears input row --;
 #nop -- 0-delay ensures it fires after TinTin++ finishes input processing --;
 #event {SENT OUTPUT} {
+    #nop -- Input snaps tt++ scrollback back to live. Re-read scroll state from --;
+    #nop -- tt++ and refresh [Story] header if it changed. --;
+    #if {$gstin[_story_scroll] != 0} {
+        gstin_update_story_scroll;
+        #variable {gstin[_chat_dirty]} {1};
+        #variable {gstin[_dirty][chat]} {1};
+        gstin_request_render;
+    };
     #variable {gstin[_prev][bottom]} {_};
     #delay {gstin_bottom_repaint} {
+        #screen sync begin;
         #screen cursor hide;
         gstin_render_bottom;
         #screen cursor show;
+        #screen sync end;
     } {0};
 }
 

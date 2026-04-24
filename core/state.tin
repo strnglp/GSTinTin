@@ -132,6 +132,11 @@
 #nop -- Story showme re-entry guard (prevents RECEIVED LINE loop) --;
 #variable {gstin[_showing_story]} {0}
 
+#nop -- Story scroll offset (incremented by wheel-up, decremented by wheel-down) --;
+#nop -- Rendered in the [Story +N] header. Separate from tt++ internal scroll->line --;
+#nop -- because that's hard to read back cleanly from tin. --;
+#variable {gstin[_story_scroll]} {0}
+
 #nop -- Spacing debug log (toggle with gstin_spacelog alias) --;
 #variable {gstin[_spacelog]} {0}
 

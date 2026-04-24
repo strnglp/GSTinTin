@@ -422,28 +422,20 @@ gstin_calc_status_layout;
     };
 }
 
-#nop -- Calculate needed top split size from room content + familiar panel --;
-#nop -- Returns result in gstin[_resize_needed] (0=no change, else new size) --;
+#nop -- Fixed top-pane sizes. Room always gets exactly 3 rows and familiar always --;
+#nop -- exactly 6 rows when active. No overflow/shifting between rooms. Room --;
+#nop -- content with more than 3 wrap lines is truncated. --;
+#nop --   Without familiar: 1 top border + 3 room + 1 bottom border = 5 --;
+#nop --   With familiar:    1 top border + 3 room + 1 separator + 6 familiar --;
+#nop --                     + 1 bottom border = 12 --;
 #alias {gstin_calc_top_size} {
-    #local {_needed} {%1};
-    #local {_min} {5};
-    #local {_max} {0};
-    #math {_max} {$gstin[ui][rows] / 2};
-
-    #nop -- Add familiar panel height if active --;
+    #local {_ignored} {%1};
+    #local {_fixed} {5};
     #if {$gstin[familiar][active] == 1} {
-        #nop -- 1 for border + familiar content rows --;
-        #math {_needed} {$_needed + 1 + $gstin[familiar][height]};
+        #local {_fixed} {12};
     };
-
-    #nop -- Add 2: row 1 for TinTin++ border, last row for bottom border --;
-    #math {_needed} {$_needed + 2};
-
-    #if {$_needed < $_min} {#local {_needed} {$_min}};
-    #if {$_needed > $_max} {#local {_needed} {$_max}};
-
-    #if {$_needed != $gstin[ui][top_size]} {
-        #variable {gstin[_resize_needed]} {$_needed};
+    #if {$_fixed != $gstin[ui][top_size]} {
+        #variable {gstin[_resize_needed]} {$_fixed};
     } {
         #variable {gstin[_resize_needed]} {0};
     };
@@ -572,36 +564,48 @@ gstin_calc_status_layout;
 }
 
 #nop -- Draw room info from cached pre-wrapped data --;
-#nop -- Row 1: room title (bold) --;
-#nop -- Rows 2 to top_size-1: exits, players, objects, then familiar panel --;
+#nop -- Fixed layout: rows 2-4 = room content (3 rows), row 5 = separator, --;
+#nop -- rows 6-11 = familiar content (6 rows). No shifting between rooms. --;
 #alias {gstin_render_room_info} {
     #variable {gstin[_toprow]} {2};
     #local {_max_row} {0};
     #math {_max_row} {$gstin[ui][top_size] - 1};
 
-    gstin_draw_cached_wrap {gstin[_room_wrap_exits]} {$_max_row};
-    gstin_draw_cached_wrap {gstin[_room_wrap_players]} {$_max_row};
-    gstin_draw_cached_wrap {gstin[_room_wrap_objects]} {$_max_row};
+    #nop -- Room content always gets exactly 3 rows (2-4). Overflow is truncated --;
+    #nop -- and unused rows are blanked so stale content from prior rooms is cleared. --;
+    #local {_room_end} {4};
+    gstin_draw_cached_wrap {gstin[_room_wrap_exits]} {$_room_end};
+    gstin_draw_cached_wrap {gstin[_room_wrap_players]} {$_room_end};
+    gstin_draw_cached_wrap {gstin[_room_wrap_objects]} {$_room_end};
+    #while {$gstin[_toprow] <= $_room_end} {
+        gstin_drawtop {$gstin[_toprow]} {};
+        #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+    };
 
-    #nop -- Familiar panel: border + scrollable content --;
+    #nop -- Familiar panel: separator at row 5, content at rows 6-11 --;
     #if {$gstin[familiar][active] == 1} {
         #nop -- Draw separator border with ├─ [Familiar] ─┤ connectors --;
-        #if {$gstin[_toprow] <= $_max_row} {
-            #local {_htc} {$gstin[colors][ui][header_text]};
-            #local {_shc} {$gstin[colors][ui][section_header]};
-            #local {_fpad} {};
-            #local {_fpad_w} {0};
-            #math {_fpad_w} {$gstin[ui][cols] - 17};
-            #if {$_fpad_w < 1} {#local {_fpad_w} {1}};
-            #format {_fpad} {%${_fpad_w}s} {};
-            #replace {_fpad} { } {─};
-            #showme {├── ${_htc}[Familiar]${_shc} ${_fpad}─┤\e[0m} {$gstin[_toprow]};
-            #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+        #nop -- When scrolled back, label becomes [Familiar +N] matching Feed style --;
+        #local {_htc} {$gstin[colors][ui][header_text]};
+        #local {_shc} {$gstin[colors][ui][section_header]};
+        #local {_flabel} {[Familiar]};
+        #local {_llen} {10};
+        #if {$gstin[familiar][scroll] > 0} {
+            #local {_flabel} {[Familiar +$gstin[familiar][scroll]]};
+            #format {_llen} {%L} {$_flabel};
         };
+        #local {_fpad} {};
+        #local {_fpad_w} {0};
+        #math {_fpad_w} {$gstin[ui][cols] - $_llen - 7};
+        #if {$_fpad_w < 1} {#local {_fpad_w} {1}};
+        #format {_fpad} {%${_fpad_w}s} {};
+        #replace {_fpad} { } {─};
+        #showme {├── ${_htc}${_flabel}${_shc} ${_fpad}─┤\e[0m} {$gstin[_toprow]};
+        #math {gstin[_toprow]} {$gstin[_toprow] + 1};
         gstin_render_familiar_content {$_max_row};
     };
 
-    #nop -- Clear leftover rows (content shrank) --;
+    #nop -- Clear leftover rows (familiar panel shrank, etc.) --;
     #while {$gstin[_toprow] <= $_max_row} {
         gstin_drawtop {$gstin[_toprow]} {};
         #math {gstin[_toprow]} {$gstin[_toprow] + 1};
@@ -818,19 +822,9 @@ gstin_calc_status_layout;
         #math {_ri} {$_ri + 1};
     };
 
-    #nop -- Recalculate familiar panel height (capped at 1/4 story area) --;
-    #local {_lsz} {0};
-    #list {gstin[familiar][lines]} {size} {_lsz};
-    #local {_fmax} {0};
-    #math {_fmax} {($gstin[ui][rows] - $gstin[ui][top_size]) / 4};
-    #if {$_fmax < 3} {#local {_fmax} {3}};
-    #if {$_lsz < $_fmax} {
-        #variable {gstin[familiar][height]} {$_lsz};
-    } {
-        #variable {gstin[familiar][height]} {$_fmax};
-    };
-    #if {$gstin[familiar][height] < 1} {
-        #variable {gstin[familiar][height]} {1};
+    #nop -- Familiar panel height fixed at 6 when active --;
+    #if {$gstin[familiar][active] == 1} {
+        #variable {gstin[familiar][height]} {6};
     };
 }
 
@@ -882,9 +876,7 @@ gstin_calc_status_layout;
 #alias {gstin_show_familiar_panel} {
     #if {$gstin[familiar][active] == 0} {
         #variable {gstin[familiar][active]} {1};
-        #if {$gstin[familiar][height] < 1} {
-            #variable {gstin[familiar][height]} {1};
-        };
+        #variable {gstin[familiar][height]} {6};
         gstin_dirty_all;
         gstin_request_render;
         #showme {$gstin[colors][system][status]--- Familiar panel: ON<099>};
@@ -1167,7 +1159,10 @@ gstin_calc_status_layout;
 
 #nop -- Master redraw --;
 #nop -- Only renders sections whose dirty flag is set --;
+#nop -- Wrapped in DEC mode 2026 synchronized output so the terminal paints --;
+#nop -- all draws as a single atomic frame (kills flicker on multi-region updates). --;
 #alias {gstin_render_all} {
+    #screen sync begin;
     #variable {gstin[_render_pending]} {0};
     #if {$gstin[_dirty][spells] == 1} {
         #undelay {gstin_effects_tick};
@@ -1209,6 +1204,7 @@ gstin_calc_status_layout;
             #screen cursor show;
         };
     };
+    #screen sync end;
 }
 
 #nop -- Request a render (coalesced — multiple requests = one render) --;
@@ -1233,12 +1229,14 @@ gstin_calc_status_layout;
             #return;
         };
         #if {$gstin[_render_pending] != 1} {
+            #screen sync begin;
             #variable {gstin[_draw_count]} {0};
             gstin_render_spells;
             #nop -- Cursor was hidden by render_spells on first draw --;
             #if {$gstin[_draw_count] > 0} {
                 #screen cursor show;
             };
+            #screen sync end;
         };
     } {0.05};
 }
