@@ -16,12 +16,12 @@
 #nop -- Example:                                                              --;
 #nop --   #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]} --;
 #nop --   #variable {gstin[custom_highlights][friends][bg_color]} {$gstin[palette][bg_light_gray]} --;
-#nop --   #variable {gstin[custom_highlights][friends][patterns]} {Name1,Name2,Name3}           --;
+#nop --   #variable {gstin[custom_highlights][friends][patterns]} {Name1<semicolon>Name2<semicolon>Name3}           --;
 #nop --   #variable {gstin[custom_highlights][enemies][color]}    {$gstin[palette][bright_red]}   --;
 #nop --   #variable {gstin[custom_highlights][enemies][patterns]} {Foe1,Foe2}                   --;
 
 #variable {gstin[custom_highlights][attention][color]}    {$gstin[palette][default_fg]}
-#variable {gstin[custom_highlights][attention][bg_color]}  {$gstin[palette][bg_yellow]}
+#variable {gstin[custom_highlights][attention][bg_color]}  {$gstin[palette][bg_bar_yellow]}
 #variable {gstin[custom_highlights][attention][patterns]} {Eleazzar}
 
 #variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][green]}

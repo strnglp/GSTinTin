@@ -685,6 +685,16 @@
     };
     #class {gstin_colors} {kill};
     #read {config/colors.tin};
+    #nop -- Re-read the per-character config so custom_highlights[*][color|bg_color] --;
+    #nop -- get rebaked against the new palette. Without this, color literals stay --;
+    #nop -- frozen at whichever palette was loaded when the char file first ran. --;
+    #if {"$gstin[config][char_name]" != ""} {
+        #script {_charfile_exists} {test -f config/char/$gstin[config][char_name].tin && echo 1 || echo 0};
+        #if {"$_charfile_exists[1]" == "1"} {
+            #variable {gstin[custom_highlights]} {};
+            #read {config/char/$gstin[config][char_name].tin};
+        };
+    };
     gstin_apply_highlights;
     gstin_apply_combat;
     #variable {gstin[_prev][header]}     {0};
