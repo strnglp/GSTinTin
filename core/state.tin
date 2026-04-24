@@ -192,6 +192,14 @@
 #variable {gstin[ui][right_active]}   {0}
 #variable {gstin[ui][right_disabled]} {0}
 
+#nop -- Top split drag-resize state. user_top_size > 0 overrides the auto --;
+#nop -- fixed sizing in gstin_calc_top_size. _resize[active]==1 while the --;
+#nop -- user is holding MOUSE BUTTON ONE on the separator row. _resize[last_row] --;
+#nop -- is the last row we applied during drag (relayout only fires on row change). --;
+#variable {gstin[ui][user_top_size]}  {0}
+#variable {gstin[_resize][active]}    {0}
+#variable {gstin[_resize][last_row]}  {0}
+
 #nop -- Per-row dirty cache for right sidebar (cleared on resize/toggle) --;
 #variable {gstin[_prev_rbar]} {}
 #variable {gstin[ui][bar_top]}        {0}
@@ -201,6 +209,16 @@
 #variable {gstin[ui][status_row]}     {0}
 #variable {gstin[ui][body_col]}       {0}
 #variable {gstin[ui][bar_icon_col]}   {0}
+
+#nop -- Top-pane boundaries (set by gstin_calc_pane_rows). room_end is the --;
+#nop -- last row of room content, fam_sep is the familiar separator row (0 --;
+#nop -- when familiar is inactive). Recomputed every render from top_size. --;
+#variable {gstin[ui][room_end]}       {4}
+#variable {gstin[ui][fam_sep]}        {0}
+
+#nop -- Rows that contain a [More...] marker in the room pane. Written each --;
+#nop -- render, read by the mouse-down handler to grow the pane on click. --;
+#variable {gstin[_more_row]}          {}
 
 #nop -- Chat buffer --;
 #variable {gstin[chat][raw]}   {}

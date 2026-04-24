@@ -787,6 +787,9 @@
 
     #nop -- Component updates (incremental room state) --;
     #nop -- Parsed BEFORE stream routing so updates fire during stream transitions --;
+    #nop -- Skip while inside the familiar stream: familiar "look" output carries --;
+    #nop -- room components for the familiar's location, not the player's. --;
+    #if {"$gstin[stream][current]" != "familiar" && "$gstin[stream][dropping]" != "familiar"} {
     #regexp {$_line} {<component id='room title'>{.+}</component>} {
         #variable {gstin[room][title]} {&1};
         gstin_strip_xml {gstin[room][title]};
@@ -886,6 +889,7 @@
             #variable {gstin[_dirty][room]} {1};
             gstin_request_render;
         };
+    };
     };
 
     #nop -- Hands (parsed early: hand tags appear on lines with pushStream inv) --;
@@ -1001,9 +1005,12 @@
 
     #nop -- Room title from streamWindow subtitle (data only, no render) --;
     #nop -- Subtitle has raw lich IDs so roomName drives border updates --;
-    #regexp {$_line} {subtitle=" - {[^"]+}"} {
-        #variable {gstin[room][title]} {&1};
-        gstin_strip_xml {gstin[room][title]};
+    #nop -- The familiar streamWindow also carries a subtitle, skip that one. --;
+    #if {"$gstin[stream][dropping]" != "familiar"} {
+        #regexp {$_line} {subtitle=" - {[^"]+}"} {
+            #variable {gstin[room][title]} {&1};
+            gstin_strip_xml {gstin[room][title]};
+        };
     };
 
     #nop -- Spell --;
@@ -1233,7 +1240,8 @@
     };
 
     #nop -- Room info from style tags (visible in story, also extracted for panels) --;
-    #if {$gstin[_peer_active] == 0} {
+    #nop -- Skip during peer or while in familiar stream to avoid overwriting player's room --;
+    #if {$gstin[_peer_active] == 0 && "$gstin[stream][current]" != "familiar" && "$gstin[stream][dropping]" != "familiar"} {
         #regexp {$_line} {roomName" />{.+}} {
             #variable {gstin[room][title]} {&1};
             gstin_strip_xml {gstin[room][title]};
@@ -1246,8 +1254,6 @@
             #variable {gstin[_dirty][border]} {1};
             gstin_request_render;
         };
-    };
-    #if {$gstin[_peer_active] == 0} {
         #regexp {$_line} {roomDesc"/>{.+}} {
             #variable {gstin[room][desc]} {&1};
         };

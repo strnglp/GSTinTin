@@ -116,6 +116,7 @@
 #variable {gstin[colors][ui][header_bg]}      {$gstin[palette][bg_charcoal]}
 #variable {gstin[colors][ui][header_fg]}      {$gstin[palette][near_white]}
 #variable {gstin[colors][ui][placeholder]}    {$gstin[palette][gray]}
+#variable {gstin[colors][ui][resize_active]}  {$gstin[palette][bright_yellow]}
 
 #nop ---- System Message Colors --;
 #variable {gstin[colors][system][status]}  {$gstin[palette][dark_red]}

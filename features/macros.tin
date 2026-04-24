@@ -46,13 +46,152 @@
 #nop -- Story uses #buffer up N (default is full page, we want 2-line steps). --;
 #nop -- We maintain gstin[_story_scroll] as a tin-side counter matching how far --;
 #nop -- the user has wheeled back, so the [Story +N] header indicator works. --;
-#nop -- Header renders in gstin_render_chat; mark chat dirty to trigger redraw. --;
+#nop -- Header renders in gstin_render_chat, mark chat dirty to trigger redraw. --;
 #event {SCROLLED MOUSE WHEEL UP} {
     gstin_mouse_hit_test {%0} {%1};
     #switch {"$gstin[_hit]"} {
         #case {"chat"} {gstin_chat_scroll_line_up};
         #case {"familiar"} {gstin_familiar_scroll_line_up};
         #case {"story"} {gstin_story_scroll_up};
+    };
+}
+
+#nop ---- Top-split drag resize -------------------------------------------;
+#nop -- Clamp a candidate top_size into a safe range. Keep at least 3 rows --;
+#nop -- for the scrolling region and one row of bottom bar + input. --;
+#alias {gstin_clamp_top_size} {
+    #local {_v} {%1};
+    #local {_max} {0};
+    #math {_max} {$gstin[ui][rows] - 4};
+    #if {$_max < 3} {#local {_max} {3}};
+    #if {$_v < 3}    {#local {_v} {3}};
+    #if {$_v > $_max} {#local {_v} {$_max}};
+    #variable {gstin[_resize][clamped]} {$_v};
+}
+
+#nop -- Apply a new top_size from a drag. Only runs when the cursor row --;
+#nop -- differs from the last applied row, so in-row mouse jitter is free. --;
+#nop -- Resets per-component snapshot caches so every piece of chrome (room --;
+#nop -- box corners, vitals header, side-pane connectors) gets rebuilt at --;
+#nop -- the new geometry. --;
+#alias {gstin_apply_drag_top_size} {
+    #local {_row} {%1};
+    gstin_clamp_top_size {$_row};
+    #local {_new} {$gstin[_resize][clamped]};
+    #if {$_new != $gstin[ui][top_size]} {
+        #variable {gstin[ui][user_top_size]} {$_new};
+        #variable {gstin[_resize_needed]} {$_new};
+        #variable {gstin[_split_needed]} {1};
+        #variable {gstin[_prev_rbar]} {};
+        #variable {gstin[_prev][header]}     {0};
+        #variable {gstin[_prev][body]}       {_};
+        #variable {gstin[_prev][vitals]}     {_};
+        #variable {gstin[_prev][mind]}       {_};
+        #variable {gstin[_prev][enc]}        {_};
+        #variable {gstin[_prev][conditions]} {_};
+        #variable {gstin[_prev][spell]}      {_};
+        #variable {gstin[_prev][hands]}      {_};
+        #variable {gstin[_prev][bottom]}     {_};
+        #variable {gstin[_prev][chat]}       {_};
+        #variable {gstin[_chat_dirty]} {1};
+        gstin_dirty_all;
+        gstin_request_render;
+    };
+    #variable {gstin[_resize][last_row]} {$_row};
+}
+
+#nop -- Press on the separator row arms resize mode. No relayout yet — --;
+#nop -- just flip the flag and repaint the separator so the user sees feedback. --;
+#nop -- Press on a row carrying a [More...] marker grows the top pane so all --;
+#nop -- hidden room content becomes visible. --;
+#event {PRESSED MOUSE BUTTON ONE} {
+    #local {_r} {%0};
+    #if {$_r == $gstin[ui][top_size] && $gstin[_resize][active] == 0} {
+        #variable {gstin[_resize][active]} {1};
+        #variable {gstin[_resize][last_row]} {$_r};
+        gstin_redraw_bottom_border;
+    } {
+        #if {&gstin[_more_row][$_r]} {
+            gstin_expand_for_more;
+        };
+    };
+}
+
+#nop -- Grow the top pane so every [More...] section can show all its lines. --;
+#nop -- Sum the "extra rows needed" values recorded by gstin_draw_section_with_more, --;
+#nop -- bump user_top_size by that total (clamped to terminal height), then --;
+#nop -- kick a full re-render. --;
+#alias {gstin_expand_for_more} {
+    #local {_extra} {0};
+    #foreach {$gstin[_more_row][%*]} {_need} {
+        #math {_extra} {$_extra + $_need};
+    };
+    #if {$_extra < 1} {#return};
+    #local {_new} {0};
+    #math {_new} {$gstin[ui][top_size] + $_extra};
+    gstin_clamp_top_size {$_new};
+    #local {_clamped} {$gstin[_resize][clamped]};
+    #if {$_clamped == $gstin[ui][top_size]} {#return};
+    #variable {gstin[ui][user_top_size]} {$_clamped};
+    #variable {gstin[_resize_needed]} {$_clamped};
+    #variable {gstin[_split_needed]} {1};
+    #variable {gstin[_prev_rbar]} {};
+    #variable {gstin[_prev][header]}     {0};
+    #variable {gstin[_prev][body]}       {_};
+    #variable {gstin[_prev][vitals]}     {_};
+    #variable {gstin[_prev][mind]}       {_};
+    #variable {gstin[_prev][enc]}        {_};
+    #variable {gstin[_prev][conditions]} {_};
+    #variable {gstin[_prev][spell]}      {_};
+    #variable {gstin[_prev][hands]}      {_};
+    #variable {gstin[_prev][bottom]}     {_};
+    #variable {gstin[_prev][chat]}       {_};
+    #variable {gstin[_chat_dirty]} {1};
+    gstin_dirty_all;
+    gstin_request_render;
+}
+
+#nop -- Drag: only relayout when the row crosses a boundary. Rapid moves --;
+#nop -- across multiple rows coalesce via gstin_request_render's #delay 0. --;
+#event {MOVED MOUSE BUTTON ONE} {
+    #local {_r} {%0};
+    #if {$gstin[_resize][active] == 1 && $_r != $gstin[_resize][last_row]} {
+        gstin_apply_drag_top_size {$_r};
+    };
+}
+
+#nop -- Release clears resize mode and forces a clean full-chrome repaint. --;
+#nop -- Mid-drag renders coalesce through #delay 0 and can leave the top --;
+#nop -- border, side-sidebar borders, and section headers stale. Doing a --;
+#nop -- final force-redraw here rebuilds all chrome at the settled size. --;
+#event {RELEASED MOUSE BUTTON ONE} {
+    #if {$gstin[_resize][active] == 1} {
+        #variable {gstin[_resize][active]} {0};
+        #variable {gstin[_split_needed]} {1};
+        #variable {gstin[_prev_rbar]} {};
+        #variable {gstin[_prev][header]}     {0};
+        #variable {gstin[_prev][body]}       {_};
+        #variable {gstin[_prev][vitals]}     {_};
+        #variable {gstin[_prev][mind]}       {_};
+        #variable {gstin[_prev][enc]}        {_};
+        #variable {gstin[_prev][conditions]} {_};
+        #variable {gstin[_prev][spell]}      {_};
+        #variable {gstin[_prev][hands]}      {_};
+        #variable {gstin[_prev][bottom]}     {_};
+        #variable {gstin[_prev][chat]}       {_};
+        #variable {gstin[_chat_dirty]} {1};
+        gstin_dirty_all;
+        #nop -- Route through gstin_request_render so the render lands on the --;
+        #nop -- next tick after tt++ has finished its own #split frame draw. --;
+        #nop -- Calling gstin_render_all synchronously here races tt++'s chrome --;
+        #nop -- redraw and the row-1 ┌─ ─┐ ends up clobbered by tt++'s frame. --;
+        gstin_request_render;
+        #nop -- Extra deferred top-border repaint: row 1 #showme is fragile --;
+        #nop -- right after a #split (per CLAUDE.md gotcha #8). One more pass --;
+        #nop -- after everything settles guarantees the corners. Do NOT repaint --;
+        #nop -- the bottom border here -- it shares its row with the Feed/Story --;
+        #nop -- headers drawn by gstin_render_chat, and a late ── would erase them. --;
+        #delay {gstin_resize_finish} {gstin_redraw_top_border} {0.1};
     };
 }
 
@@ -66,7 +205,7 @@
 }
 
 #nop -- Read tt++ scrollback offset into gstin[_story_scroll]. LINE == -1 means --;
-#nop -- live (at bottom); otherwise scrolled-back distance = USED - 1 - LINE. --;
+#nop -- live (at bottom), otherwise scrolled-back distance = USED - 1 - LINE. --;
 #alias {gstin_update_story_scroll} {
     #variable {gstin[_bi]} {};
     #buffer info save {gstin[_bi]};
@@ -204,17 +343,31 @@
     };
 }
 
-#nop -- Familiar panel has a fixed 6 visible rows. Half-page = 3. --;
-#alias {gstin_familiar_page_size} {
-    #variable {gstin[_familiar_page_size]} {3};
+#nop -- Familiar visible-row count. Proportional split means the value --;
+#nop -- changes with top_size, so read it from fam_sep/top_size. --;
+#alias {gstin_familiar_visible_rows} {
+    #variable {gstin[_familiar_visible]} {0};
+    #if {$gstin[familiar][active] == 1} {
+        gstin_calc_pane_rows;
+        #math {gstin[_familiar_visible]} {$gstin[ui][top_size] - $gstin[ui][fam_sep] - 1};
+        #if {$gstin[_familiar_visible] < 1} {#variable {gstin[_familiar_visible]} {1}};
+    };
 }
 
-#nop -- Compute familiar scroll ceiling (lines - visible rows). Clamps scroll-up --;
-#nop -- so you cannot scroll past what exists. 6 visible rows matches layout. --;
+#nop -- Half-page scroll step based on current visible rows. --;
+#alias {gstin_familiar_page_size} {
+    gstin_familiar_visible_rows;
+    #math {gstin[_familiar_page_size]} {$gstin[_familiar_visible] / 2};
+    #if {$gstin[_familiar_page_size] < 1} {#variable {gstin[_familiar_page_size]} {1}};
+}
+
+#nop -- Compute familiar scroll ceiling (lines - visible rows). Clamps --;
+#nop -- scroll-up so you cannot scroll past the first line in the buffer. --;
 #alias {gstin_familiar_scroll_max} {
+    gstin_familiar_visible_rows;
     #local {_sz} {0};
     #list {gstin[familiar][lines]} {size} {_sz};
-    #math {gstin[_familiar_scroll_max]} {$_sz - 6};
+    #math {gstin[_familiar_scroll_max]} {$_sz - $gstin[_familiar_visible]};
     #if {$gstin[_familiar_scroll_max] < 0} {#variable {gstin[_familiar_scroll_max]} {0}};
 }
 

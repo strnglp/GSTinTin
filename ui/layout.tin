@@ -434,10 +434,49 @@ gstin_calc_status_layout;
     #if {$gstin[familiar][active] == 1} {
         #local {_fixed} {12};
     };
+    #nop -- User drag overrides the auto-sized default. Clamp to the minimum --;
+    #nop -- required to fit content (room min 3, +familiar separator +min 1). --;
+    #if {$gstin[ui][user_top_size] > 0} {
+        #local {_fixed} {$gstin[ui][user_top_size]};
+        #local {_fmin} {5};
+        #if {$gstin[familiar][active] == 1} {#local {_fmin} {7}};
+        #if {$_fixed < $_fmin} {#local {_fixed} {$_fmin}};
+    };
     #if {$_fixed != $gstin[ui][top_size]} {
         #variable {gstin[_resize_needed]} {$_fixed};
     } {
         #variable {gstin[_resize_needed]} {0};
+    };
+}
+
+#nop -- Compute room/familiar row boundaries from the current top_size. --;
+#nop -- Layout rows: 1=top border, 2..room_end=room, fam_sep=separator, --;
+#nop -- fam_sep+1..top_size-1=familiar, top_size=bottom border. --;
+#nop -- Proportional split: content is divided 50/50 between room and --;
+#nop -- familiar. Odd extra content row goes to the room pane. Room min 3, --;
+#nop -- familiar min 1, enforced by the top_size minimums above. --;
+#alias {gstin_calc_pane_rows} {
+    #local {_inner} {0};
+    #math {_inner} {$gstin[ui][top_size] - 2};
+    #if {$_inner < 3} {#local {_inner} {3}};
+    #if {$gstin[familiar][active] == 1} {
+        #local {_content} {0};
+        #math {_content} {$_inner - 1};
+        #if {$_content < 4} {#local {_content} {4}};
+        #local {_room_rows} {0};
+        #math {_room_rows} {($_content + 1) / 2};
+        #if {$_room_rows < 3} {#local {_room_rows} {3}};
+        #local {_fam_rows} {0};
+        #math {_fam_rows} {$_content - $_room_rows};
+        #if {$_fam_rows < 1} {
+            #local {_fam_rows} {1};
+            #math {_room_rows} {$_content - 1};
+        };
+        #variable {gstin[ui][room_end]} {1 + $_room_rows};
+        #math {gstin[ui][fam_sep]} {$gstin[ui][room_end] + 1};
+    } {
+        #variable {gstin[ui][room_end]} {$gstin[ui][top_size] - 1};
+        #variable {gstin[ui][fam_sep]}  {0};
     };
 }
 
@@ -454,6 +493,12 @@ gstin_calc_status_layout;
     #if {$gstin[_split_needed] == 1} {
         #split {$gstin[ui][top_size]} 1 {$gstin[ui][left_w]} {$gstin[ui][right_w]} 1;
         #variable {gstin[_split_needed]} {0};
+        #nop -- During drag, repaint our yellow separator. Do NOT touch the --;
+        #nop -- bottom border otherwise -- it would overwrite tt++'s native --;
+        #nop -- └ ┴ ┘ corner glyphs with plain dashes. --;
+        #if {$gstin[_resize][active] == 1} {
+            gstin_redraw_bottom_border;
+        };
         #nop -- Invalidate prev-state cache and dirty all sections after split --;
         gstin_dirty_all;
         #variable {gstin[_prev_rbar]} {};
@@ -563,26 +608,144 @@ gstin_calc_status_layout;
     };
 }
 
+#nop -- Draw one room section (exits/players/objects) with its own row budget. --;
+#nop -- Args: wrap-list varname, max rows for this section. --;
+#nop -- If the section has more wrap lines than rows, the last drawn line is --;
+#nop -- truncated visibly and ` [More...]` is appended inline so no contentful --;
+#nop -- row is sacrificed. The truncation respects the marker width so the --;
+#nop -- combined line still fits within the pane. --;
+#alias {gstin_draw_section_with_more} {
+    #local {_varname} {%1};
+    #local {_rows} {%2};
+    #local {_sz} {0};
+    #list {$_varname} {size} {_sz};
+    #local {_draw_n} {$_rows};
+    #if {$_draw_n > $_sz} {#local {_draw_n} {$_sz}};
+    #local {_truncated} {0};
+    #if {$_sz > $_draw_n} {#local {_truncated} {1}};
+
+    #local {_htc} {$gstin[colors][ui][header_text]};
+    #local {_more_w} {10};
+    #local {_carry} {};
+    #local {_i} {1};
+    #while {$_i <= $_draw_n} {
+        #local {_item} {};
+        #list {$_varname} {get} {$_i} {_item};
+        #local {_line} {${_carry}${_item}};
+        gstin_find_last_color {$_line};
+        #local {_carry} {$gstin[_last_color]};
+        #if {"$_carry" == "<099>"} {#local {_carry} {}};
+        #if {$_i == $_draw_n && $_truncated == 1} {
+            #nop -- Record this row as clickable so the mouse handler can grow --;
+            #nop -- the top pane enough to reveal the hidden wrap lines. The --;
+            #nop -- value stored is how many extra rows this section needs. --;
+            #local {_need} {0};
+            #math {_need} {$_sz - $_draw_n};
+            #variable {gstin[_more_row][$gstin[_toprow]]} {$_need};
+            #nop -- Trim the visible line so there's room for the marker. --;
+            #nop -- Strip trailing color codes first so %L counts visible chars. --;
+            #nop -- gstin_drawtop uses cols-2 as its width budget, continuation --;
+            #nop -- lines add a 2-space indent. --;
+            #local {_indent} {0};
+            #if {$_i > 1} {#local {_indent} {2}};
+            #local {_maxw} {0};
+            #math {_maxw} {$gstin[ui][cols] - 2 - $_indent - $_more_w};
+            #if {$_maxw < 1} {#local {_maxw} {1}};
+            #local {_vis} {$_line};
+            #replace {_vis} {<{[a-z0-9][a-z0-9][a-z0-9]}>} {};
+            #replace {_vis} {<{[FB][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}>} {};
+            #local {_vlen} {0};
+            #format {_vlen} {%L} {$_vis};
+            #if {$_vlen > $_maxw} {
+                #format {_line} {%-.${_maxw}s} {$_line};
+            };
+            #nop -- Force a reset before the marker. The truncation above can --;
+            #nop -- chop mid-escape or drop a trailing <099>, leaving the --;
+            #nop -- previous word's color bleeding into [More...]. --;
+            #if {$_i > 1} {
+                gstin_drawtop {$gstin[_toprow]} {  ${_line}\e[0m<099> ${_htc}[More...]\e[0m};
+            } {
+                gstin_drawtop {$gstin[_toprow]} {${_line}\e[0m<099> ${_htc}[More...]\e[0m};
+            };
+        } {
+            #if {$_i > 1} {
+                gstin_drawtop {$gstin[_toprow]} {  ${_line}<099>};
+            } {
+                gstin_drawtop {$gstin[_toprow]} {${_line}<099>};
+            };
+        };
+        #math {gstin[_toprow]} {$gstin[_toprow] + 1};
+        #math {_i} {$_i + 1};
+    };
+}
+
 #nop -- Draw room info from cached pre-wrapped data --;
-#nop -- Fixed layout: rows 2-4 = room content (3 rows), row 5 = separator, --;
-#nop -- rows 6-11 = familiar content (6 rows). No shifting between rooms. --;
+#nop -- Proportional layout: room and familiar each get half the top-pane --;
+#nop -- content rows (see gstin_calc_pane_rows). Room min 3, familiar min 1. --;
 #alias {gstin_render_room_info} {
+    gstin_calc_pane_rows;
+    #nop -- Reset the clickable-[More...] map; sections repopulate it on draw. --;
+    #variable {gstin[_more_row]} {};
     #variable {gstin[_toprow]} {2};
     #local {_max_row} {0};
     #math {_max_row} {$gstin[ui][top_size] - 1};
 
-    #nop -- Room content always gets exactly 3 rows (2-4). Overflow is truncated --;
-    #nop -- and unused rows are blanked so stale content from prior rooms is cleared. --;
-    #local {_room_end} {4};
-    gstin_draw_cached_wrap {gstin[_room_wrap_exits]} {$_room_end};
-    gstin_draw_cached_wrap {gstin[_room_wrap_players]} {$_room_end};
-    gstin_draw_cached_wrap {gstin[_room_wrap_objects]} {$_room_end};
+    #nop -- Row budget distribution: each section (exits, players, objects) is --;
+    #nop -- guaranteed at least 1 row. Remaining rows are distributed greedily --;
+    #nop -- in section order. If a section's wrap list exceeds its allotment, --;
+    #nop -- its last drawn line gets ` [More...]` appended inline so no content --;
+    #nop -- row is sacrificed for the marker. --;
+    #local {_room_end} {$gstin[ui][room_end]};
+    #local {_total_rows} {0};
+    #math {_total_rows} {$_room_end - 1};
+    #local {_esz} {0};
+    #local {_psz} {0};
+    #local {_osz} {0};
+    #list {gstin[_room_wrap_exits]}   {size} {_esz};
+    #list {gstin[_room_wrap_players]} {size} {_psz};
+    #list {gstin[_room_wrap_objects]} {size} {_osz};
+    #nop -- Start with 1 row reserved per section, grow up to wrap size. --;
+    #local {_e_rows} {1};
+    #local {_p_rows} {1};
+    #local {_o_rows} {1};
+    #local {_remaining} {0};
+    #math {_remaining} {$_total_rows - 3};
+    #if {$_remaining > 0} {
+        #local {_want} {0};
+        #math {_want} {$_esz - 1};
+        #if {$_want > $_remaining} {#local {_want} {$_remaining}};
+        #if {$_want > 0} {
+            #math {_e_rows} {$_e_rows + $_want};
+            #math {_remaining} {$_remaining - $_want};
+        };
+    };
+    #if {$_remaining > 0} {
+        #local {_want} {0};
+        #math {_want} {$_psz - 1};
+        #if {$_want > $_remaining} {#local {_want} {$_remaining}};
+        #if {$_want > 0} {
+            #math {_p_rows} {$_p_rows + $_want};
+            #math {_remaining} {$_remaining - $_want};
+        };
+    };
+    #if {$_remaining > 0} {
+        #local {_want} {0};
+        #math {_want} {$_osz - 1};
+        #if {$_want > $_remaining} {#local {_want} {$_remaining}};
+        #if {$_want > 0} {
+            #math {_o_rows} {$_o_rows + $_want};
+            #math {_remaining} {$_remaining - $_want};
+        };
+    };
+    gstin_draw_section_with_more {gstin[_room_wrap_exits]}   {$_e_rows};
+    gstin_draw_section_with_more {gstin[_room_wrap_players]} {$_p_rows};
+    gstin_draw_section_with_more {gstin[_room_wrap_objects]} {$_o_rows};
     #while {$gstin[_toprow] <= $_room_end} {
         gstin_drawtop {$gstin[_toprow]} {};
         #math {gstin[_toprow]} {$gstin[_toprow] + 1};
     };
 
-    #nop -- Familiar panel: separator at row 5, content at rows 6-11 --;
+    #nop -- Familiar panel: separator at fam_sep, content fam_sep+1..top_size-1 --;
     #if {$gstin[familiar][active] == 1} {
         #nop -- Draw separator border with ├─ [Familiar] ─┤ connectors --;
         #nop -- When scrolled back, label becomes [Familiar +N] matching Feed style --;
@@ -666,11 +829,16 @@ gstin_calc_status_layout;
 }
 
 #nop -- Redraw the bottom border of the room box --;
+#nop -- Colors yellow during drag-resize to give the user visual feedback --;
 #alias {gstin_redraw_bottom_border} {
     #local {_pad} {};
     #format {_pad} {%$gstin[ui][cols]s} {};
     #replace {_pad} { } {─};
-    #showme {$_pad} {$gstin[ui][top_size]};
+    #if {$gstin[_resize][active] == 1} {
+        #showme {$gstin[colors][ui][resize_active]${_pad}\e[0m} {$gstin[ui][top_size]};
+    } {
+        #showme {$_pad} {$gstin[ui][top_size]};
+    };
 }
 
 #nop -- Add a chat message: store raw, strip/colorize, rewrap --;
@@ -1262,6 +1430,15 @@ gstin_calc_status_layout;
         };
         #variable {gstin[ui][top_size]} {0};
         #math {gstin[ui][bar_bot]}   {$gstin[ui][rows] - 2};
+        #nop -- Re-clamp any drag override so it still fits the new height --;
+        #if {$gstin[ui][user_top_size] > 0} {
+            #local {_umax} {0};
+            #math {_umax} {$gstin[ui][rows] - 4};
+            #if {$_umax < 3} {#local {_umax} {3}};
+            #if {$gstin[ui][user_top_size] > $_umax} {
+                #variable {gstin[ui][user_top_size]} {$_umax};
+            };
+        };
         gstin_calc_status_layout;
         gstin_chat_rewrap;
         #variable {gstin[_chat_dirty]} {1};
