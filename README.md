@@ -23,18 +23,6 @@ ruby lich.rbw
 
 In the login window, tick **"Save this info for quick game entry"**, enter your Simutronics account credentials, click **Connect**, and then click **Play**. This saves your credentials and populates the local character database. You can close lich after connecting — going forward you only need the detachable mode below.
 
-### Post-Launch Setup
-
-After your first connection, install the `effectmon` lich script. In the game input, type:
-
-```
-,repo download effectmon
-```
-
-Then start it with `,effectmon`. GSTinTin uses its output for spell effect tracking and vitals bars. To have it run automatically on each login, add it to your lich autostart with `,autostart add effectmon`.
-
-**Note:** Use `,` instead of `;` as the argument delimiter when running lich scripts from TinTin++ — see [Gotchas](#use--instead-of--for-lich-script-arguments).
-
 ## Quick Start
 
 1. Start lich-5 in detachable mode:
