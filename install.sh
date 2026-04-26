@@ -522,7 +522,7 @@ PORT="\${2:-$PORT}"
 RUBY="${ruby_bin}"
 
 cd "\$LICH_DIR"
-"\$RUBY" lich.rbw --login "\$CHAR" --detachable-client="\$PORT" --without-frontend --gemstone &
+"\$RUBY" lich.rbw --gtk --login "\$CHAR" --detachable-client="\$PORT" --without-frontend --gemstone &
 LICH_PID=\$!
 
 for _ in \$(seq 1 30); do
@@ -534,7 +534,7 @@ for _ in \$(seq 1 30); do
     if ! kill -0 "\$LICH_PID" 2>/dev/null; then
         echo "lich-5 exited before opening port \$PORT."
         echo "Run manually to debug:"
-        echo "  cd \"\$LICH_DIR\" && \"\$RUBY\" lich.rbw --login \"\$CHAR\" --detachable-client=\$PORT --without-frontend --gemstone"
+        echo "  cd \"\$LICH_DIR\" && \"\$RUBY\" lich.rbw --gtk --login \"\$CHAR\" --detachable-client=\$PORT --without-frontend --gemstone"
         exit 1
     fi
     sleep 1
