@@ -7,6 +7,17 @@
 
 set -euo pipefail
 
+# When invoked via `curl | bash`, stdin IS the script. Re-exec from a temp file
+# so stdin becomes the real TTY and interactive prompts work.
+if [[ ! -t 0 ]]; then
+    _self=$(mktemp "${TMPDIR:-/tmp}/gstintin-uninstall.XXXXXX")
+    cat > "$_self"
+    export _GSTINTIN_UNINSTALL_TMPSCRIPT="$_self"
+    exec bash "$_self" "$@"
+fi
+# Clean up the temp file we were re-exec'd from
+[[ -n "${_GSTINTIN_UNINSTALL_TMPSCRIPT:-}" ]] && trap 'rm -f "$_GSTINTIN_UNINSTALL_TMPSCRIPT"' EXIT
+
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
 LICH_DIR="$DATA_HOME/lich-5"
@@ -44,7 +55,12 @@ done
 confirm() {
     local q="$1"
     (( YES )) && return 0
-    read -r -p "$q [y/N] " a
+    local a
+    if [[ -t 0 ]]; then
+        read -r -p "$q [y/N] " a
+    else
+        read -r -p "$q [y/N] " a < /dev/tty
+    fi
     [[ "$a" =~ ^[Yy]$ ]]
 }
 
