@@ -4,7 +4,7 @@ A [TinTin++](https://tintin.mudhalla.net/) frontend for [GemStone IV](https://ww
 
 GSTinTin brings ProfanityFE-style UI concepts — a 3-column split layout with compass, vitals bars, body injury diagram, room info sidebar, and chat panels — into a pure TinTin++ environment.
 
-## Quick Install
+## Install
 
 **One-line guided install for macOS and Linux:**
 
@@ -12,107 +12,88 @@ GSTinTin brings ProfanityFE-style UI concepts — a 3-column split layout with c
 curl -fsSL https://raw.githubusercontent.com/strnglp/GSTinTin/master/install.sh | bash
 ```
 
-The installer handles everything:
-- Detects your package manager (Homebrew, apt, dnf, pacman) and installs dependencies
-- Installs Ruby if needed (with special handling for macOS Homebrew keg-only packages)
-- Builds or installs TinTin++ (`tt++`)
-- Clones lich-5 and GSTinTin to `~/.local/share/`
-- Installs Ruby gems needed by lich-5 (with macOS-specific build environment fixes)
-- Installs a Nerd Font of your choice
-- Creates a `gemstone` launcher in `~/.local/bin/`
-- Saves your Simutronics credentials
+The installer detects your system, installs dependencies (Ruby, TinTin++, GTK3, etc.), clones lich-5 and GSTinTin to `~/.local/share/`, installs a Nerd Font, creates a `gemstone` launcher, and saves your credentials. Only prompts for `sudo` when needed.
 
-Only prompts for `sudo` when system packages are actually missing.
+Handles macOS gotchas automatically: Homebrew keg-only packages (Ruby, gobject-introspection), implicit function declaration errors (Sonoma+), gem installation workarounds, and piped-install prompt handling.
 
-**Automated install:**
+**Flags:** `--unattended`, `--char NAME`, `--port N`, `--font NAME`. See `install.sh --help`.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/strnglp/GSTinTin/master/install.sh \
-  | bash -s -- --unattended --char Mychar --port 8000 --font JetBrainsMono
-```
-
-See `install.sh --help` for all options.
-
-### What the installer fixes automatically
-
-The installer handles several macOS-specific issues:
-
-1. **Homebrew keg-only packages** — Ruby and gobject-introspection are keg-only on macOS, meaning they're installed but not symlinked to PATH. The installer configures `PKG_CONFIG_PATH` so native gem builds can find them.
-
-2. **Implicit function declaration errors** — macOS Sonoma+ (Clang 15+) treats implicit function declarations as hard errors, breaking native extensions like glib2. The installer adds `-Wno-error=implicit-function-declaration` to `CFLAGS`.
-
-3. **Ruby gem installation** — The installer bypasses bundler's vendor/bundle (which can contain stale native gem builds) and installs gems directly to the user gem directory, then configures bundler to use that location.
-
-4. **Interactive prompts during piped install** — When run via `curl | bash`, the installer re-execs itself from a temp file so subprocesses (like Homebrew) don't consume the script stream, preventing interactive prompts from breaking the install.
-
-## Uninstall
+**Uninstall:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/strnglp/GSTinTin/master/uninstall.sh | bash
 ```
 
-Or run locally from your GSTinTin directory:
-
-```bash
-./uninstall.sh          # removes GSTinTin and launcher
-./uninstall.sh --yes    # skip confirmation prompts
-```
-
-The uninstaller offers to remove lich-5 and leaves Ruby, system packages, fonts, and credentials untouched.
+Offers to remove lich-5; leaves Ruby, packages, fonts, and credentials intact.
 
 ## Usage
 
-After installation, just run:
+Run with defaults (uses character name from install):
+
+```bash
+gemstone
+```
+
+Or specify character and port:
 
 ```bash
 gemstone YourCharName 8000
 ```
 
-The launcher starts lich-5 in the background, waits for it to open the detachable client port, then launches TinTin++ and connects. When you quit TinTin++, the launcher automatically stops lich.
+The launcher starts lich-5 in the background, waits for the port, then launches TinTin++. When you quit, lich stops automatically.
 
-**Launcher environment variables:**
-
-- **`LICH_DIR`** — path to lich-5 (default: `~/.local/share/lich-5`)
-- **`GSTIN_DIR`** — path to GSTinTin (default: `~/.local/share/GSTinTin`)
-
-**Arguments:**
-
-- First argument: character name (default: the name you gave during install, or `YourCharName`)
-- Second argument: port (default: `8000`)
-
-### Adding credentials after install
-
-If you skipped credential setup during installation, save them now:
+**Add credentials after install:**
 
 ```bash
 cd ~/.local/share/lich-5
-ruby lich.rbw --add-account YOUR_USERNAME YOUR_PASSWORD --frontend wizard
+ruby lich.rbw --add-account USERNAME PASSWORD --frontend wizard
 ```
 
-Or use the GUI:
+## Hotkeys
 
-```bash
-cd ~/.local/share/lich-5
-ruby lich.rbw
-```
+### Window Controls
 
-Tick **"Save this info for quick game entry"**, enter credentials, click **Connect**, then **Play**.
+- **Ctrl+L** — Toggle familiar window on/off
+- **Ctrl+S** — Toggle spells sidebar on/off
+
+### Scrolling
+
+**Main story window:**
+- **Mouse wheel** — Scroll by 2 lines
+- **PageUp/PageDown** or **Ctrl+V/Alt+V** (Emacs-style) — Page up/down
+- **Home/End** or **Alt+</Alt+>** (Emacs-style) — Jump to top/bottom
+
+**Chat sidebar:**
+- **Ctrl+PageUp/PageDown** — Scroll by half-page
+- **Ctrl+Up/Down** — Scroll by line
+- **Ctrl+Home/End** — Jump to top/bottom
+
+**Familiar window:**
+- **Shift+PageUp/PageDown** — Scroll by half-page
+- **Shift+Up/Down** — Scroll by line
+- **Shift+Home/End** — Jump to top/bottom
+
+### Navigation
+
+Numpad (with NumLock on) sends directional commands:
+- **7/8/9** — nw/n/ne
+- **4/5/6** — w/out/e  
+- **1/2/3** — sw/s/se
+- **+** — look
+- **-** — up
+- **\*** — down
 
 ## Configuration
 
-### Per-Character Config
-
-Set your character name in `config/settings.tin`:
+Copy `config/char/Example.tin` to `config/char/YourCharName.tin` for character-specific highlights, macros, and gags. Set your character name in `config/settings.tin`:
 
 ```
 #variable {gstin[config][char_name]} {YourCharName}
 ```
 
-Then copy `config/char/Example.tin` to `config/char/YourCharName.tin` for character-specific highlights, macros, and gags.
+## Tips
 
-## Usage Tips
-
-### Use `,` instead of `;` for lich script arguments
+### Lich script arguments
 
 TinTin++ uses `;` as a command separator for multi-command input. If you type a lich command that uses semicolons (e.g., `;script arg1;arg2`), TinTin++ will split it into separate commands. Use `,` as the delimiter instead — lich accepts commas in place of semicolons for script arguments.
 
