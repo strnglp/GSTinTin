@@ -39,11 +39,11 @@
         #variable {gstin[timers][stun_remaining]} {0};
     };
 
-    #screen sync begin;
+    #nop #screen sync begin;
     #screen cursor hide;
     gstin_render_bottom;
     gstin_redraw_top_border;
-    #screen sync end;
+    #nop #screen sync end;
 
     #nop Continue ticking if any timer is active;
     #if {$gstin[timers][rt_remaining] > 0 || $gstin[timers][ct_remaining] > 0 || $gstin[timers][stun_remaining] > 0} {

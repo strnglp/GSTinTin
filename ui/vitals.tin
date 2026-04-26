@@ -469,11 +469,11 @@
     };
     #variable {gstin[_prev][bottom]} {_};
     #delay {gstin_bottom_repaint} {
-        #screen sync begin;
+        #nop #screen sync begin;
         #screen cursor hide;
         gstin_render_bottom;
         #screen cursor show;
-        #screen sync end;
+        #nop #screen sync end;
     } {0};
 }
 
