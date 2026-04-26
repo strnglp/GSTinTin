@@ -4,6 +4,25 @@ A [TinTin++](https://tintin.mudhalla.net/) frontend for [GemStone IV](https://ww
 
 GSTinTin brings ProfanityFE-style UI concepts — a 3-column split layout with compass, vitals bars, body injury diagram, room info sidebar, and chat panels — into a pure TinTin++ environment.
 
+## Install
+
+One-liner for macOS and Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/strnglp/GSTinTin/master/install.sh | bash
+```
+
+The installer detects your package manager (Homebrew, apt, dnf, or pacman), installs the system libraries lich-5 needs (GTK3, gobject-introspection, sqlite, etc.), installs Ruby if missing, builds or installs `tt++`, clones lich-5 and GSTinTin into XDG paths, installs a Nerd Font of your choice, and writes a personalized `gemstone` launcher onto your `PATH`.
+
+It only asks for `sudo` if system packages are actually missing, and supports flags for unattended installs:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/strnglp/GSTinTin/master/install.sh \
+  | bash -s -- --unattended --char Mychar --port 8000 --font JetBrainsMono
+```
+
+See `install.sh --help` for the full flag list. To remove things, run `uninstall.sh` from the GSTinTin clone.
+
 ## Requirements
 
 - [TinTin++](https://tintin.mudhalla.net/) (tt++) — after building or installing, make sure `tt++` is in your PATH (e.g., copy the executable to `~/.local/bin/` or add its install directory to your PATH)
@@ -14,45 +33,51 @@ GSTinTin brings ProfanityFE-style UI concepts — a 3-column split layout with c
 
 ## First-Time Setup
 
-Before using GSTinTin, you need to log into lich-5 at least once to save your account credentials and populate the local character database:
+Before using GSTinTin, lich-5 needs your Simutronics account credentials. The installer prompts for these at the end; if you skipped it, save them now:
 
 ```bash
-cd /path/to/lich-5
+cd "${XDG_DATA_HOME:-$HOME/.local/share}/lich-5"
+ruby lich.rbw --add-account YOUR_USERNAME YOUR_PASSWORD --frontend wizard
+```
+
+If you prefer a GUI login window instead:
+
+```bash
 ruby lich.rbw
 ```
 
-In the login window, tick **"Save this info for quick game entry"**, enter your Simutronics account credentials, click **Connect**, and then click **Play**. This saves your credentials and populates the local character database. You can close lich after connecting — going forward you only need the detachable mode below.
+In the window, tick **"Save this info for quick game entry"**, enter your credentials, click **Connect**, then **Play**. You can close lich after connecting.
 
 ## Quick Start
+
+If you used the installer, just run:
+
+```bash
+gemstone YourCharName 8000
+```
+
+To do it manually:
 
 1. Start lich-5 in detachable mode:
 
    ```bash
-   cd /path/to/lich-5
+   cd "${XDG_DATA_HOME:-$HOME/.local/share}/lich-5"
    ruby lich.rbw --login YourCharName --detachable-client=8000 --without-frontend --gemstone &
    ```
 
 2. Launch GSTinTin:
 
    ```bash
-   cd /path/to/GSTinTin
+   cd "${XDG_DATA_HOME:-$HOME/.local/share}/GSTinTin"
    tt++ gstin.tin
    ```
 
-Or use the provided launch script that handles both steps. Edit `scripts/gemstone.sh` to match your installation:
+The launcher script (`scripts/gemstone.sh`) honors these env vars and arguments:
 
-- **`LICH_DIR`** — path to your lich-5 directory (default: `$HOME/Projects/lich-5`)
-- **`GSTIN_DIR`** — path to this repo (default: `$HOME/Projects/GSTinTin`)
-- **`CHAR`** — your character name, passed as the first argument (default: `YourCharName`)
+- **`LICH_DIR`** — path to your lich-5 directory (default: `$XDG_DATA_HOME/lich-5`, i.e. `~/.local/share/lich-5`)
+- **`GSTIN_DIR`** — path to this repo (default: `$XDG_DATA_HOME/GSTinTin`)
+- **`CHAR`** — character name, passed as the first argument (default: `YourCharName`)
 - **`PORT`** — lich detachable client port, passed as the second argument (default: `8000`)
-
-Then install it to your PATH for easy access:
-
-```bash
-cp scripts/gemstone.sh ~/.local/bin/gemstone
-chmod +x ~/.local/bin/gemstone
-gemstone YourCharName 8000
-```
 
 ## Setup
 

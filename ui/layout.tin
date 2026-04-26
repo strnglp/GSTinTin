@@ -1445,7 +1445,7 @@ gstin_calc_status_layout;
 #nop -- Wrapped in DEC mode 2026 synchronized output so the terminal paints --;
 #nop -- all draws as a single atomic frame (kills flicker on multi-region updates). --;
 #alias {gstin_render_all} {
-    #screen sync begin;
+    #nop #screen sync begin;
     #variable {gstin[_render_pending]} {0};
     #if {$gstin[_dirty][spells] == 1} {
         #undelay {gstin_effects_tick};
@@ -1490,7 +1490,7 @@ gstin_calc_status_layout;
     #nop -- Paint drag highlight last so section renderers (spells sidebar --;
     #nop -- writes │ at right_col on every row) don't clobber it. --;
     gstin_paint_resize_highlight;
-    #screen sync end;
+    #nop #screen sync end;
 }
 
 #nop -- Request a render (coalesced — multiple requests = one render) --;
@@ -1515,14 +1515,14 @@ gstin_calc_status_layout;
             #return;
         };
         #if {$gstin[_render_pending] != 1} {
-            #screen sync begin;
+            #nop #screen sync begin;
             #variable {gstin[_draw_count]} {0};
             gstin_render_spells;
             #nop -- Cursor was hidden by render_spells on first draw --;
             #if {$gstin[_draw_count] > 0} {
                 #screen cursor show;
             };
-            #screen sync end;
+            #nop #screen sync end;
         };
     } {0.05};
 }
