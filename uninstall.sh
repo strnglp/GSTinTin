@@ -85,6 +85,6 @@ cat <<EOF
 Done. Not touched:
   • Ruby, gems, system packages
   • Nerd Fonts
-  • ~/.lich (your saved credentials)
+  • Saved lich credentials (stored within lich-5 directory)
   • PATH/shell rc additions (remove manually if desired)
 EOF
