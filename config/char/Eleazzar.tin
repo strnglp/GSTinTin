@@ -32,6 +32,4 @@
 #variable {gstin[custom_highlights][friends][patterns]} {Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
 #nop -- Character-specific macros --;
 
-#nop -- Character-specific gags --;
-
 #class {gstin_char_eleazzar} {close}
