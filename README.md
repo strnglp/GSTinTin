@@ -100,6 +100,11 @@ Character-specific config: copy `config/char/Example.tin` to `config/char/YourCh
 
 **XML tag matching:** GemStone's XML uses both `id='x'` and `id="x"`. Handle both in custom `#action` or `#regexp` patterns.
 
+**macOS Terminal.app limitation:** Terminal.app [does not support truecolor](https://github.com/termstandard/colors) (24-bit RGB colors). This causes background colors in custom highlights to render incorrectly when text wraps to a new line, producing black bars where text should appear. **Workarounds:**
+- Use [tmux](https://github.com/tmux/tmux) inside Terminal.app: `tmux` then run `gemstone`
+- Switch to [iTerm2](https://iterm2.com/) which fully supports truecolor
+- Use [WezTerm](https://wezfurlong.org/wezterm/) or another truecolor-capable terminal emulator
+
 ---
 
 <details>
