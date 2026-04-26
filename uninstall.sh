@@ -58,6 +58,17 @@ remove_path() {
     fi
 }
 
+# Ask about removing lich if not already set by flag and not in --yes mode
+if (( ! REMOVE_LICH )) && (( ! YES )); then
+    if [[ -d "$LICH_DIR" ]]; then
+        echo "lich-5 is installed at: $LICH_DIR"
+        if confirm "Also remove lich-5?"; then
+            REMOVE_LICH=1
+        fi
+    fi
+fi
+
+echo
 echo "Will remove:"
 echo "  $LAUNCHER"
 echo "  $GSTIN_DIR"
