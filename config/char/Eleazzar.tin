@@ -30,6 +30,22 @@
 
 #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
 #variable {gstin[custom_highlights][friends][patterns]} {Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
+
+#nop -- Character-specific gags (replicate substitute.lic) --;
+gstin_gag {Your SIGN OF%*is no longer effective.}
+gstin_gag {You feel drained!}
+gstin_gag {You feel less drained.}
+gstin_gag {You no longer feel drained.}
+gstin_gag {You do not feel drained anymore.}
+gstin_gag {Your dancing fingers weave a web of protection around you!}
+gstin_gag {You grip your%*with renewed vigor!}
+gstin_gag {Magic flows towards you, but does not reach you.}
+gstin_gag {Your veins throb and your blood sings.}
+gstin_gag {You feel magical energies distort and flow around you.}
+gstin_gag {You feel at full magical power again.}
+gstin_gag {You flex your muscles with renewed vigor!}
+gstin_gag {Your default channel is already set to%*}
+
 #nop -- Character-specific macros --;
 
 #class {gstin_char_eleazzar} {close}
