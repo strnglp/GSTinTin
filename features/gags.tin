@@ -17,34 +17,13 @@
 #nop ---- Empty lines from stream transitions ----;
 #nop -- These blank lines appear between stream switches --;
 
-#nop ---- User gag patterns (checked BEFORE #showme to avoid blank lines) --;
-#nop -- Use gstin_gag {pattern} to register a gag. TinTin wildcards: %* %+ %w %d. --;
-#nop -- Unlike #gag, this check runs before #showme and before the prompt handler --;
-#nop -- sets _has_content=1, so no blank line is inserted between server responses. --;
-#alias {gstin_gag} {
-    #local {_next} {1};
-    #if {&gstin[user_gags][] > 0} {
-        #math {_next} {&gstin[user_gags][] + 1};
-    };
-    #variable {gstin[user_gags][$_next]} {%1};
-}
-
-#nop -- Called from streams.tin before displaying each story line. --;
-#alias {gstin_check_user_gag} {
-    #variable {gstin[_gag_match]} {0};
-    #if {&gstin[user_gags][] > 0} {
-        #local {_line} {%1};
-        #nop Strip color codes from line for clean matching;
-        #replace {_line} {<[^>]+>} {};
-        #format {_line} {%p} {$_line};
-        #foreach {*gstin[user_gags][]} {_ugidx} {
-            #if {$gstin[_gag_match] == 0} {
-                #regexp {$_line} {$gstin[user_gags][$_ugidx]} {
-                    #variable {gstin[_gag_match]} {1};
-                };
-            };
-        };
-    };
-}
+#nop ---- User gag patterns ----;
+#nop -- Thin wrapper over native #gag. Patterns use TinTin wildcards --;
+#nop -- (%* %+ %w %d). Native gag short-circuits before PROCESSED LINE --;
+#nop -- fires, so _has_content stays 0 and no blank line leaks between --;
+#nop -- prompts. Wildcards cross XML tag boundaries fine: a pattern like --;
+#nop --   gstin_gag {%* turns a vardite skeleton key} --;
+#nop -- matches the line whether or not lich wrapped names in <pushBold/>. --;
+#alias {gstin_gag} {#gag {%1}}
 
 #class {gstin_gags} {close}

@@ -1120,14 +1120,9 @@
         #return;
     };
 
-    #nop -- Check user gag patterns against visible text BEFORE updating --;
-    #nop -- prompt-space state. Gagged lines must not mark content, otherwise --;
-    #nop -- the prompt handler inserts a blank line between server responses. --;
-    gstin_check_user_gag {$_vis};
-    #if {$gstin[_gag_match] == 1} {
-        #line gag;
-        #return;
-    };
+    #nop -- User gag patterns are native #gag rules (features/gags.tin). They fire --;
+    #nop -- after RECEIVED LINE returns and short-circuit before PROCESSED LINE, --;
+    #nop -- so _has_content stays 0 and no spurious blank line is inserted. --;
 
     #nop -- Line survived RECEIVED LINE. It now flows through the native pipeline --;
     #nop -- (#action -> #gag -> #substitute -> #highlight), then fires PROCESSED --;
