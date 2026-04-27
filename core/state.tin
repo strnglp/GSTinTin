@@ -126,12 +126,6 @@
 #nop -- Per-effect display snapshot for dirty detection (label|fill_w|colors) --;
 #variable {gstin[_effects_snap]} {}
 
-#nop -- Indicator snapshot for dedup (set before parsing, compared after) --;
-#variable {gstin[_isnap]} {}
-
-#nop -- Story showme re-entry guard (prevents RECEIVED LINE loop) --;
-#variable {gstin[_showing_story]} {0}
-
 #nop -- Story scroll offset (incremented by wheel-up, decremented by wheel-down) --;
 #nop -- Rendered in the [Story +N] header. Separate from tt++ internal scroll->line --;
 #nop -- because that's hard to read back cleanly from tin. --;
