@@ -84,32 +84,12 @@
     #local {_slen} {0};
     #format {_slen} {%L} {$_stripped};
     #if {$_slen > 0} {
-        #nop -- Route through story pipeline for colorization --;
-        #variable {gstin[_story_line]} {$_stripped};
-        gstin_strip_xml_colored {gstin[_story_line]};
-        #local {_vis} {$_stripped};
-        #replace {_vis} {<{[^>]+}>} {};
-        #replace {_vis} {GSAMPMARK}  {&&};
-        #replace {_vis} {GSGTMARK}   {>};
-        #replace {_vis} {GSLTMARK}   {<};
-        #replace {_vis} {GSQUOTMARK} {"};
-        #replace {_vis} {GSAPOSMARK} {'};
-        #format {_vis} {%p} {$_vis};
-        #variable {gstin[_story_raw]} {$_vis};
-        gstin_colorize_combat;
-        #nop -- Check if the line matches any user gag pattern before showing --;
-        gstin_check_user_gag {$gstin[_story_line]};
-        #if {$gstin[_gag_match] == 0} {
-            #variable {gstin[_showing_story]} {1};
-            #showme {$gstin[_story_line]};
-            #variable {gstin[_showing_story]} {0};
-            #nop -- Only mark content when we actually emitted a line --;
-            #variable {gstin[_prompt_space]} {0};
-            #variable {gstin[_has_content]} {1};
-            #if {$gstin[_spacelog] == 1} {
-                #line log {/tmp/gstin_space.log} {GAG-XML-VIS: hc=1 text=$gstin[_story_line]};
-            };
-        };
+        #nop -- Re-emit residual story text so the native #substitute chain --;
+        #nop -- colorizes it. #showme does NOT fire PROCESSED LINE, so mark --;
+        #nop -- has_content manually for prompt spacing. --;
+        #showme {$_stripped};
+        #variable {gstin[_prompt_space]} {0};
+        #variable {gstin[_has_content]} {1};
     };
     #line gag;
 }
@@ -1149,12 +1129,15 @@
         #return;
     };
 
-    #nop -- Line survived RECEIVED LINE. Now flows through the rest of the native --;
-    #nop -- pipeline: #action extracted state (already ran at this stage? no -- --;
-    #nop -- RECEIVED LINE fires before actions, so actions run after we return), --;
-    #nop -- #gag (infra), #substitute (XML -> colors in features/substitutes.tin), --;
-    #nop -- #highlight (emphasis), then PROCESSED LINE (prompt spacing) -> --;
-    #nop -- add_line_buffer -> print_line. --;
+    #nop -- Line survived RECEIVED LINE. It now flows through the native pipeline --;
+    #nop -- (#action -> #gag -> #substitute -> #highlight), then fires PROCESSED --;
+    #nop -- LINE below, which marks has_content so the next prompt inserts a blank. --;
+}
+
+#nop -- PROCESSED LINE: fires after all triggers, only for surviving lines. --;
+#nop -- %0 raw %1 plain %2 prompt-flag (0 or 1). Use it to mark has_content so --;
+#nop -- the </prompt> spacing block knows whether a separator is needed. --;
+#event {PROCESSED LINE} {
     #variable {gstin[_prompt_space]} {0};
     #variable {gstin[_has_content]} {1};
 }
