@@ -1,0 +1,32 @@
+#nop =========================================================================;
+#nop  GSTinTin - Infrastructure Gags
+#nop  Native #gag rules that drop XML infrastructure lines from the main scroll.
+#nop  These fire in the pipeline AFTER #action, so state extraction in
+#nop  core/actions_*.tin has already captured values before the gag removes
+#nop  the line.
+#nop  Keep narrow: anchor to start-of-line and a specific tag prefix. Any
+#nop  semantic/story tags (<a>, <pushBold/>, <preset>, <d>) are NOT gagged
+#nop  here -- they become color through #substitute in Phase 3.
+#nop =========================================================================;
+
+#class {gstin_gags_infra} {open}
+
+#gag {~^<progressBar%*}
+#gag {~^<indicator%*}
+#gag {~^<roundTime%*}
+#gag {~^<castTime%*}
+#gag {~^<streamWindow%*}
+#gag {~^<clearStream%*}
+#gag {~^<openDialog%*}
+#gag {~^<closeDialog%*}
+#gag {~^<switchQuickBar%*}
+#gag {~^<exposeContainer%*}
+#gag {~^<container%*}
+#gag {~^<clearContainer%*}
+#gag {~^<arbProgress%*}
+#gag {~^<nav%*}
+#gag {~^<popStream%*}
+#gag {~^<component id='room %*}
+#gag {~^<component id="room %*}
+
+#class {gstin_gags_infra} {close}

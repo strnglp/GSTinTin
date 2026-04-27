@@ -43,6 +43,7 @@
 #read {features/highlights.tin}
 #read {features/combat.tin}
 #read {features/gags.tin}
+#read {features/gags_infra.tin}
 #read {features/macros.tin}
 #read {features/priority_sort.tin}
 
