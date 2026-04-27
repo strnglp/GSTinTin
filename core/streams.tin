@@ -287,10 +287,16 @@
     #local {_sz} {0};
     #list {_items} {size} {_sz};
     #local {_i} {1};
+    #local {_added} {0};
     #while {$_i <= $_sz} {
         #local {_name} {$_items[$_i]};
-        #if {"$_name" != "none"} {
+        #if {"$_name" != "none" && &gstin[hostiles][$_name] == 0} {
             #variable {gstin[hostiles][$_name]} {1};
+            #nop -- Register native #substitute so the name renders red --;
+            #class {gstin_substitutes_hostile} {open};
+            gstin_register_hostile_substitute {$_name};
+            #class {gstin_substitutes_hostile} {close};
+            #local {_added} {1};
         };
         #math {_i} {$_i + 1};
     };
@@ -616,19 +622,15 @@
 #event {RECEIVED LINE} {
     #local {_line} {%0};
 
-    #nop -- Re-entry guard: when we #showme a story line (without #line ignore) --;
-    #nop -- RECEIVED LINE fires again. Skip processing so #highlight can fire. --;
-    #if {$gstin[_showing_story] == 1} {
-        #return;
-    };
-
     #nop Raw logging if enabled;
     #if {$gstin[rawlog] == 1} {
         #line log {/tmp/gstin_raw.log} {$_line};
     };
 
-    #nop -- Decode XML entities to safe markers early in the pipeline --;
-    #nop -- Markers survive all processing and resolve to real chars at display time --;
+    #nop -- Decode XML entities to safe markers for state-extraction and long-term --;
+    #nop -- buffers (chat, familiar, room panel). Native #substitute on the main --;
+    #nop -- scroll decodes entities in-pipeline, so the raw line going to #gag / --;
+    #nop -- #substitute is the unmutated _line (below). --;
     #variable {gstin[_rl]} {$_line};
     gstin_decode_entities;
     #local {_line} {$gstin[_rl]};
@@ -1088,44 +1090,16 @@
         };
     };
 
-    #nop -- Generic XML gag: strip tags, show any remaining game text, gag line --;
-    #nop -- Handles all XML-prefixed lines in one place so we never lose text --;
-    #nop -- #return inside #regexp does NOT exit RECEIVED LINE (gotcha 3) --;
-    #nop -- Use flag pattern: set var inside #regexp, then #if at top scope --;
-    #variable {gstin[_xml_gag]} {0};
-    #regexp {$_line} {^<progressBar}      {#variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<popStream}        {#variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<pushStream}       {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<arbProgress}      {#variable {gstin[_xml_gag]} {1}};
-    #if {$gstin[_xml_gag] == 1} {#line gag; #return};
-    #regexp {$_line} {^<indicator}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<roundTime}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<castTime}         {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<dialogData}       {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<openDialog}       {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<closeDialog}      {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<streamWindow}     {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<clearStream}      {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #nop -- Room components: data already extracted above, gag silently --;
-    #regexp {$_line} {^<component id='room } {#variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<component id="room } {#variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<component}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<nav }             {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<switchQuickBar}   {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<exposeContainer}  {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<container}        {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #regexp {$_line} {^<clearContainer}   {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
-    #if {$gstin[_xml_gag] == 1} {#line gag; #return};
-    #nop -- Catch-all: data tags appearing mid-line (not caught by ^< above) --;
-    #nop -- Detects closing tags of paired infrastructure elements that --;
-    #nop -- gstin_gag_xml strips with content in step 1 --;
+    #nop -- Mid-line paired-tag closers (</component>, </right>, </left>, etc.) --;
+    #nop -- These come in mid-line after data weve already extracted. Fall back to --;
+    #nop -- gstin_gag_xml for the residual-text case. Everything that leads with --;
+    #nop -- a whole XML infra tag is handled by features/gags_infra.tin. --;
     #variable {gstin[_xml_gag]} {0};
     #regexp {$_line} {</{component|right|left|inv|compass|spell}>} {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
     #if {$gstin[_xml_gag] == 1} {#line gag; #return};
 
-    #nop -- Prompt: gag and capture prompt text for echo detection --;
-    #nop -- Must return to prevent end-of-event flag resets from undoing spacing --;
-    #nop -- Prompt text captured by stripping tags (nested #regexp &1 is broken) --;
+    #nop -- Prompt: gag the <prompt>..</prompt> wrapper and capture prompt text --;
+    #nop -- for echo detection. The prompt itself is emitted separately by lich. --;
     #regexp {$_line} {<prompt } {
         #local {_ptxt} {$_line};
         #replace {_ptxt} {<prompt{[^>]*}>} {};
@@ -1142,9 +1116,9 @@
         #return;
     };
 
-    #nop -- Suppress invisible lines from affecting spacing --;
-    #nop -- Lines that are empty/whitespace after XML stripping should not --;
-    #nop -- set has_content (prevents double-spacing from server blank lines) --;
+    #nop -- Empty / whitespace-only visible lines: gag so they dont create --;
+    #nop -- phantom gaps in the scrollback. Compute the visible form once so --;
+    #nop -- the prompt-echo check can reuse it. --;
     #local {_vis} {$_line};
     #replace {_vis} {<{[^>]+}>} {};
     #replace {_vis} {GSAMPMARK}  {&&};
@@ -1156,19 +1130,12 @@
     #local {_vlen} {0};
     #format {_vlen} {%L} {$_vis};
     #if {$_vlen == 0} {
-        #if {$gstin[_spacelog] == 1} {
-            #line log {/tmp/gstin_space.log} {GAG-EMPTY: vlen=0};
-        };
         #line gag;
         #return;
     };
-    #nop -- Gag prompt character echo (lich sends prompt char as separate line) --;
-    #nop -- After <prompt> gag sets _has_content=0, lich echoes the prompt text --;
-    #nop -- (e.g. >, H>, STUNNED>) as a standalone line. Match against captured text --;
+    #nop -- Gag prompt character echo (lich sends the bare prompt char as a --;
+    #nop -- standalone line after the <prompt> block we just captured). --;
     #if {"$_vis" == "$gstin[prompt][text]" && $gstin[_has_content] == 0} {
-        #if {$gstin[_spacelog] == 1} {
-            #line log {/tmp/gstin_space.log} {GAG-PROMPTECHO: vis=$_vis};
-        };
         #line gag;
         #return;
     };
@@ -1182,35 +1149,14 @@
         #return;
     };
 
-    #nop -- Line survived all processing and will display in main scroll --;
-    #nop -- Reset spacing flag so next prompt can insert a separator --;
+    #nop -- Line survived RECEIVED LINE. Now flows through the rest of the native --;
+    #nop -- pipeline: #action extracted state (already ran at this stage? no -- --;
+    #nop -- RECEIVED LINE fires before actions, so actions run after we return), --;
+    #nop -- #gag (infra), #substitute (XML -> colors in features/substitutes.tin), --;
+    #nop -- #highlight (emphasis), then PROCESSED LINE (prompt spacing) -> --;
+    #nop -- add_line_buffer -> print_line. --;
     #variable {gstin[_prompt_space]} {0};
     #variable {gstin[_has_content]} {1};
-    #if {$gstin[_spacelog] == 1} {
-        #line log {/tmp/gstin_space.log} {STORY: ps=0 hc=1 stream=$gstin[stream][current] vis=$_vis};
-    };
-
-    #nop -- Colorize and display via unified pipeline --;
-    #nop -- Same gstin_strip_xml_colored used by room panel and chat feed --;
-    #nop -- Guard flag lets #showme re-enter RECEIVED LINE safely --;
-    #nop -- so #highlight rules fire on the colorized output --;
-    #variable {gstin[_story_line]} {$_line};
-    gstin_strip_xml_colored {gstin[_story_line]};
-    #variable {gstin[_story_raw]} {$_vis};
-    gstin_colorize_combat;
-    #if {$gstin[_spacelog] == 1} {
-        #local {_slen} {0};
-        #format {_slen} {%L} {$gstin[_story_line]};
-        #line log {/tmp/gstin_space.log} {SHOWME: len=$_slen text=$gstin[_story_line]};
-    };
-    #if {$gstin[_peer_active] == 1} {
-        #variable {gstin[_story_line]} {$gstin[colors][highlight][remote]$gstin[_story_line]};
-    };
-    #variable {gstin[_showing_story]} {1};
-    #showme {$gstin[_story_line]};
-    #variable {gstin[_showing_story]} {0};
-    #line gag;
-
 }
 
 #nop -- Render chat buffer in left sidebar --;

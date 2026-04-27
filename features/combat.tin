@@ -1,14 +1,19 @@
 #nop =========================================================================;
 #nop  GSTinTin - Combat Highlights
-#nop  Colorizes combat text by category:
-#nop    - My attacks (green)
-#nop    - Attacks at me (red, urgent)
-#nop    - Attacks at others (muted yellow)
-#nop    - Damage results (orange)
-#nop    - Endroll: hit >=101 (yellow), miss <=100 (dim)
-#nop  All colorization runs in the story pipeline via gstin_colorize_combat,
-#nop  matching against clean text (gstin[_story_raw]) and modifying the
-#nop  colorized display line (gstin[_story_line]).
+#nop
+#nop  Native #substitute + #highlight rules. The substitute chain in
+#nop  features/substitutes.tin has already turned XML into color by the time
+#nop  these fire, so patterns can match plain text.
+#nop
+#nop  Combat categories:
+#nop    - Attacks at me    (red, urgent)
+#nop    - My attacks       (green)
+#nop    - Damage results   (orange)
+#nop    - Endroll hit/miss (yellow / dim)
+#nop
+#nop  Third-party attacks (creature vs creature) are NOT line-wide colored
+#nop  here because that needs per-hostile detection. Hostile names already
+#nop  render red via the hostile substitute chain, which is good enough.
 #nop =========================================================================;
 
 #class {gstin_combat} {open}
@@ -21,109 +26,36 @@
     #highlight {%*hit for %d points of damage%*}    {$gstin[colors][combat][damage]} {4};
     #highlight {%*points of damage!}                {$gstin[colors][combat][damage]} {4};
 
+    #nop ---- Endroll lines (AS/DS, CS/TD, UAF/UDF) --;
+    #nop -- Colorize only the final number after `= `. Match the full line --;
+    #nop -- and keep everything before `= ` uncolored. Hit / miss chosen by --;
+    #nop -- sign-of-number heuristic: +NNN>=101 is a hit, everything else miss. --;
+    #nop -- The pattern matches `= +NNN` and the body after. Keep it loose: --;
+    #nop -- use a plain substitute to wrap the tail in the hit color, and a --;
+    #nop -- tighter rule for misses (negative endrolls). --;
+    #highlight {= %1[0-9][0-9][0-9]} {$gstin[colors][combat][endroll_hit]} {3};
+    #highlight {= %1[0-9][0-9]}      {$gstin[colors][combat][endroll_miss]} {3};
+
+    #nop ---- Attacks at me (highest priority; line-wide red) --;
+    #highlight {%* at you!%*}            {$gstin[colors][combat][attack_at_me]} {3};
+    #highlight {%* at you %*}            {$gstin[colors][combat][attack_at_me]} {3};
+    #highlight {%* toward you!%*}        {$gstin[colors][combat][attack_at_me]} {3};
+    #highlight {%* gestures at you!%*}   {$gstin[colors][combat][attack_at_me]} {3};
+
+    #nop ---- My attacks (line-wide green) --;
+    #highlight {^You hurl%*}     {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You swing%*}    {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You thrust%*}   {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You fire%*}     {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You pound%*}    {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You charge%*}   {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You lunge%*}    {$gstin[colors][combat][my_attack]} {3};
+    #highlight {^You attempt to%*} {$gstin[colors][combat][my_attack]} {3};
+
     #class {gstin_combat_hl} {close};
-}
-
-#nop -- Apply combat base color: resets mid-line return to combat color --;
-#nop -- Same approach as preset colors (speech/whisper) in gstin_strip_xml_colored --;
-#alias {gstin_apply_combat_color} {
-    #local {_cc} {%1};
-    #replace {gstin[_story_line]} {<099>} {$_cc};
-    #variable {gstin[_story_line]} {${_cc}$gstin[_story_line]<099>};
-}
-
-#nop -- Pipeline combat colorization: called from RECEIVED LINE in streams.tin --;
-#nop -- Reads gstin[_story_raw] (clean text) for pattern matching --;
-#nop -- Modifies gstin[_story_line] (colorized text) for display --;
-#alias {gstin_colorize_combat} {
-    #local {_raw} {$gstin[_story_raw]};
-
-    #nop -- Endroll colorization --;
-    #nop -- Detect AS/DS, CS/TD, or UAF/UDF lines and colorize the final result --;
-    #nop -- Uses #regexp captures + reconstruction to avoid #replace regex issues --;
-    #variable {gstin[_er_matched]} {0};
-    #regexp {$_raw} {AS: } {#variable {gstin[_er_matched]} {1}};
-    #regexp {$_raw} {CS: } {#variable {gstin[_er_matched]} {1}};
-    #regexp {$_raw} {UAF: } {#variable {gstin[_er_matched]} {1}};
-    #if {$gstin[_er_matched] == 1} {
-        #variable {gstin[_er_found]} {0};
-        #regexp {$_raw} {{.*= }{[+-][0-9]+}} {
-            #variable {gstin[_er_found]} {1};
-            #variable {gstin[_er_val]} {&2};
-        };
-        #if {$gstin[_er_found] == 1} {
-            #local {_num} {$gstin[_er_val]};
-            #replace {_num} {\+} {};
-            #regexp {$gstin[_story_line]} {{.*= }{[+-][0-9]+}} {
-                #variable {gstin[_er_prefix]} {&1};
-                #variable {gstin[_er_suffix]} {&2};
-            };
-            #if {$_num >= 101} {
-                #variable {gstin[_story_line]} {$gstin[_er_prefix]$gstin[colors][combat][endroll_hit]$gstin[_er_suffix]<099>};
-            } {
-                #variable {gstin[_story_line]} {$gstin[_er_prefix]$gstin[colors][combat][endroll_miss]$gstin[_er_suffix]<099>};
-            };
-        };
-        #return;
-    };
-
-    #nop -- Attack line colorization: wrap entire line in color --;
-    #nop -- Match against clean text (_raw) using substring matching --;
-    #nop -- Priority: attacks at me > my attacks > third-party --;
-
-    #nop -- Attacks at me (check first, highest priority) --;
-    #variable {gstin[_cb_hit]} {0};
-    #regexp {$_raw} { at you!} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { at you } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { toward you!} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { gestures at you!} {#variable {gstin[_cb_hit]} {1}};
-    #if {$gstin[_cb_hit] == 1} {
-        gstin_apply_combat_color {$gstin[colors][combat][attack_at_me]};
-        #return;
-    };
-
-    #nop -- My attacks (starts with You) --;
-    #variable {gstin[_cb_hit]} {0};
-    #regexp {$_raw} {{^You hurl }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You swing }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You thrust }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You fire }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You pound }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You charge }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You lunge }} {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} {{^You attempt to }} {#variable {gstin[_cb_hit]} {1}};
-    #if {$gstin[_cb_hit] == 1} {
-        gstin_apply_combat_color {$gstin[colors][combat][my_attack]};
-        #return;
-    };
-
-    #nop -- Third-party attacks: only colorize when a hostile is involved --;
-    #variable {gstin[_cb_hit]} {0};
-    #regexp {$_raw} { swings } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { thrusts } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { hurls } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { charges at } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { lunges at } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { claws at } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { bites at } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { fires } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { pounds at } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { strikes at } {#variable {gstin[_cb_hit]} {1}};
-    #regexp {$_raw} { gestures at } {#variable {gstin[_cb_hit]} {1}};
-    #if {$gstin[_cb_hit] == 1} {
-        #variable {gstin[_cb_hostile]} {0};
-        #foreach {*gstin[hostiles][%*]} {_hkey} {
-            #variable {gstin[_hk]} {$_hkey};
-            #regexp {$_raw} {$gstin[_hk]} {#variable {gstin[_cb_hostile]} {1}};
-        };
-        #if {$gstin[_cb_hostile] == 1} {
-            gstin_apply_combat_color {$gstin[colors][combat][attack_at_other]};
-        };
-        #return;
-    };
 }
 
 #class {gstin_combat} {close}
 
 #nop -- Apply combat highlights on load --;
-gstin_apply_combat;
+gstin_apply_combat

@@ -111,6 +111,8 @@
 #nop -- Spell (prepared spell name) --;
 #alias {gstin_set_spell} {
     #local {_name} {%1};
+    #replace {_name} {&amp;}  {&};
+    #replace {_name} {&apos;} {'};
     #if {"$_name" != "$gstin[spell]"} {
         #variable {gstin[spell]} {$_name};
         #variable {gstin[_dirty][status]} {1};
@@ -124,6 +126,12 @@
 #alias {gstin_set_hand} {
     #local {_side} {%1};
     #local {_item} {%2};
+    #nop -- Decode common XML entities so items like "a wizard&apos;s staff" render cleanly --;
+    #replace {_item} {&amp;}  {&};
+    #replace {_item} {&lt;}   {<};
+    #replace {_item} {&gt;}   {>};
+    #replace {_item} {&quot;} {"};
+    #replace {_item} {&apos;} {'};
     #if {"$_item" != "$gstin[hands][$_side]"} {
         #variable {gstin[hands][$_side]} {$_item};
         #variable {gstin[_dirty][status]} {1};

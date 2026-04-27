@@ -726,6 +726,7 @@
     };
     gstin_apply_highlights;
     gstin_apply_combat;
+    gstin_apply_substitutes;
     #variable {gstin[_prev][header]}     {0};
     #variable {gstin[_prev][body]}       {_};
     #variable {gstin[_prev][vitals]}     {_};
