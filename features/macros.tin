@@ -147,7 +147,7 @@
 }
 
 #nop -- Apply a new room/familiar ratio from a drag on the familiar separator. --;
-#nop -- Cursor row is the would-be fam_sep position; room_rows = row - 2 --;
+#nop -- Cursor row is the would-be fam_sep position, so room_rows = row - 2 --;
 #nop -- (rows 2..row-1 = room content, row = separator). Content rows are --;
 #nop -- (top_size - 2 - 1) = top_size-3 with familiar active. Room must keep --;
 #nop -- >=3 contentful rows, familiar >=1. Ratio stored as percent so a later --;
@@ -715,13 +715,16 @@
     #class {gstin_colors} {kill};
     #read {config/colors.tin};
     #nop -- Re-read the per-character config so custom_highlights[*][color|bg_color] --;
-    #nop -- get rebaked against the new palette. Without this, color literals stay --;
-    #nop -- frozen at whichever palette was loaded when the char file first ran. --;
+    #nop -- get rebaked against the new palette. Save the in-flight theme name first --;
+    #nop -- so the char files own theme setting (intended for initial load) doesnt --;
+    #nop -- clobber an interactive switch. --;
     #if {"$gstin[config][char_name]" != ""} {
         #script {_charfile_exists} {test -f config/char/$gstin[config][char_name].tin && echo 1 || echo 0};
         #if {"$_charfile_exists[1]" == "1"} {
+            #variable {gstin[_reload_theme]} {$gstin[config][theme]};
             #variable {gstin[custom_highlights]} {};
             #read {config/char/$gstin[config][char_name].tin};
+            #variable {gstin[config][theme]} {$gstin[_reload_theme]};
         };
     };
     gstin_apply_highlights;
@@ -746,35 +749,29 @@
     gstin_request_render;
 }
 
-#nop -- Theme selection menu --;
+#nop -- Theme selection: `theme <name>` switches directly. `theme` alone shows --;
+#nop -- the menu of available names. Picking from the menu is done by typing --;
+#nop -- `theme <name>` on a subsequent line -- we do not try to eat a bare number --;
+#nop -- because no path involving alias or event dispatch has reliably stopped --;
+#nop -- that number from reaching write_mud in testing. --;
 #alias {theme} {
-    #showme {};
-    #showme {$gstin[colors][system][status]--- Available themes ---<099>};
-    #showme {  1) catdark       2) catlight};
-    #showme {  3) everdark      4) everlight};
-    #showme {  5) gruvdark      6) gruvlight};
-    #showme {  7) icedark       8) icelight};
-    #showme {  9) seouldark    10) seoullight};
-    #showme {};
-    #showme {Current: $gstin[config][theme]};
-    #showme {$gstin[colors][system][status]--- Enter number to switch ---<099>};
-    #cursor {clear};
-    #line {oneshot} #alias {~^{[0-9]+}$} {
-        #switch {%%1} {
-            #case {1}  {#variable {gstin[config][theme]} {catdark}};
-            #case {2}  {#variable {gstin[config][theme]} {catlight}};
-            #case {3}  {#variable {gstin[config][theme]} {everdark}};
-            #case {4}  {#variable {gstin[config][theme]} {everlight}};
-            #case {5}  {#variable {gstin[config][theme]} {gruvdark}};
-            #case {6}  {#variable {gstin[config][theme]} {gruvlight}};
-            #case {7}  {#variable {gstin[config][theme]} {icedark}};
-            #case {8}  {#variable {gstin[config][theme]} {icelight}};
-            #case {9}  {#variable {gstin[config][theme]} {seouldark}};
-            #case {10} {#variable {gstin[config][theme]} {seoullight}};
-        };
+    #local {_name} {%1};
+    #if {"$_name" != ""} {
+        #variable {gstin[config][theme]} {$_name};
         gstin_load_theme;
         #showme {$gstin[colors][system][status]--- Theme: $gstin[config][theme]<099>};
+        #return;
     };
+    #showme {};
+    #showme {$gstin[colors][system][status]--- Available themes ---<099>};
+    #showme {  catdark     catlight};
+    #showme {  everdark    everlight};
+    #showme {  gruvdark    gruvlight};
+    #showme {  icedark     icelight};
+    #showme {  seouldark   seoullight};
+    #showme {};
+    #showme {Current: $gstin[config][theme]};
+    #showme {$gstin[colors][system][status]--- Use: theme <name> ---<099>};
 }
 
 #nop -- Toggle raw XML logging to /tmp/gstin_raw.log --;

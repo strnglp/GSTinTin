@@ -5,23 +5,24 @@
 #nop  PROCESSED LINE -> add_line_buffer -> print_line. No #showme, no re-entry
 #nop  dance -- we let TinTin do the work.
 #nop
-#nop  Order matters. #substitute rules fire in registration order; later rules
+#nop  Order matters. #substitute rules fire in registration order, later rules
 #nop  operate on the result of earlier ones.
 #nop
 #nop  Call gstin_apply_substitutes to (re)build the class -- called on theme
 #nop  load so baked-in color values refresh.
 #nop =========================================================================;
 
-#class {gstin_substitutes} {open}
-
+#nop -- gstin_apply_substitutes rebuilds the gstin_substitutes class. It must NOT --;
+#nop -- live inside that class itself, or the #class kill in its own body would --;
+#nop -- delete the alias mid-run and subsequent calls fall through to write_mud. --;
 #alias {gstin_apply_substitutes} {
     #class {gstin_substitutes} {kill};
     #class {gstin_substitutes} {open};
 
     #nop ============================================================;
-    #nop  Pass 1: entity references -> safe marker tokens
-    #nop  Must run before tag matching so a bare `&` in text doesnt
-    #nop  look like part of a tag-attribute value.
+    #nop  Pass 1: entity references -> safe marker tokens;
+    #nop  Must run before tag matching so a bare `&` in text doesnt;
+    #nop  look like part of a tag-attribute value.;
     #nop ============================================================;
     #substitute {~&amp;}  {GSAMPMARK}  {1};
     #substitute {~&lt;}   {GSLTMARK}   {1};
@@ -30,20 +31,20 @@
     #substitute {~&apos;} {GSAPOSMARK} {1};
 
     #nop ============================================================;
-    #nop  Pass 2: lich mapper artifacts (unique room ids, mapper #)
+    #nop  Pass 2: lich mapper artifacts (unique room ids, mapper #);
     #nop ============================================================;
     #substitute {~ (u%d)}  {}      {2};
     #substitute {~] (%d)}  {]}     {2};
     #substitute {~ - %d]}  {]}     {2};
 
     #nop ============================================================;
-    #nop  Pass 3: Semantic tag -> color code
-    #nop
-    #nop  TinTins #substitute wildcard pattern:
-    #nop    %0   -> entire match
-    #nop    %1-9 -> captures
-    #nop    %*   -> lazy wildcard
-    #nop    ~    -> raw mode (match literal < and > in the line)
+    #nop  Pass 3: Semantic tag -> color code;
+    #nop;
+    #nop  TinTins #substitute wildcard pattern:;
+    #nop    %0   -> entire match;
+    #nop    %1-9 -> captures;
+    #nop    %*   -> lazy wildcard;
+    #nop    ~    -> raw mode (match literal < and > in the line);
     #nop ============================================================;
 
     #nop -- Creature bold: <pushBold/>name<popBold/> --;
@@ -71,7 +72,7 @@
     #substitute {~</a>}    {\e[0m}                                    {4};
 
     #nop -- Room title style tag (<style id="roomName" />Title...) --;
-    #nop -- Closing <style id="" /> arrives on a later line; catch-all Pass 5 --;
+    #nop -- Closing <style id="" /> arrives on a later line, catch-all Pass 5 --;
     #nop -- strips whats left. --;
     #substitute {~<style id='roomName' />} {$gstin[colors][ui][header_text]} {4};
     #substitute {~<style id="roomName" />} {$gstin[colors][ui][header_text]} {4};
@@ -81,26 +82,26 @@
     #substitute {The body of } {$gstin[colors][highlight][personal_danger]The body of\e[0m } {4};
 
     #nop ============================================================;
-    #nop  Pass 4.5: Hostile creature override
-    #nop
-    #nop  Generic creature coloring has already turned the name blue
-    #nop  (via pushBold/popBold). For each known hostile, we rewrite
-    #nop  the creature-colored span to hostile-colored so known enemies
-    #nop  render red instead of blue.
+    #nop  Pass 4.5: Hostile creature override;
+    #nop;
+    #nop  Generic creature coloring has already turned the name blue;
+    #nop  (via pushBold/popBold). For each known hostile, we rewrite;
+    #nop  the creature-colored span to hostile-colored so known enemies;
+    #nop  render red instead of blue.;
     #nop ============================================================;
     gstin_apply_hostile_substitutes;
 
     #nop ============================================================;
-    #nop  Pass 5: Catch-all tag strip
-    #nop  Anything tag-shaped that survived the semantic pass is
-    #nop  metadata we dont care about -- drop it.
+    #nop  Pass 5: Catch-all tag strip;
+    #nop  Anything tag-shaped that survived the semantic pass is;
+    #nop  metadata we dont care about -- drop it.;
     #nop ============================================================;
     #substitute {~<%*>} {} {7};
 
     #nop ============================================================;
-    #nop  Pass 6: Marker -> real char
-    #nop  Runs last so semantic rules matching literal text were not
-    #nop  disrupted by entity decoding.
+    #nop  Pass 6: Marker -> real char;
+    #nop  Runs last so semantic rules matching literal text were not;
+    #nop  disrupted by entity decoding.;
     #nop ============================================================;
     #substitute {GSAMPMARK}  {&}  {8};
     #substitute {GSLTMARK}   {<}  {8};
@@ -134,8 +135,6 @@
     #local {_name} {%1};
     #substitute {$gstin[colors][highlight][creature]%1${_name}$gstin[colors][highlight][creature_end]} {$gstin[colors][highlight][hostile]%1${_name}$gstin[colors][highlight][hostile_end]} {4};
 }
-
-#class {gstin_substitutes} {close}
 
 #nop -- Apply substitutes on load --;
 gstin_apply_substitutes

@@ -37,13 +37,11 @@
 #nop -- Uses flat var + #line substitute {none} to prevent & mangling by SUB_VAR --;
 #nop -- Pattern matches escaped semicolons stored by RECEIVED LINE --;
 #alias {gstin_decode_entities} {
-    #variable {_edtmp} {$gstin[_rl]};
-    #line substitute {none} {#replace {_edtmp} {&amp\\;}  {GSAMPMARK}};
-    #line substitute {none} {#replace {_edtmp} {&gt\\;}   {GSGTMARK}};
-    #line substitute {none} {#replace {_edtmp} {&lt\\;}   {GSLTMARK}};
-    #line substitute {none} {#replace {_edtmp} {&quot\\;}  {GSQUOTMARK}};
-    #line substitute {none} {#replace {_edtmp} {&apos\\;}  {GSAPOSMARK}};
-    #variable {gstin[_rl]} {$_edtmp};
+    #line substitute {none} {#replace {gstin[_rl]} {&amp\\;}  {GSAMPMARK}};
+    #line substitute {none} {#replace {gstin[_rl]} {&gt\\;}   {GSGTMARK}};
+    #line substitute {none} {#replace {gstin[_rl]} {&lt\\;}   {GSLTMARK}};
+    #line substitute {none} {#replace {gstin[_rl]} {&quot\\;} {GSQUOTMARK}};
+    #line substitute {none} {#replace {gstin[_rl]} {&apos\\;} {GSAPOSMARK}};
 }
 
 #nop -- Generic XML gag helper: strip tags, show remaining text, gag line --;
@@ -826,10 +824,10 @@
     }};
 
     #nop ================================================================;
-    #nop  Bundled XML extractors: lich crams the full vitals/indicators/
-    #nop  hands/spell/timer set onto one line. Native #action fires only
-    #nop  the first match per line, so these scan the raw line here with
-    #nop  #regexp and call helpers in core/actions_*.tin for state writes.
+    #nop  Bundled XML extractors: lich crams the full vitals/indicators/;
+    #nop  hands/spell/timer set onto one line. Native #action fires only;
+    #nop  the first match per line, so these scan the raw line here with;
+    #nop  #regexp and call helpers in core/actions_*.tin for state writes.;
     #nop ================================================================;
 
     #nop -- Vitals (both quote variants each) --;
@@ -859,7 +857,7 @@
     #nop -- Spell (prepared spell name) --;
     #regexp {$_line} {<spell{[^>]*}>{[^<]*}</spell>} {gstin_set_spell {&2}};
 
-    #nop -- Hands: exist= and plain variants for each side. Both fire; the --;
+    #nop -- Hands: exist= and plain variants for each side. Both fire, the --;
     #nop -- plain tag appears last on bundled lines and wins (Empty overrides). --;
     #regexp {$_line} {<right exist={[^>]+}>{[^<]+}</right>} {gstin_set_hand {right} {&2}};
     #regexp {$_line} {<right>{[^<]+}</right>}               {gstin_set_hand {right} {&1}};

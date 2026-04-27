@@ -898,7 +898,7 @@ gstin_calc_status_layout;
 }
 
 #nop -- Paint the left split bar yellow during a left drag. Column left_w is --;
-#nop -- tt++'s native separator; #showme overrides it for each row in the --;
+#nop -- tt++'s native separator and #showme overrides it for each row in the --;
 #nop -- side-pane zone. Safe to call outside a drag too (no-ops). --;
 #alias {gstin_redraw_left_bar} {
     #if {$gstin[_resize][active] != 1 || "$gstin[_resize][axis]" != "left"} {#return};
@@ -912,8 +912,8 @@ gstin_calc_status_layout;
 }
 
 #nop -- Paint the right split bar yellow during a right drag. Column right_col --;
-#nop -- is where gstin_drawright writes │; painting after gstin_render_spells --;
-#nop -- keeps the highlight from being clobbered. --;
+#nop -- is where gstin_drawright writes the separator, painted AFTER render_spells --;
+#nop -- so the highlight isn't clobbered. --;
 #alias {gstin_redraw_right_bar} {
     #if {$gstin[_resize][active] != 1 || "$gstin[_resize][axis]" != "right"} {#return};
     #if {$gstin[ui][right_active] == 0} {#return};

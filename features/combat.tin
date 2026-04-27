@@ -36,7 +36,7 @@
     #highlight {= %1[0-9][0-9][0-9]} {$gstin[colors][combat][endroll_hit]} {3};
     #highlight {= %1[0-9][0-9]}      {$gstin[colors][combat][endroll_miss]} {3};
 
-    #nop ---- Attacks at me (highest priority; line-wide red) --;
+    #nop ---- Attacks at me (highest priority, line-wide red) --;
     #highlight {%* at you!%*}            {$gstin[colors][combat][attack_at_me]} {3};
     #highlight {%* at you %*}            {$gstin[colors][combat][attack_at_me]} {3};
     #highlight {%* toward you!%*}        {$gstin[colors][combat][attack_at_me]} {3};

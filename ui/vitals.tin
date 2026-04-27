@@ -452,8 +452,10 @@
         #local {sl} {${sl}$gstin[colors][indicator][webbed]WEB<099> };
     };
 
-    #nop -- Erase line first so resize border chars don't linger --;
-    gstin_drawrow {-1} {\e[2K$sl};
+    #nop -- Reset SGR BEFORE \e[2K so the erase uses terminal default bg, not --;
+    #nop -- whatever bg color the prior row left set (prevents a grey stripe --;
+    #nop -- from vitals-bar empty fills bleeding into the input area). --;
+    gstin_drawrow {-1} {\e[0m\e[2K$sl\e[0m};
 }
 
 #nop -- Repaint bottom bar after enter clears input row --;
