@@ -1,0 +1,194 @@
+#nop =========================================================================;
+#nop  GSTinTin - Room Actions
+#nop  Single-match extraction for room components, roomName style, and plain-text
+#nop  fallbacks. Guarded against peer mode / familiar stream to avoid clobbering
+#nop  the player-facing state during remote views.
+#nop =========================================================================;
+
+#class {gstin_actions_room} {open}
+
+#nop -- Guard: skip room state updates while we're viewing the familiars room --;
+#nop -- or reading someone elses (peer). Returns 1 when safe to update. --;
+#function {gstin_room_safe} {
+    #if {"$gstin[stream][current]" == "familiar" || "$gstin[stream][dropping]" == "familiar"} {
+        #return {0};
+    };
+    #return {1};
+}
+
+#nop -- Title (may contain nested <style id="roomName" /> markup — strip after capture) --;
+#alias {gstin_set_room_title} {
+    #local {_txt} {%1};
+    #variable {gstin[room][title]} {$_txt};
+    gstin_strip_xml {gstin[room][title]};
+}
+#action {~<component id='room title'>%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_title {%1}}
+}
+#action {~<component id="room title">%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_title {%1}}
+}
+
+#nop -- Desc --;
+#action {~<component id='room desc'>%1</component>} {
+    #if {@gstin_room_safe{} == 1} {#variable {gstin[room][desc]} {%1}}
+}
+#action {~<component id="room desc">%1</component>} {
+    #if {@gstin_room_safe{} == 1} {#variable {gstin[room][desc]} {%1}}
+}
+
+#nop -- Objects: populated and empty variants --;
+#alias {gstin_set_room_objs} {
+    #local {_new} {%1};
+    #local {_prev} {$gstin[room][objects]};
+    #variable {gstin[room][objects]} {$_new};
+    gstin_strip_xml_placeholders {gstin[room][objects]};
+    gstin_consolidate_objects;
+    #if {"$gstin[room][objects]" != "$_prev"} {
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    };
+}
+#alias {gstin_clear_room_objs} {
+    #if {"$gstin[room][objects]" != ""} {
+        #variable {gstin[room][objects]} {};
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    };
+}
+#action {~<component id='room objs'></component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_clear_room_objs}
+}
+#action {~<component id="room objs"></component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_clear_room_objs}
+}
+#action {~<component id='room objs'>%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_objs {%1}}
+}
+#action {~<component id="room objs">%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_objs {%1}}
+}
+
+#nop -- Players: populated and empty variants --;
+#alias {gstin_set_room_players} {
+    #local {_new} {%1};
+    #local {_prev} {$gstin[room][players]};
+    #variable {gstin[room][players]} {$_new};
+    gstin_sort_players;
+    gstin_strip_xml_placeholders {gstin[room][players]};
+    #if {"$gstin[room][players]" != "$_prev"} {
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    };
+}
+#alias {gstin_clear_room_players} {
+    #if {"$gstin[room][players]" != ""} {
+        #variable {gstin[room][players]} {};
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    };
+}
+#action {~<component id='room players'></component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_clear_room_players}
+}
+#action {~<component id="room players"></component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_clear_room_players}
+}
+#action {~<component id='room players'>%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_players {%1}}
+}
+#action {~<component id="room players">%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_players {%1}}
+}
+
+#nop -- Exits --;
+#alias {gstin_set_room_exits} {
+    #local {_new} {%1};
+    #local {_prev} {$gstin[room][exits]};
+    #variable {gstin[room][exits]} {$_new};
+    gstin_strip_xml_placeholders {gstin[room][exits]};
+    #if {"$gstin[room][exits]" != "$_prev"} {
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    };
+}
+#action {~<component id='room exits'>%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_exits {%1}}
+}
+#action {~<component id="room exits">%1</component>} {
+    #if {@gstin_room_safe{} == 1} {gstin_set_room_exits {%1}}
+}
+
+#nop -- Story-visible roomName title (populates border). Captures to end of line. --;
+#alias {gstin_set_style_roomname} {
+    #local {_txt} {%1};
+    #variable {gstin[room][title]} {$_txt};
+    gstin_strip_xml {gstin[room][title]};
+    #variable {gstin[_dirty][border]} {1};
+    gstin_request_render;
+}
+#action {~<style id='roomName' />%1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {gstin_set_style_roomname {%1}}
+}
+#action {~<style id="roomName" />%1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {gstin_set_style_roomname {%1}}
+}
+#action {~<style id='roomDesc'/>%1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {#variable {gstin[room][desc]} {%1}}
+}
+#action {~<style id="roomDesc"/>%1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {#variable {gstin[room][desc]} {%1}}
+}
+
+#nop -- streamWindow subtitle: gives current room name outside familiar stream --;
+#action {~%*subtitle=" - %1"%*} {
+    #if {"$gstin[stream][dropping]" != "familiar"} {
+        #variable {gstin[room][title]} {%1};
+        gstin_strip_xml {gstin[room][title]};
+    }
+}
+#action {~%*subtitle=' - %1'%*} {
+    #if {"$gstin[stream][dropping]" != "familiar"} {
+        #variable {gstin[room][title]} {%1};
+        gstin_strip_xml {gstin[room][title]};
+    }
+}
+
+#nop -- Plain-text fallbacks (used when lich omits the XML component) --;
+#nop -- Guarded against peer mode so remote look doesnt overwrite our state --;
+#action {^Also here: %1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {
+        #variable {gstin[room][players]} {Also here: %1};
+        gstin_sort_players;
+        gstin_strip_xml_placeholders {gstin[room][players]};
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    }
+}
+#action {You also see %1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {
+        #variable {gstin[room][objects]} {  You also see %1};
+        gstin_strip_xml_placeholders {gstin[room][objects]};
+        gstin_consolidate_objects;
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    }
+}
+#action {^Obvious paths: %1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {
+        #variable {gstin[room][exits]} {Obvious paths: %1};
+        gstin_strip_xml_placeholders {gstin[room][exits]};
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    }
+}
+#action {^Obvious exits: %1} {
+    #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {
+        #variable {gstin[room][exits]} {Obvious exits: %1};
+        gstin_strip_xml_placeholders {gstin[room][exits]};
+        #variable {gstin[_dirty][room]} {1};
+        gstin_request_render;
+    }
+}
+
+#class {gstin_actions_room} {close}

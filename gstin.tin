@@ -28,6 +28,9 @@
 #read {core/state.tin}
 #read {core/connection.tin}
 #read {core/xml_parser.tin}
+#read {core/actions_vitals.tin}
+#read {core/actions_conditions.tin}
+#read {core/actions_room.tin}
 #read {core/streams.tin}
 
 #nop -- UI --;
