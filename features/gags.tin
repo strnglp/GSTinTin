@@ -1,29 +1,20 @@
 #nop =========================================================================;
-#nop  GSTinTin - Gag Patterns
-#nop  Suppress spam lines from display.
-#nop  Add your own patterns below.
+#nop  GSTinTin - User Gag Patterns
+#nop
+#nop  Use native #gag directly. Native gag short-circuits before PROCESSED
+#nop  LINE fires, so _has_content stays 0 and no blank line leaks between
+#nop  prompts. TinTin wildcards (%* %+ %w %d) cross XML tag boundaries, so
+#nop  patterns like `#gag {%* turns a vardite skeleton key}` match whether
+#nop  or not lich wrapped names in <pushBold/>.
+#nop
+#nop  Examples:
+#nop    #gag {%* turns a vardite skeleton key}
+#nop    #gag {%* drops %* into a portable silversteel bucket}
 #nop =========================================================================;
 
 #class {gstin_gags} {open}
 
-#nop ---- Common combat spam ----;
-#nop -- Uncomment patterns you want to suppress --;
-#nop #gag {%* turns a vardite skeleton key}
-#nop #gag {%* drops %* into a portable silversteel bucket}
-
 #nop ---- MOTD asterisk banner (too wide for center scroll area) ----;
 #gag {~***********************************************************************************************************<pushBold/>}
-
-#nop ---- Empty lines from stream transitions ----;
-#nop -- These blank lines appear between stream switches --;
-
-#nop ---- User gag patterns ----;
-#nop -- Thin wrapper over native #gag. Patterns use TinTin wildcards --;
-#nop -- (%* %+ %w %d). Native gag short-circuits before PROCESSED LINE --;
-#nop -- fires, so _has_content stays 0 and no blank line leaks between --;
-#nop -- prompts. Wildcards cross XML tag boundaries fine: a pattern like --;
-#nop --   gstin_gag {%* turns a vardite skeleton key} --;
-#nop -- matches the line whether or not lich wrapped names in <pushBold/>. --;
-#alias {gstin_gag} {#gag {%1}}
 
 #class {gstin_gags} {close}
