@@ -1,7 +1,10 @@
 #nop =========================================================================;
-#nop  GSTinTin - Condition / Indicator Actions
-#nop  Single-match state extraction for <indicator> tags, prompt time sync,
-#nop  and prompt flag parsing.
+#nop  GSTinTin - Condition Helpers
+#nop
+#nop  Lich bundles all 13 <indicator> tags (plus prompt + hands + spell)
+#nop  onto a single line. Native #action only fires the first match, so these
+#nop  helpers are called from the RECEIVED LINE scan loop in core/streams.tin
+#nop  rather than registered as actions.
 #nop =========================================================================;
 
 #class {gstin_actions_conditions} {open}
@@ -30,33 +33,6 @@
     };
 }
 
-#action {~<indicator id='IconSTUNNED' visible='%1'/>}    {gstin_set_indicator {STUNNED}   {%1}}
-#action {~<indicator id="IconSTUNNED" visible="%1"/>}    {gstin_set_indicator {STUNNED}   {%1}}
-#action {~<indicator id='IconBLEEDING' visible='%1'/>}   {gstin_set_indicator {BLEEDING}  {%1}}
-#action {~<indicator id="IconBLEEDING" visible="%1"/>}   {gstin_set_indicator {BLEEDING}  {%1}}
-#action {~<indicator id='IconPOISONED' visible='%1'/>}   {gstin_set_indicator {POISONED}  {%1}}
-#action {~<indicator id="IconPOISONED" visible="%1"/>}   {gstin_set_indicator {POISONED}  {%1}}
-#action {~<indicator id='IconDISEASED' visible='%1'/>}   {gstin_set_indicator {DISEASED}  {%1}}
-#action {~<indicator id="IconDISEASED" visible="%1"/>}   {gstin_set_indicator {DISEASED}  {%1}}
-#action {~<indicator id='IconSTANDING' visible='%1'/>}   {gstin_set_indicator {STANDING}  {%1}}
-#action {~<indicator id="IconSTANDING" visible="%1"/>}   {gstin_set_indicator {STANDING}  {%1}}
-#action {~<indicator id='IconKNEELING' visible='%1'/>}   {gstin_set_indicator {KNEELING}  {%1}}
-#action {~<indicator id="IconKNEELING" visible="%1"/>}   {gstin_set_indicator {KNEELING}  {%1}}
-#action {~<indicator id='IconSITTING' visible='%1'/>}    {gstin_set_indicator {SITTING}   {%1}}
-#action {~<indicator id="IconSITTING" visible="%1"/>}    {gstin_set_indicator {SITTING}   {%1}}
-#action {~<indicator id='IconPRONE' visible='%1'/>}      {gstin_set_indicator {PRONE}     {%1}}
-#action {~<indicator id="IconPRONE" visible="%1"/>}      {gstin_set_indicator {PRONE}     {%1}}
-#action {~<indicator id='IconJOINED' visible='%1'/>}     {gstin_set_indicator {JOINED}    {%1}}
-#action {~<indicator id="IconJOINED" visible="%1"/>}     {gstin_set_indicator {JOINED}    {%1}}
-#action {~<indicator id='IconHIDDEN' visible='%1'/>}     {gstin_set_indicator {HIDDEN}    {%1}}
-#action {~<indicator id="IconHIDDEN" visible="%1"/>}     {gstin_set_indicator {HIDDEN}    {%1}}
-#action {~<indicator id='IconINVISIBLE' visible='%1'/>}  {gstin_set_indicator {INVISIBLE} {%1}}
-#action {~<indicator id="IconINVISIBLE" visible="%1"/>}  {gstin_set_indicator {INVISIBLE} {%1}}
-#action {~<indicator id='IconDEAD' visible='%1'/>}       {gstin_set_indicator {DEAD}      {%1}}
-#action {~<indicator id="IconDEAD" visible="%1"/>}       {gstin_set_indicator {DEAD}      {%1}}
-#action {~<indicator id='IconWEBBED' visible='%1'/>}     {gstin_set_indicator {WEBBED}    {%1}}
-#action {~<indicator id="IconWEBBED" visible="%1"/>}     {gstin_set_indicator {WEBBED}    {%1}}
-
 #nop -- Prompt time sync (lich sends seconds since epoch) --;
 #alias {gstin_sync_prompt_time} {
     #local {_pt} {%1};
@@ -64,7 +40,5 @@
     #format {gstin[time][now]} {%T};
     #math {gstin[time][offset]} {$gstin[time][now] - $_pt};
 }
-#action {~<prompt time='%1'%*>} {gstin_sync_prompt_time {%1}}
-#action {~<prompt time="%1"%*>} {gstin_sync_prompt_time {%1}}
 
 #class {gstin_actions_conditions} {close}

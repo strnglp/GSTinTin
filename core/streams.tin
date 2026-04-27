@@ -825,8 +825,79 @@
         };
     }};
 
-    #nop -- Indicators and prompt time sync are handled by native #action in --;
-    #nop -- core/actions_conditions.tin. Dedup is per-indicator inside the helper. --;
+    #nop ================================================================;
+    #nop  Bundled XML extractors: lich crams the full vitals/indicators/
+    #nop  hands/spell/timer set onto one line. Native #action fires only
+    #nop  the first match per line, so these scan the raw line here with
+    #nop  #regexp and call helpers in core/actions_*.tin for state writes.
+    #nop ================================================================;
+
+    #nop -- Vitals (both quote variants each) --;
+    #regexp {$_line} {<progressBar id='health' value='{[0-9]+}' text='health {[0-9]+}/{[0-9]+}'} {gstin_set_vital {health}  {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id="health" value="{[0-9]+}" text="health {[0-9]+}/{[0-9]+}"} {gstin_set_vital {health}  {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id='mana' value='{[0-9]+}' text='mana {[0-9]+}/{[0-9]+}'}     {gstin_set_vital {mana}    {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id="mana" value="{[0-9]+}" text="mana {[0-9]+}/{[0-9]+}"}     {gstin_set_vital {mana}    {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id='spirit' value='{[0-9]+}' text='spirit {[0-9]+}/{[0-9]+}'} {gstin_set_vital {spirit}  {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id="spirit" value="{[0-9]+}" text="spirit {[0-9]+}/{[0-9]+}"} {gstin_set_vital {spirit}  {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id='stamina' value='{[0-9]+}' text='stamina {[0-9]+}/{[0-9]+}'} {gstin_set_vital {stamina} {&1} {&2} {&3}};
+    #regexp {$_line} {<progressBar id="stamina" value="{[0-9]+}" text="stamina {[0-9]+}/{[0-9]+}"} {gstin_set_vital {stamina} {&1} {&2} {&3}};
+
+    #nop -- Mind / encumbrance / stance --;
+    #regexp {$_line} {<progressBar id='mindState' value='{[0-9]+}' text='{[^']+}'} {gstin_set_mindstate {&1} {&2}};
+    #regexp {$_line} {<progressBar id="mindState" value="{[0-9]+}" text="{[^"]+}"} {gstin_set_mindstate {&1} {&2}};
+    #regexp {$_line} {<progressBar id='encumlevel' value='{[0-9]+}' text='{[^']+}'} {gstin_set_encumbrance {&1} {&2}};
+    #regexp {$_line} {<progressBar id="encumlevel" value="{[0-9]+}" text="{[^"]+}"} {gstin_set_encumbrance {&1} {&2}};
+    #regexp {$_line} {<progressBar id='pbarStance' value='{[0-9]+}'} {gstin_set_stance {&1}};
+    #regexp {$_line} {<progressBar id="pbarStance" value="{[0-9]+}"} {gstin_set_stance {&1}};
+
+    #nop -- Timers --;
+    #regexp {$_line} {<roundTime value='{[0-9]+}'/>} {gstin_set_rt {&1}};
+    #regexp {$_line} {<roundTime value="{[0-9]+}"/>} {gstin_set_rt {&1}};
+    #regexp {$_line} {<castTime value='{[0-9]+}'/>}  {gstin_set_ct {&1}};
+    #regexp {$_line} {<castTime value="{[0-9]+}"/>}  {gstin_set_ct {&1}};
+
+    #nop -- Spell (prepared spell name) --;
+    #regexp {$_line} {<spell{[^>]*}>{[^<]*}</spell>} {gstin_set_spell {&2}};
+
+    #nop -- Hands: exist= and plain variants for each side. Both fire; the --;
+    #nop -- plain tag appears last on bundled lines and wins (Empty overrides). --;
+    #regexp {$_line} {<right exist={[^>]+}>{[^<]+}</right>} {gstin_set_hand {right} {&2}};
+    #regexp {$_line} {<right>{[^<]+}</right>}               {gstin_set_hand {right} {&1}};
+    #regexp {$_line} {<left exist={[^>]+}>{[^<]+}</left>}   {gstin_set_hand {left}  {&2}};
+    #regexp {$_line} {<left>{[^<]+}</left>}                 {gstin_set_hand {left}  {&1}};
+
+    #nop -- Indicators: 13 condition flags in one tag set. Snapshot-compare --;
+    #nop -- dedup is unnecessary since the helper dedups per-flag. --;
+    #regexp {$_line} {<indicator id='IconSTUNNED' visible='{[^']*}'/>}   {gstin_set_indicator {STUNNED}   {&1}};
+    #regexp {$_line} {<indicator id="IconSTUNNED" visible="{[^"]*}"/>}   {gstin_set_indicator {STUNNED}   {&1}};
+    #regexp {$_line} {<indicator id='IconBLEEDING' visible='{[^']*}'/>}  {gstin_set_indicator {BLEEDING}  {&1}};
+    #regexp {$_line} {<indicator id="IconBLEEDING" visible="{[^"]*}"/>}  {gstin_set_indicator {BLEEDING}  {&1}};
+    #regexp {$_line} {<indicator id='IconPOISONED' visible='{[^']*}'/>}  {gstin_set_indicator {POISONED}  {&1}};
+    #regexp {$_line} {<indicator id="IconPOISONED" visible="{[^"]*}"/>}  {gstin_set_indicator {POISONED}  {&1}};
+    #regexp {$_line} {<indicator id='IconDISEASED' visible='{[^']*}'/>}  {gstin_set_indicator {DISEASED}  {&1}};
+    #regexp {$_line} {<indicator id="IconDISEASED" visible="{[^"]*}"/>}  {gstin_set_indicator {DISEASED}  {&1}};
+    #regexp {$_line} {<indicator id='IconSTANDING' visible='{[^']*}'/>}  {gstin_set_indicator {STANDING}  {&1}};
+    #regexp {$_line} {<indicator id="IconSTANDING" visible="{[^"]*}"/>}  {gstin_set_indicator {STANDING}  {&1}};
+    #regexp {$_line} {<indicator id='IconKNEELING' visible='{[^']*}'/>}  {gstin_set_indicator {KNEELING}  {&1}};
+    #regexp {$_line} {<indicator id="IconKNEELING" visible="{[^"]*}"/>}  {gstin_set_indicator {KNEELING}  {&1}};
+    #regexp {$_line} {<indicator id='IconSITTING' visible='{[^']*}'/>}   {gstin_set_indicator {SITTING}   {&1}};
+    #regexp {$_line} {<indicator id="IconSITTING" visible="{[^"]*}"/>}   {gstin_set_indicator {SITTING}   {&1}};
+    #regexp {$_line} {<indicator id='IconPRONE' visible='{[^']*}'/>}     {gstin_set_indicator {PRONE}     {&1}};
+    #regexp {$_line} {<indicator id="IconPRONE" visible="{[^"]*}"/>}     {gstin_set_indicator {PRONE}     {&1}};
+    #regexp {$_line} {<indicator id='IconJOINED' visible='{[^']*}'/>}    {gstin_set_indicator {JOINED}    {&1}};
+    #regexp {$_line} {<indicator id="IconJOINED" visible="{[^"]*}"/>}    {gstin_set_indicator {JOINED}    {&1}};
+    #regexp {$_line} {<indicator id='IconHIDDEN' visible='{[^']*}'/>}    {gstin_set_indicator {HIDDEN}    {&1}};
+    #regexp {$_line} {<indicator id="IconHIDDEN" visible="{[^"]*}"/>}    {gstin_set_indicator {HIDDEN}    {&1}};
+    #regexp {$_line} {<indicator id='IconINVISIBLE' visible='{[^']*}'/>} {gstin_set_indicator {INVISIBLE} {&1}};
+    #regexp {$_line} {<indicator id="IconINVISIBLE" visible="{[^"]*}"/>} {gstin_set_indicator {INVISIBLE} {&1}};
+    #regexp {$_line} {<indicator id='IconDEAD' visible='{[^']*}'/>}      {gstin_set_indicator {DEAD}      {&1}};
+    #regexp {$_line} {<indicator id="IconDEAD" visible="{[^"]*}"/>}      {gstin_set_indicator {DEAD}      {&1}};
+    #regexp {$_line} {<indicator id='IconWEBBED' visible='{[^']*}'/>}    {gstin_set_indicator {WEBBED}    {&1}};
+    #regexp {$_line} {<indicator id="IconWEBBED" visible="{[^"]*}"/>}    {gstin_set_indicator {WEBBED}    {&1}};
+
+    #nop -- Prompt time (lich seconds-since-epoch) --;
+    #regexp {$_line} {<prompt time='{[0-9]+}'} {gstin_sync_prompt_time {&1}};
+    #regexp {$_line} {<prompt time="{[0-9]+}"} {gstin_sync_prompt_time {&1}};
 
     #nop -- Message spacing: insert blank line between server responses --;
     #regexp {$_line} {</prompt>} {

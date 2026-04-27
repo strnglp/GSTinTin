@@ -1,14 +1,21 @@
 #nop =========================================================================;
-#nop  GSTinTin - Vitals Actions
-#nop  Single-match state extraction via native #action.
-#nop  Each action calls a helper alias that does dedup + var set + dirty + render.
-#nop  Runs BEFORE #gag in the pipeline, so infra gags dont block extraction.
+#nop  GSTinTin - Vitals Helpers
+#nop
+#nop  Lich bundles the full vitals/hands/spell/timer set onto one line:
+#nop    <progressBar id='health' .../><progressBar id='mana' .../>...
+#nop  TinTin++ native #action only fires the FIRST matching rule per line and
+#nop  then returns (src/trigger.c:97), so bundled tags would lose all but the
+#nop  first match. These helpers are called from the RECEIVED LINE #regexp
+#nop  loop in core/streams.tin, which scans the raw line for every tag.
+#nop
+#nop  Plain-text patterns that arrive as their own lines (RT wait fallback)
+#nop  stay as native #action because they are not bundled.
 #nop =========================================================================;
 
 #class {gstin_actions_vitals} {open}
 
-#nop -- Vitals: health/mana/spirit/stamina (both quote variants) --;
-#nop -- %1=value pct, %2=current, %3=max --;
+#nop -- Vitals: health/mana/spirit/stamina --;
+#nop -- %1=id, %2=pct value, %3=current, %4=max --;
 #alias {gstin_set_vital} {
     #local {_id} {%1};
     #local {_val} {%2};
@@ -23,15 +30,6 @@
     };
 }
 
-#action {~<progressBar id='health' value='%1' text='health %2/%3'%*>}  {gstin_set_vital {health}  {%1} {%2} {%3}}
-#action {~<progressBar id="health" value="%1" text="health %2/%3"%*>}  {gstin_set_vital {health}  {%1} {%2} {%3}}
-#action {~<progressBar id='mana' value='%1' text='mana %2/%3'%*>}      {gstin_set_vital {mana}    {%1} {%2} {%3}}
-#action {~<progressBar id="mana" value="%1" text="mana %2/%3"%*>}      {gstin_set_vital {mana}    {%1} {%2} {%3}}
-#action {~<progressBar id='spirit' value='%1' text='spirit %2/%3'%*>}  {gstin_set_vital {spirit}  {%1} {%2} {%3}}
-#action {~<progressBar id="spirit" value="%1" text="spirit %2/%3"%*>}  {gstin_set_vital {spirit}  {%1} {%2} {%3}}
-#action {~<progressBar id='stamina' value='%1' text='stamina %2/%3'%*>} {gstin_set_vital {stamina} {%1} {%2} {%3}}
-#action {~<progressBar id="stamina" value="%1" text="stamina %2/%3"%*>} {gstin_set_vital {stamina} {%1} {%2} {%3}}
-
 #nop -- Mind state (value + free-text label) --;
 #alias {gstin_set_mindstate} {
     #local {_val} {%1};
@@ -43,8 +41,6 @@
         gstin_request_render;
     };
 }
-#action {~<progressBar id='mindState' value='%1' text='%2'%*>} {gstin_set_mindstate {%1} {%2}}
-#action {~<progressBar id="mindState" value="%1" text="%2"%*>} {gstin_set_mindstate {%1} {%2}}
 
 #nop -- Encumbrance --;
 #alias {gstin_set_encumbrance} {
@@ -57,10 +53,8 @@
         gstin_request_render;
     };
 }
-#action {~<progressBar id='encumlevel' value='%1' text='%2'%*>} {gstin_set_encumbrance {%1} {%2}}
-#action {~<progressBar id="encumlevel" value="%1" text="%2"%*>} {gstin_set_encumbrance {%1} {%2}}
 
-#nop -- Stance (pbarStance; value only) --;
+#nop -- Stance --;
 #alias {gstin_set_stance} {
     #local {_val} {%1};
     #if {$_val != $gstin[vitals][stance][value]} {
@@ -69,38 +63,27 @@
         gstin_request_render;
     };
 }
-#action {~<progressBar id='pbarStance' value='%1'%*>} {gstin_set_stance {%1}}
-#action {~<progressBar id="pbarStance" value="%1"%*>} {gstin_set_stance {%1}}
 
-#nop -- Round time and cast time --;
-#action {~<roundTime value='%1'/>} {
-    #variable {gstin[timers][rt_end]} {%1};
+#nop -- Round time --;
+#alias {gstin_set_rt} {
+    #local {_rtval} {%1};
+    #variable {gstin[timers][rt_end]} {$_rtval};
     #local {_rtnow} {0};
     #format {_rtnow} {%T};
     #math {_rtnow} {$_rtnow - $gstin[time][offset]};
-    #math {gstin[timers][rt_max]} {%1 - $_rtnow};
+    #math {gstin[timers][rt_max]} {$_rtval - $_rtnow};
     #if {$gstin[timers][rt_max] < 1} {#variable {gstin[timers][rt_max]} {1}};
-    gstin_start_rt_countdown
-}
-#action {~<roundTime value="%1"/>} {
-    #variable {gstin[timers][rt_end]} {%1};
-    #local {_rtnow} {0};
-    #format {_rtnow} {%T};
-    #math {_rtnow} {$_rtnow - $gstin[time][offset]};
-    #math {gstin[timers][rt_max]} {%1 - $_rtnow};
-    #if {$gstin[timers][rt_max] < 1} {#variable {gstin[timers][rt_max]} {1}};
-    gstin_start_rt_countdown
-}
-#action {~<castTime value='%1'/>} {
-    #variable {gstin[timers][ct_end]} {%1};
-    gstin_start_rt_countdown
-}
-#action {~<castTime value="%1"/>} {
-    #variable {gstin[timers][ct_end]} {%1};
-    gstin_start_rt_countdown
+    gstin_start_rt_countdown;
 }
 
-#nop -- Plain-text RT fallback (reconnect without roundTime tag) --;
+#nop -- Cast time --;
+#alias {gstin_set_ct} {
+    #variable {gstin[timers][ct_end]} {%1};
+    gstin_start_rt_countdown;
+}
+
+#nop -- Plain-text RT fallback (reconnect without roundTime tag). --;
+#nop -- Arrives as its own line so #action is safe here. --;
 #action {^...wait %1 seconds.} {
     #format {gstin[time][now]} {%T};
     #math {gstin[timers][rt_end]} {$gstin[time][now] - $gstin[time][offset] + %1};
@@ -119,14 +102,11 @@
         gstin_request_render;
     };
 }
-#action {~<spell%*>%1</spell>} {gstin_set_spell {%1}}
 
-#nop -- Hands: both `exist=` and plain variants, both sides. Lich sends both on one --;
-#nop -- line; plain tag fires last and wins (matches "Empty" when nothing is held). --;
+#nop -- Hands --;
 #alias {gstin_set_hand} {
     #local {_side} {%1};
     #local {_item} {%2};
-    #nop -- Decode common XML entities so items like "a wizard&apos;s staff" render cleanly --;
     #replace {_item} {&amp;}  {&};
     #replace {_item} {&lt;}   {<};
     #replace {_item} {&gt;}   {>};
@@ -138,9 +118,5 @@
         gstin_request_render;
     };
 }
-#action {~<right exist=%*>%1</right>} {gstin_set_hand {right} {%1}}
-#action {~<right>%1</right>}          {gstin_set_hand {right} {%1}}
-#action {~<left exist=%*>%1</left>}   {gstin_set_hand {left}  {%1}}
-#action {~<left>%1</left>}            {gstin_set_hand {left}  {%1}}
 
 #class {gstin_actions_vitals} {close}
