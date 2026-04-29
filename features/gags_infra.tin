@@ -12,10 +12,14 @@
 #class {gstin_gags_infra} {open}
 
 #gag {~^<progressBar%*}
-#substitute {~<indicator [^>]*/>} {}
+#nop -- Strip self-closing metadata tags in place. %* in tt++ raw-mode --;
+#nop -- substitute is lazy (PCRE `.*?`), so it stops at the first `/>` on --;
+#nop -- the line -- each tag is matched individually even when bundled. --;
+#nop -- Preserves any narrative text after the tags on the same line. --;
+#substitute {~<indicator %*/>} {}
+#substitute {~<roundTime %*/>} {}
+#substitute {~<castTime %*/>} {}
 #gag {~^$}
-#substitute {~<roundTime [^>]*/>} {}
-#substitute {~<castTime [^>]*/>} {}
 #gag {~^<streamWindow%*}
 #gag {~^<clearStream%*}
 #gag {~^<openDialog%*}
