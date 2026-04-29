@@ -52,8 +52,8 @@
     #substitute {~<popBold/>}  {$gstin[colors][highlight][creature_end]} {3};
 
     #nop -- Directions: <d>/<d cmd='x'> ... </d> --;
-    #substitute {~<d cmd='%*'>} {$gstin[colors][highlight][direction]}    {3};
-    #substitute {~<d cmd="%*">} {$gstin[colors][highlight][direction]}    {3};
+    #substitute {~<d cmd='[^']*'>} {$gstin[colors][highlight][direction]}    {3};
+    #substitute {~<d cmd="[^"]*">} {$gstin[colors][highlight][direction]}    {3};
     #substitute {~<d>}          {$gstin[colors][highlight][direction]}    {3};
     #substitute {~</d>}         {$gstin[colors][highlight][direction_end]} {3};
 
@@ -68,8 +68,10 @@
     #substitute {~</preset>}              {}                                  {3};
 
     #nop -- Entity tags (player names etc). </a> resets. --;
-    #substitute {~<a %*>}  {$gstin[colors][highlight][player_name]}   {4};
-    #substitute {~</a>}    {\e[0m}                                    {4};
+    #nop -- [^>]* to prevent greedy match eating across closing tags. --;
+    #substitute {~<a [^>]*>}  {$gstin[colors][highlight][player_name]}   {4};
+    #substitute {~<a>}        {$gstin[colors][highlight][player_name]}   {4};
+    #substitute {~</a>}       {\e[0m}                                    {4};
 
     #nop -- Room title style tag (<style id="roomName" />Title...). Closing --;
     #nop -- <style id=""/> arrives on the NEXT line -- must emit \e[0m to clear --;
@@ -98,7 +100,7 @@
     #nop  Anything tag-shaped that survived the semantic pass is;
     #nop  metadata we dont care about -- drop it.;
     #nop ============================================================;
-    #substitute {~<%*>} {} {7};
+    #substitute {~<[^>]*>} {} {7};
 
     #nop ============================================================;
     #nop  Pass 6: Marker -> real char;
@@ -137,7 +139,7 @@
 #nop -- in hostile color. Works for both single and double pushBold. --;
 #alias {gstin_register_hostile_substitute} {
     #local {_name} {%1};
-    #substitute {~<a %*>${_name}</a>} {$gstin[colors][highlight][hostile]${_name}$gstin[colors][highlight][hostile_end]} {2};
+    #substitute {~<a [^>]*>${_name}</a>} {$gstin[colors][highlight][hostile]${_name}$gstin[colors][highlight][hostile_end]} {2};
 }
 
 #nop -- Apply substitutes on load --;
