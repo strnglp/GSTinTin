@@ -3,7 +3,8 @@
 # Prints one lowercase name per line. See priority_sort.tin for context.
 path="$1"
 [ -f "$path" ] || exit 0
-grep -oE '\{[^{}]*;[^{}]*\}' "$path" \
+grep -oE '\[patterns\]\}[[:space:]]*\{[^{}]*\}' "$path" \
+  | grep -oE '\{[^{}]*\}$' \
   | tr ';{}' '\n' \
   | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
   | awk 'NF' \
