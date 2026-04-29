@@ -156,7 +156,7 @@
 
 #nop -- Plain-text fallbacks (used when lich omits the XML component) --;
 #nop -- Guarded against peer mode so remote look doesnt overwrite our state --;
-#action {^Also here: %1} {
+#action {~^Also here: %1} {
     #if {$gstin[_peer_active] == 0 && @gstin_room_safe{} == 1} {
         #variable {gstin[room][players]} {Also here: %1};
         gstin_sort_players;

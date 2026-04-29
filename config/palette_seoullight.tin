@@ -72,7 +72,7 @@
 #variable {gstin[palette][terminal_cursor]} {#4e4e4e}
 
 #nop ---- Special --;
-#variable {gstin[palette][reset]}          {<099>}
+#variable {gstin[palette][reset]}          {\e[0m}
 #variable {gstin[palette][bold]}           {\e[1m}
 #variable {gstin[palette][reset_all]}      {\e[0m}
 

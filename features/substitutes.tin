@@ -71,11 +71,13 @@
     #substitute {~<a %*>}  {$gstin[colors][highlight][player_name]}   {4};
     #substitute {~</a>}    {\e[0m}                                    {4};
 
-    #nop -- Room title style tag (<style id="roomName" />Title...) --;
-    #nop -- Closing <style id="" /> arrives on a later line, catch-all Pass 5 --;
-    #nop -- strips whats left. --;
+    #nop -- Room title style tag (<style id="roomName" />Title...). Closing --;
+    #nop -- <style id=""/> arrives on the NEXT line -- must emit \e[0m to clear --;
+    #nop -- the bold attribute, otherwise bold leaks into the room description. --;
     #substitute {~<style id='roomName' />} {$gstin[colors][ui][header_text]} {4};
     #substitute {~<style id="roomName" />} {$gstin[colors][ui][header_text]} {4};
+    #substitute {~<style id=''/>}          {\e[0m}                            {4};
+    #substitute {~<style id=""/>}          {\e[0m}                            {4};
 
     #nop -- Personal-danger body-of highlight (independent of XML tags) --;
     #substitute {the body of } {$gstin[colors][highlight][personal_danger]the body of\e[0m } {4};
@@ -129,11 +131,13 @@
 #nop -- Register the creature->hostile rewrite for one name. --;
 #nop -- Runs inside the gstin_substitutes_hostile class so theme swap --;
 #nop -- can blow away and rebuild the whole set. --;
-#nop -- Pattern: captures preamble (article/adjectives) between the creature --;
-#nop -- open color and the name, so adjectives stay inside the hostile span. --;
+#nop -- Match raw XML before pushBold/popBold substitution (priority 2), --;
+#nop -- so we dont fight with double-bold wrapping in room desc lines. --;
+#nop -- Pattern matches the <a ...>name</a> span directly and wraps it --;
+#nop -- in hostile color. Works for both single and double pushBold. --;
 #alias {gstin_register_hostile_substitute} {
     #local {_name} {%1};
-    #substitute {$gstin[colors][highlight][creature]%1${_name}$gstin[colors][highlight][creature_end]} {$gstin[colors][highlight][hostile]%1${_name}$gstin[colors][highlight][hostile_end]} {4};
+    #substitute {~<a %*>${_name}</a>} {$gstin[colors][highlight][hostile]${_name}$gstin[colors][highlight][hostile_end]} {2};
 }
 
 #nop -- Apply substitutes on load --;
