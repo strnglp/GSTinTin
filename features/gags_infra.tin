@@ -14,8 +14,8 @@
 #gag {~^<progressBar%*}
 #substitute {~<indicator [^>]*/>} {}
 #gag {~^$}
-#gag {~^<roundTime%*}
-#gag {~^<castTime%*}
+#substitute {~<roundTime [^>]*/>} {}
+#substitute {~<castTime [^>]*/>} {}
 #gag {~^<streamWindow%*}
 #gag {~^<clearStream%*}
 #gag {~^<openDialog%*}
