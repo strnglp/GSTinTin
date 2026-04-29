@@ -76,15 +76,13 @@
 
 #nop -- Get color for injury severity --;
 #function {gstin_injury_color} {
-    #switch {"%1"} {
-        #case {""}         {#return {$gstin[colors][injury][none]}};
-        #case {"Injury1"}  {#return {$gstin[colors][injury][injury1]}};
-        #case {"Injury2"}  {#return {$gstin[colors][injury][injury2]}};
-        #case {"Injury3"}  {#return {$gstin[colors][injury][injury3]}};
-        #case {"Scar1"}    {#return {$gstin[colors][injury][scar1]}};
-        #case {"Scar2"}    {#return {$gstin[colors][injury][scar2]}};
-        #case {"Scar3"}    {#return {$gstin[colors][injury][scar3]}};
-    };
+    #local {_inj} {%1};
+    #if {"$_inj" == "Injury1" || "$_inj" == "Nsys1"} {#return {$gstin[colors][injury][injury1]}};
+    #if {"$_inj" == "Injury2" || "$_inj" == "Nsys2"} {#return {$gstin[colors][injury][injury2]}};
+    #if {"$_inj" == "Injury3" || "$_inj" == "Nsys3"} {#return {$gstin[colors][injury][injury3]}};
+    #if {"$_inj" == "Scar1"} {#return {$gstin[colors][injury][scar1]}};
+    #if {"$_inj" == "Scar2"} {#return {$gstin[colors][injury][scar2]}};
+    #if {"$_inj" == "Scar3"} {#return {$gstin[colors][injury][scar3]}};
     #return {$gstin[colors][injury][none]};
 }
 
