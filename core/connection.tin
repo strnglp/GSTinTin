@@ -50,11 +50,11 @@
         #showme {$gstin[colors][system][status]--- GSTinTin: Connected (primary) to lich-5<099>};
     };
 
-    #nop Set terminal title;
+    #nop Set terminal title + tmux/screen window name (pins tab name);
     #if {"$gstin[config][char_name]" != ""} {
-        #system {printf '\033]0;GSTinTin - $gstin[config][char_name]\007'};
+        #system {printf '\033]0;GS4 - $gstin[config][char_name]\007\033kGS4 - $gstin[config][char_name]\033\\'};
     } {
-        #system {printf '\033]0;GSTinTin\007'};
+        #system {printf '\033]0;GS4\007\033kGS4\033\\'};
     };
 
     #nop Start session logging if enabled;
@@ -111,10 +111,17 @@
 
 #nop -- Update terminal title when room changes --;
 #alias {gstin_update_title} {
-    #if {"$gstin[config][char_name]" != "" && "$gstin[room][title]" != ""} {
-        #system {printf '\033]0;$gstin[config][char_name] - $gstin[room][title]\007'};
+    #if {"$gstin[config][char_name]" != ""} {
+        #local {_t} {GS4 - $gstin[config][char_name]};
+        #if {"$gstin[room][title]" != ""} {
+            #local {_t} {GS4 - $gstin[config][char_name] - $gstin[room][title]};
+        };
+        #system {printf '\033]0;%s\007\033kGS4 - %s\033\\' '$_t' '$gstin[config][char_name]'};
     };
 }
+
+#nop -- Re-assert title periodically; tt++ and other tools can clobber it --;
+#ticker {gstin_title_tick} {gstin_update_title} {10}
 
 #nop -- Raw data logging for debugging --;
 #alias {gstin_rawlog_start} {
