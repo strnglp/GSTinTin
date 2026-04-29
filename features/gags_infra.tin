@@ -12,7 +12,8 @@
 #class {gstin_gags_infra} {open}
 
 #gag {~^<progressBar%*}
-#gag {~^<indicator%*}
+#substitute {~<indicator %*/>} {}
+#gag {~^$}
 #gag {~^<roundTime%*}
 #gag {~^<castTime%*}
 #gag {~^<streamWindow%*}
