@@ -31,6 +31,9 @@
 #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
 #variable {gstin[custom_highlights][friends][patterns]} {Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
 
+#variable {gstin[custom_highlights][empaths][color]}    {$gstin[palette][bright_red]}
+#variable {gstin[custom_highlights][empaths][patterns]} {Moomfs}
+
 #nop -- Character-specific gags (replicate substitute.lic) --;
 #gag {Your SIGN OF%*is no longer effective.}
 #gag {You feel drained!}
