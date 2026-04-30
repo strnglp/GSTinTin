@@ -165,6 +165,7 @@
 
 #nop -- Hostile creatures (from dDBTarget, keyed by name) --;
 #variable {gstin[hostiles]} {}
+#variable {gstin[hostile_nouns]} {}
 
 #nop -- Experience tracking --;
 #variable {gstin[exp]} {}

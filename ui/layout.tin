@@ -369,6 +369,15 @@ gstin_calc_status_layout;
             #variable {gstin[_hk]} {$_hkey};
             #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]{[^G]*}GXCRE} {GXHOS&1$gstin[_hk]&2GXHOE};
         };
+        #nop -- Possessive/pronoun forms: server sends "troll's" or "giant's" --;
+        #nop -- using just the base noun. Match noun + optional suffix inside --;
+        #nop -- creature spans that weren't already caught by full-name match. --;
+        #if {&gstin[hostile_nouns][] > 0} {
+            #foreach {*gstin[hostile_nouns][%*]} {_nkey} {
+                #variable {gstin[_hk]} {$_nkey};
+                #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]{[^G]*}GXCRE} {GXHOS&1$gstin[_hk]&2GXHOE};
+            };
+        };
         #replace {$_vn} {GXCRS{[^G]*}GXHOS} {GXHOS&1GXHOS};
     };
 

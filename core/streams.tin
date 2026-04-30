@@ -291,6 +291,13 @@
         #local {_name} {$_items[$_i]};
         #if {"$_name" != "none"} {
             #variable {gstin[hostiles][$_name]} {1};
+            #nop -- Extract last word as the base noun for possessive matching --;
+            #nop -- "ice troll" -> "troll", "frost giant" -> "giant" --;
+            #local {_words} {$_name};
+            #replace {_words} { } {;};
+            #local {_noun} {};
+            #foreach {$_words} {_w} {#local {_noun} {$_w}};
+            #variable {gstin[hostile_nouns][$_noun]} {1};
         };
         #math {_i} {$_i + 1};
     };
