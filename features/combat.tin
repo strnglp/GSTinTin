@@ -123,6 +123,112 @@
     };
 }
 
+#nop -- Apply a highlight color as the line's "background" color. --;
+#nop -- Resets (<099>) become the highlight color so that embedded --;
+#nop -- creature/hostile/player colors take precedence over the --;
+#nop -- highlight, and the highlight fills the gaps. --;
+#alias {gstin_apply_line_highlight} {
+    #local {_cc} {%1};
+    #replace {gstin[_story_line]} {<099>} {$_cc};
+    #variable {gstin[_story_line]} {${_cc}$gstin[_story_line]<099>};
+}
+
+#nop -- Apply bold as a line attribute without disturbing embedded colors. --;
+#nop -- \e[1m turns bold on, \e[22m turns it off at the end. --;
+#alias {gstin_apply_line_bold} {
+    #variable {gstin[_story_line]} {\e[1m$gstin[_story_line]\e[22m};
+}
+
+#nop -- Pipeline highlight colorization: runs after gstin_colorize_combat. --;
+#nop -- Matches against clean text (gstin[_story_raw]) and applies colors --;
+#nop -- via gstin_apply_line_highlight which preserves embedded colors. --;
+#nop -- Only one highlight fires per line (first match wins). --;
+#alias {gstin_colorize_highlights} {
+    #local {_raw} {$gstin[_story_raw]};
+
+    #nop -- Bold room name: [Title] --;
+    #regexp {$_raw} {{^\[.+\]$}} {
+        gstin_apply_line_bold;
+        #return;
+    };
+
+    #nop -- Spell casting --;
+    #variable {gstin[_hl_hit]} {0};
+    #regexp {$_raw} {{^You gesture }}   {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You intone }}    {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You recite }}    {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You trace }}     {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^Your hands glow}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^Your spell is ready}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^Cast Roundtime }} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {remaining. \]} {#variable {gstin[_hl_hit]} {1}};
+    #if {$gstin[_hl_hit] == 1} {
+        gstin_apply_line_highlight {$gstin[colors][highlight][spell]};
+        #return;
+    };
+
+    #nop -- Roundtime --;
+    #regexp {$_raw} {{^Roundtime: }} {
+        gstin_apply_line_highlight {$gstin[colors][highlight][roundtime]};
+        #return;
+    };
+
+    #nop -- Creature death / stun (bold, preserving embedded colors) --;
+    #variable {gstin[_hl_hit]} {0};
+    #regexp {$_raw} {falls to the ground dead} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {and dies.}                {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {and lies still.}          {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {goes still.}              {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {going still.}             {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {falls to the ground motionless} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} { is stunned!}             {#variable {gstin[_hl_hit]} {1}};
+    #if {$gstin[_hl_hit] == 1} {
+        gstin_apply_line_bold;
+        #return;
+    };
+
+    #nop -- Personal danger --;
+    #variable {gstin[_hl_hit]} {0};
+    #regexp {$_raw} {ruining your hiding place} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You are no longer hidden}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You are stunned}}   {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You are knocked}}   {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You are unable to remain hidden}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You are visible again}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You fade into sight}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You feel drained!}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You have overextended}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You feel yourself going into shock}} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {{^You come out of hiding}} {#variable {gstin[_hl_hit]} {1}};
+    #if {$gstin[_hl_hit] == 1} {
+        gstin_apply_line_highlight {$gstin[colors][highlight][personal_danger]};
+        #return;
+    };
+
+    #nop -- Dangerous AoE --;
+    #variable {gstin[_hl_hit]} {0};
+    #regexp {$_raw} {throws his arms skyward!} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {throws her arms skyward!} {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {swirling black void}      {#variable {gstin[_hl_hit]} {1}};
+    #regexp {$_raw} {flaming meteors}          {#variable {gstin[_hl_hit]} {1}};
+    #if {$gstin[_hl_hit] == 1} {
+        gstin_apply_line_highlight {$gstin[colors][highlight][room_danger]};
+        #return;
+    };
+
+    #nop -- Lich output --;
+    #regexp {$_raw} {{^--- Lich:}} {
+        gstin_apply_line_highlight {$gstin[colors][highlight][lich_output]};
+        #return;
+    };
+
+    #nop -- Experience --;
+    #regexp {$_raw} {{^Your recent adventures echo powerfully}} {
+        gstin_apply_line_highlight {$gstin[colors][highlight][experience]};
+        #return;
+    };
+}
+
 #class {gstin_combat} {close}
 
 #nop -- Apply combat highlights on load --;

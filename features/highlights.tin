@@ -11,46 +11,12 @@
     #class {gstin_highlights} {kill};
     #class {gstin_highlights} {open};
 
-    #nop ---- Room name --;
-    #highlight {^[%*]$} {bold};
+    #nop -- Full-line highlights (spell, death, danger, bold room, lich, etc.) --;
+    #nop -- are handled by gstin_colorize_highlights in combat.tin which --;
+    #nop -- preserves embedded creature/hostile/player colors. Only --;
+    #nop -- partial-line highlights that dont span creature names stay here. --;
 
-    #nop ---- Spell casting ----;
-    #highlight {You gesture%*} {$gstin[colors][highlight][spell]};
-    #highlight {You intone a phrase%*} {$gstin[colors][highlight][spell]};
-    #highlight {You recite a series%*} {$gstin[colors][highlight][spell]};
-    #highlight {You trace a%*} {$gstin[colors][highlight][spell]};
-    #highlight {Your hands glow with power%*} {$gstin[colors][highlight][spell]};
-    #highlight {Cast Roundtime %d Seconds.} {$gstin[colors][highlight][spell]};
-    #highlight {Your spell is ready.} {$gstin[colors][highlight][spell]};
-    #highlight {Roundtime: %d sec.} {$gstin[colors][highlight][roundtime]};
-    #highlight {%*remaining. ]} {$gstin[colors][highlight][spell]};
-
-    #nop ---- Creature death / stun ----;
-    #nop -- No bold on these: #highlight strips embedded ANSI, which wipes --;
-    #nop -- hostile-red from creature names. Creature names are already --;
-    #nop -- colored (red hostile / blue creature) so the lines stand out. --;
-    #nop -- "You come out of hiding" has no creature name so bold is safe. --;
-    #highlight {You come out of hiding.} {bold};
-
-    #nop ---- Danger ----;
-    #highlight {%*ruining your hiding place.} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You are no longer hidden.} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You are stunned%*} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You are knocked to the ground%*} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You are unable to remain hidden!} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You are visible again.} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You fade into sight.} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You feel drained!} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You have overextended yourself!} {$gstin[colors][highlight][personal_danger]};
-    #highlight {You feel yourself going into shock!} {$gstin[colors][highlight][personal_danger]};
-
-    #nop ---- Dangerous AoE ----;
-    #highlight {%*throws his arms skyward!} {$gstin[colors][highlight][room_danger]};
-    #highlight {%*throws her arms skyward!} {$gstin[colors][highlight][room_danger]};
-    #highlight {swirling black void} {$gstin[colors][highlight][room_danger]};
-    #highlight {flaming meteors} {$gstin[colors][highlight][room_danger]};
-
-    #nop ---- Channel tags (tag only, not full line) ----;
+    #nop ---- Channel tags (partial-line, no creature names) ----;
     #highlight {[LNet]} {$gstin[colors][highlight][chan_lnet]};
     #highlight {[code]} {$gstin[colors][highlight][chan_code]};
     #highlight {[Private%*]} {$gstin[colors][highlight][chan_private]};
@@ -59,10 +25,7 @@
     #highlight {[General]} {$gstin[colors][highlight][chan_general]};
     #highlight {[Shattered]} {$gstin[colors][highlight][chan_shattered]};
 
-    #nop ---- Lich output ----;
-    #highlight {--- Lich:%*} {$gstin[colors][highlight][lich_output]};
-
-    #nop ---- Creature status conditions ----;
+    #nop ---- Creature status conditions (partial-line) ----;
     #highlight {(calmed)} {$gstin[colors][highlight][creature_status]};
     #highlight {(dead)} {$gstin[colors][highlight][creature_status]};
     #highlight {(flying)} {$gstin[colors][highlight][creature_status]};
@@ -73,15 +36,9 @@
     #highlight {(sleeping)} {$gstin[colors][highlight][creature_status]};
     #highlight {(stunned)} {$gstin[colors][highlight][creature_status]};
 
-    #nop ---- Player disks ----;
-    #nop #highlight {%w disk} {$gstin[colors][highlight][player_disk]};
-
-    #nop ---- Item offers ----;
+    #nop ---- Item offers (partial-line) ----;
     #highlight {%*offers you %*Click ACCEPT%*} {$gstin[colors][highlight][items_offers]};
     #highlight {%*just gave you %* coin%*} {$gstin[colors][highlight][items_offers]};
-
-    #nop ---- Experience gain ----;
-    #highlight {Your recent adventures echo powerfully%*} {$gstin[colors][highlight][experience]};
 
     #nop ---- Custom highlights (highest priority) ----;
     #if {&gstin[custom_highlights][] > 0} {

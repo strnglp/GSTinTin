@@ -1616,6 +1616,7 @@
     gstin_strip_xml_colored {gstin[_story_line]};
     #variable {gstin[_story_raw]} {$_vis};
     gstin_colorize_combat;
+    gstin_colorize_highlights;
     #if {$gstin[_spacelog] == 1} {
         #local {_slen} {0};
         #format {_slen} {%L} {$gstin[_story_line]};
