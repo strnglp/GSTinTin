@@ -1,0 +1,72 @@
+#nop =========================================================================;
+#nop  GSTinTin - Attention Highlights
+#nop  Wraps configured patterns with bg color to mark text where something
+#nop  or someone directly interacts with the player. Action patterns
+#nop  (at you, to you, toward you) fire on non-speech lines. Speech
+#nop  patterns (char name) fire only inside speech/whisper/thought.
+#nop  Optional terminal BEL on match (gstin[config][attention_bell]).
+#nop  Used by both the story pipeline and the room panel.
+#nop =========================================================================;
+
+#class {gstin_attention} {open}
+
+#nop -- Attention highlights: wrap configured patterns with fg/bg to mark --;
+#nop -- text where something/someone directly interacts with the player. --;
+#nop -- Takes a variable name to modify in place (same convention as --;
+#nop -- gstin_resolve_placeholders). Used by both the story pipeline and --;
+#nop -- the room panel for a single source of truth. --;
+#alias {gstin_apply_attention} {
+    #local {_vn} {%1};
+    #if {&gstin[attention][patterns] == 0} {#return};
+    #local {_bg} {$gstin[attention][bg_color]};
+    #nop -- Bg-only highlight: apply the attention bg over the match, close --;
+    #nop -- with bg-off (\e[49m). We deliberately do NOT set an fg here so --;
+    #nop -- surrounding <a>/pushBold foreground colors (e.g. player-name --;
+    #nop -- blue on "the Eleazzar disk") continue through the match and into --;
+    #nop -- the text that follows. A full <099> reset would drop that color. --;
+    #local {_off} {\e[49m};
+    #foreach {$gstin[attention][patterns]} {_pat} {
+        #variable {gstin[_attn_pat]} {$_pat};
+        #nop -- Word-boundary both sides: dont match "at you" inside "what you" --;
+        #nop -- or "to you" inside "into you"/"to your". --;
+        #replace {$_vn} {{(?<![A-Za-z])}$gstin[_attn_pat]{(?![A-Za-z])}} {${_bg}$gstin[_attn_pat]${_off}};
+    };
+}
+
+#nop -- Like gstin_apply_attention but takes an explicit pattern list as 2nd arg --;
+#alias {gstin_apply_attention_list} {
+    #local {_vn} {%1};
+    #local {_pats} {%2};
+    #local {_bg} {$gstin[attention][bg_color]};
+    #local {_off} {\e[49m};
+    #foreach {$_pats} {_pat} {
+        #variable {gstin[_attn_pat]} {$_pat};
+        #replace {$_vn} {{(?<![A-Za-z])}$gstin[_attn_pat]{(?![A-Za-z])}} {${_bg}$gstin[_attn_pat]${_off}};
+    };
+}
+
+#nop -- Story-pipeline wrapper: runs action patterns (at you, to you, etc.) --;
+#nop -- on non-speech lines, and speech_patterns (char name) on speech lines. --;
+#alias {gstin_colorize_attention} {
+    #if {$gstin[_attn_skip] == 0} {
+        gstin_apply_attention {gstin[_story_line]};
+    };
+    #if {$gstin[_attn_skip] == 1 && &gstin[attention][speech_patterns] > 0} {
+        gstin_apply_attention_list {gstin[_story_line]} {$gstin[attention][speech_patterns]};
+    };
+    #if {$gstin[config][attention_bell] == 1} {
+        #local {_raw} {$gstin[_story_raw]};
+        #local {_pats} {$gstin[attention][patterns]};
+        #if {$gstin[_attn_skip] == 1} {
+            #local {_pats} {$gstin[attention][speech_patterns]};
+        };
+        #foreach {$_pats} {_pat} {
+            #regexp {$_raw} {{(?<![A-Za-z])}$_pat{(?![A-Za-z])}} {
+                #system {printf '\a'};
+                #break;
+            };
+        };
+    };
+}
+
+#class {gstin_attention} {close}

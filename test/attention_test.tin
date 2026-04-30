@@ -32,6 +32,7 @@
 #read {features/gags.tin};
 #read {features/highlights.tin};
 #read {features/combat.tin};
+#read {features/attention.tin};
 
 #nop -- Patterns are defaulted in core/state.tin from char_name. Override bg. --;
 #variable {gstin[attention][bg_color]} {<Bffff00>};
@@ -115,11 +116,13 @@
 #system {: > /tmp/attn_test.log};
 
 #nop -- Should fire (direct interaction, no preset) --;
-pt_attn {Eleazzar stands ready.}
 pt_attn {A messenger glances at you and says, "Report in."}
 pt_attn {The enemy swings at you with a cleaver!}
 pt_attn {Something reaches toward you from the shadows.}
 pt_attn {A bird flies to you.}
+
+#nop -- Char name outside speech should NOT fire (name only matches in speech) --;
+pt_attn {Eleazzar stands ready.}
 
 #nop -- Should NOT match attention patterns (word-boundary guard) --;
 pt_attn {Slash to your left leg hits high!}
@@ -128,23 +131,23 @@ pt_attn {Its claws rake toward yours but miss.}
 pt_attn {I could not find what you were referring to.}
 pt_attn {You step into your stance.}
 
-#nop -- Should NOT fire (inside speech/whisper/thought) --;
+#nop -- Char name inside speech/whisper/thought SHOULD fire --;
 pt_attn {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>}
 pt_attn {<preset id='whisper'>Bar whispers, "Be careful, Eleazzar."</preset>}
 pt_attn {<preset id='thought'>You hear Eleazzar thinking out loud.</preset>}
 pt_attn {<preset id="speech">Baz says, "I saw Eleazzar at you yesterday."</preset>}
 
-#nop -- Should fire (no match of attention patterns) --;
+#nop -- No patterns match --;
 pt_attn {Generic narrative line with no special content.}
 
 #system {echo "---- ASSERTIONS ----" >> /tmp/attn_test.log}
 
-pt_assert {Eleazzar stands ready.} {} {yes}
 pt_assert {A messenger glances at you.} {} {yes}
 pt_assert {Something reaches toward you.} {} {yes}
-pt_assert {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>} {} {no}
-pt_assert {<preset id='whisper'>Bar whispers, "Eleazzar, hi."</preset>} {} {no}
-pt_assert {<preset id='thought'>You hear Eleazzar.</preset>} {} {no}
+pt_assert {Eleazzar stands ready.} {} {no}
+pt_assert {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>} {} {yes}
+pt_assert {<preset id='whisper'>Bar whispers, "Eleazzar, hi."</preset>} {} {yes}
+pt_assert {<preset id='thought'>You hear Eleazzar.</preset>} {} {yes}
 pt_assert {A generic line without triggers.} {} {no}
 pt_assert {Slash to your left leg hits high!} {} {no}
 pt_assert {The spell lashes at your face!} {} {no}

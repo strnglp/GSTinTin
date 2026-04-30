@@ -39,6 +39,7 @@
 #nop -- Features --;
 #read {features/highlights.tin}
 #read {features/combat.tin}
+#read {features/attention.tin}
 #read {features/gags.tin}
 #read {features/macros.tin}
 #read {features/priority_sort.tin}
