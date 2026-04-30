@@ -1,0 +1,37 @@
+#nop =========================================================================;
+#nop  GSTinTin test harness -- loads the substitute pipeline and logs output.
+#nop =========================================================================;
+
+#config {command echo} {off}
+#config {speedwalk} {off}
+#config {color patch} {off}
+#config {log mode} {raw}
+
+#nop -- Open a marker log before anything else so we confirm tt++ ran --;
+#system {echo "HARNESS START $(date)" > /tmp/gstin_test_marker.log}
+
+#variable {gstin[config][theme]} {catlight}
+#variable {gstin[rawlog]} {0}
+#variable {gstin[hostiles]} {}
+#variable {gstin[hostiles][ice troll]}     {1}
+#variable {gstin[hostiles][frost giant]}   {1}
+#variable {gstin[hostiles][cold guardian]} {1}
+
+#read {config/palette_catlight.tin}
+#read {config/colors.tin}
+#read {features/gags_infra.tin}
+#read {features/substitutes.tin}
+#read {features/highlights.tin}
+
+#system {echo "HARNESS LOADED $(date)" >> /tmp/gstin_test_marker.log}
+
+#nop -- Open the MUD session. Session name "test" --;
+#session {test} {127.0.0.1} {9999}
+
+#nop -- After session opens, enable logging inside it --;
+#log {append} {/tmp/gstin_test.log}
+
+#system {echo "HARNESS CONNECTED $(date)" >> /tmp/gstin_test_marker.log}
+
+#delay {harness_quit} {#end} {5}
+
