@@ -25,14 +25,11 @@
     #highlight {Roundtime: %d sec.} {$gstin[colors][highlight][roundtime]};
     #highlight {%*remaining. ]} {$gstin[colors][highlight][spell]};
 
-    #nop ---- Creature death ----;
-    #highlight {%*falls to the ground dead%*} {bold};
-    #highlight {%*and dies.} {bold};
-    #highlight {%*and lies still.} {bold};
-    #highlight {%*goes still.} {bold};
-    #highlight {%*going still.} {bold};
-    #highlight {%*falls to the ground motionless%*} {bold};
-    #highlight {%* is stunned!} {bold};
+    #nop ---- Creature death / stun ----;
+    #nop -- No bold on these: #highlight strips embedded ANSI, which wipes --;
+    #nop -- hostile-red from creature names. Creature names are already --;
+    #nop -- colored (red hostile / blue creature) so the lines stand out. --;
+    #nop -- "You come out of hiding" has no creature name so bold is safe. --;
     #highlight {You come out of hiding.} {bold};
 
     #nop ---- Danger ----;

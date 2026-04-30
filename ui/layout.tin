@@ -367,7 +367,7 @@ gstin_calc_status_layout;
     #if {&gstin[hostiles][] > 0} {
         #foreach {*gstin[hostiles][%*]} {_hkey} {
             #variable {gstin[_hk]} {$_hkey};
-            #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]GXCRE} {GXHOS&1$gstin[_hk]GXHOE};
+            #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]{[^G]*}GXCRE} {GXHOS&1$gstin[_hk]&2GXHOE};
         };
         #replace {$_vn} {GXCRS{[^G]*}GXHOS} {GXHOS&1GXHOS};
     };
