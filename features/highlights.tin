@@ -37,8 +37,11 @@
     #highlight {(stunned)} {$gstin[colors][highlight][creature_status]};
 
     #nop ---- Item offers (partial-line) ----;
-    #highlight {%*offers you %*Click ACCEPT%*} {$gstin[colors][highlight][items_offers]};
-    #highlight {%*just gave you %* coin%*} {$gstin[colors][highlight][items_offers]};
+    #nop -- Prepend \e[49m so any bg set by an earlier custom_highlights --;
+    #nop -- substitute (e.g. an empath bg) is cleared before the highlight --;
+    #nop -- fg takes over — otherwise the bg bleeds across the whole match. --;
+    #highlight {%*offers you %*Click ACCEPT%*} {\e[49m$gstin[colors][highlight][items_offers]};
+    #highlight {%*just gave you %* coin%*} {\e[49m$gstin[colors][highlight][items_offers]};
 
     #nop ---- Custom highlights (highest priority) ----;
     #if {&gstin[custom_highlights][] > 0} {
