@@ -597,6 +597,12 @@ gstin_calc_status_layout;
     gstin_resolve_placeholders {gstin[_ri_players]};
     gstin_resolve_placeholders {gstin[_ri_objects]};
 
+    #nop -- Attention highlights: wrap pattern matches (e.g. player name) so --;
+    #nop -- the room panel matches the story scroll. Players/objects only -- --;
+    #nop -- exits are always direction words, never names. --;
+    gstin_apply_attention {gstin[_ri_players]};
+    gstin_apply_attention {gstin[_ri_objects]};
+
     #nop -- Build display copies with icon prefixes (always show icons) --;
     #local {_exits} {$gstin[_ri_exits]};
     #local {_players} {$gstin[_ri_players]};

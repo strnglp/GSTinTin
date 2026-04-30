@@ -1,0 +1,152 @@
+#nop =========================================================================;
+#nop  Attention-highlight test
+#nop  Exercises gstin_colorize_attention via the same story pipeline used at
+#nop  runtime. Logs input + output so "inside speech" cases are visible.
+#nop =========================================================================;
+
+#config {command echo} {off}
+#config {speedwalk} {off}
+#config {color patch} {off}
+
+#variable {gstin[config][theme]} {seoullight}
+#variable {gstin[config][char_name]} {Eleazzar}
+#variable {gstin[rawlog]} {0}
+#variable {gstin[_showing_story]} {0}
+#variable {gstin[_peer_active]} {0}
+#variable {gstin[hostiles]} {}
+#variable {gstin[hostile_nouns]} {}
+#variable {gstin[custom_highlights]} {}
+#variable {gstin[user_gags]} {}
+
+#read {config/palette_seoullight.tin}
+#read {config/colors.tin}
+#read {core/state.tin}
+
+#alias {gstin_request_render} {#nop};
+#alias {gstin_dirty_all}      {#nop};
+#variable {gstin[ui][user_left_w]} {0};
+#variable {gstin[config][chat_min_width]} {31};
+#variable {gstin[config][chat_max_width]} {0};
+
+#read {ui/layout.tin};
+#read {features/gags.tin};
+#read {features/highlights.tin};
+#read {features/combat.tin};
+
+#nop -- Patterns are defaulted in core/state.tin from char_name. Override bg. --;
+#variable {gstin[attention][bg_color]} {<Bffff00>};
+
+#alias {pt_attn} {
+    #nop -- %1 is raw server line. Replicate streams.tin story path. --;
+    #variable {gstin[_story_line]} {%1};
+
+    #nop -- Upstream skip flag (matches core/streams.tin RECEIVED LINE block) --;
+    #variable {gstin[_attn_skip]} {0};
+    #regexp {%1} {<preset id='speech'>}  {#variable {gstin[_attn_skip]} {1}};
+    #regexp {%1} {<preset id="speech">}  {#variable {gstin[_attn_skip]} {1}};
+    #regexp {%1} {<preset id='whisper'>} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {%1} {<preset id="whisper">} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {%1} {<preset id='thought'>} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {%1} {<preset id="thought">} {#variable {gstin[_attn_skip]} {1}};
+
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #local {_vis} {%1};
+    #replace {_vis} {<{[^>]+}>} {};
+    #variable {gstin[_story_raw]} {$_vis};
+    gstin_colorize_combat;
+    gstin_colorize_highlights;
+    gstin_colorize_attention;
+
+    #line log {/tmp/attn_test.log} {INPUT (skip=$gstin[_attn_skip]): %1};
+    #line log {/tmp/attn_test.log} {OUTPUT: $gstin[_story_line]};
+    #line log {/tmp/attn_test.log} {};
+}
+
+#nop -- Assert helper: OUTPUT must contain %2 (yes) or must NOT (no) --;
+#alias {pt_assert} {
+    #local {_raw} {%1};
+    #local {_expect} {%2};
+    #local {_should} {%3};
+
+    #variable {gstin[_story_line]} {$_raw};
+    #variable {gstin[_attn_skip]} {0};
+    #regexp {$_raw} {<preset id='speech'>}  {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_raw} {<preset id="speech">}  {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_raw} {<preset id='whisper'>} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_raw} {<preset id="whisper">} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_raw} {<preset id='thought'>} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_raw} {<preset id="thought">} {#variable {gstin[_attn_skip]} {1}};
+
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #local {_vis} {$_raw};
+    #replace {_vis} {<{[^>]+}>} {};
+    #variable {gstin[_story_raw]} {$_vis};
+    gstin_colorize_combat;
+    gstin_colorize_highlights;
+    gstin_colorize_attention;
+
+    #nop -- Attention wraps with gstin[attention][color]gstin[attention][bg_color] --;
+    #nop -- which expands to raw ANSI bytes that variables strip. Check presence --;
+    #nop -- by looking for the word "Eleazzar" preceded by anything non-space from --;
+    #nop -- our color code. Simpler: detect if the palette BG code <Bffff00> --;
+    #nop -- appears. But tt++ converts it. So: use a visible-text sentinel: --;
+    #nop -- temporarily swap bg_color to a non-color string, run, look for it. --;
+    #local {_saved_bg} {$gstin[attention][bg_color]};
+    #variable {gstin[attention][bg_color]} {__ATTN_BG__};
+    #variable {gstin[_story_line]} {$_raw};
+    gstin_strip_xml_colored {gstin[_story_line]};
+    gstin_colorize_combat;
+    gstin_colorize_highlights;
+    gstin_colorize_attention;
+    #variable {gstin[attention][bg_color]} {$_saved_bg};
+    #local {_has} {no};
+    #local {_probe} {$gstin[_story_line]};
+    #local {_stripped} {$gstin[_story_line]};
+    #replace {_stripped} {__ATTN_BG__} {};
+    #format {_l1} {%L} {$_probe};
+    #format {_l2} {%L} {$_stripped};
+    #if {$_l1 > $_l2} {#local {_has} {YES}};
+    #local {_verdict} {FAIL};
+    #if {"$_should" == "yes" && "$_has" == "YES"} {#local {_verdict} {OK}};
+    #if {"$_should" == "no"  && "$_has" == "no"}  {#local {_verdict} {OK}};
+    #line log {/tmp/attn_test.log} {[$_verdict] want=$_should got-bg=$_has  line=$_raw};
+}
+
+#system {: > /tmp/attn_test.log};
+
+#nop -- Should fire (direct interaction, no preset) --;
+pt_attn {Eleazzar stands ready.}
+pt_attn {A messenger glances at you and says, "Report in."}
+pt_attn {The enemy swings at you with a cleaver!}
+pt_attn {Something reaches toward you from the shadows.}
+pt_attn {A bird flies to you.}
+
+#nop -- Should NOT match attention patterns (word-boundary guard) --;
+pt_attn {Slash to your left leg hits high!}
+pt_attn {The spell lashes at your face!}
+pt_attn {Its claws rake toward yours but miss.}
+
+#nop -- Should NOT fire (inside speech/whisper/thought) --;
+pt_attn {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>}
+pt_attn {<preset id='whisper'>Bar whispers, "Be careful, Eleazzar."</preset>}
+pt_attn {<preset id='thought'>You hear Eleazzar thinking out loud.</preset>}
+pt_attn {<preset id="speech">Baz says, "I saw Eleazzar at you yesterday."</preset>}
+
+#nop -- Should fire (no match of attention patterns) --;
+pt_attn {Generic narrative line with no special content.}
+
+#system {echo "---- ASSERTIONS ----" >> /tmp/attn_test.log}
+
+pt_assert {Eleazzar stands ready.} {} {yes}
+pt_assert {A messenger glances at you.} {} {yes}
+pt_assert {Something reaches toward you.} {} {yes}
+pt_assert {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>} {} {no}
+pt_assert {<preset id='whisper'>Bar whispers, "Eleazzar, hi."</preset>} {} {no}
+pt_assert {<preset id='thought'>You hear Eleazzar.</preset>} {} {no}
+pt_assert {A generic line without triggers.} {} {no}
+pt_assert {Slash to your left leg hits high!} {} {no}
+pt_assert {The spell lashes at your face!} {} {no}
+pt_assert {Its claws rake toward yours but miss.} {} {no}
+
+#system {echo "ATTENTION TEST DONE" >> /tmp/attn_test.log}
+#delay {quit} {#end} {1}

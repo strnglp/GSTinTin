@@ -269,4 +269,17 @@
 #nop -- Streams routed to familiar panel --;
 #variable {gstin[stream_familiar][familiar]} {1}
 
+#nop -- Attention highlights: bg wraps patterns that signal direct interaction --;
+#nop -- with the player. Defaults to second-person phrases + the character name --;
+#nop -- (from gstin[config][char_name], set earlier by settings.tin). Char --;
+#nop -- configs can override bg_color or redefine patterns entirely. Skipped --;
+#nop -- when the line is inside a speech/whisper/thought preset. --;
+#if {"$gstin[config][char_name]" != ""} {
+    #variable {gstin[attention][patterns]} {$gstin[config][char_name];at you;to you;toward you};
+} {
+    #variable {gstin[attention][patterns]} {at you;to you;toward you};
+};
+#variable {gstin[attention][bg_color]} {}
+#variable {gstin[_attn_skip]}          {0}
+
 #class {gstin_state} {close}

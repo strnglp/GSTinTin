@@ -8,7 +8,8 @@ PORT="${2:-8000}"
 
 # Start lich in the background
 cd "$LICH_DIR"
-ruby lich.rbw --gtk --login "$CHAR" --detachable-client="$PORT" --without-frontend --gemstone &
+LICH_LOG="${TMPDIR:-/tmp}/lich-$CHAR.log"
+ruby lich.rbw --gtk --login "$CHAR" --detachable-client="$PORT" --without-frontend --gemstone 2>>"$LICH_LOG" &
 LICH_PID=$!
 
 _port_listening() {

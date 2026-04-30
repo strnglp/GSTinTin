@@ -97,6 +97,7 @@
         #format {_vis} {%p} {$_vis};
         #variable {gstin[_story_raw]} {$_vis};
         gstin_colorize_combat;
+        gstin_colorize_attention;
         #nop -- Check if the line matches any user gag pattern before showing --;
         gstin_check_user_gag {$gstin[_story_line]};
         #if {$gstin[_gag_match] == 0} {
@@ -639,6 +640,17 @@
     #variable {gstin[_rl]} {$_line};
     gstin_decode_entities;
     #local {_line} {$gstin[_rl]};
+
+    #nop -- Attention skip: mark the line if it arrives inside a speech/whisper/ --;
+    #nop -- thought preset. Checked from gstin_colorize_attention so indirect --;
+    #nop -- mentions inside quoted speech arent highlighted as direct interaction. --;
+    #variable {gstin[_attn_skip]} {0};
+    #regexp {$_line} {<preset id='speech'>}  {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_line} {<preset id="speech">}  {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_line} {<preset id='whisper'>} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_line} {<preset id="whisper">} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_line} {<preset id='thought'>} {#variable {gstin[_attn_skip]} {1}};
+    #regexp {$_line} {<preset id="thought">} {#variable {gstin[_attn_skip]} {1}};
 
     #nop -- Detect endSetup marker: server init burst is complete --;
     #nop -- Gag all lines before endSetup to suppress init burst from display --;
@@ -1624,6 +1636,7 @@
     #variable {gstin[_story_raw]} {$_vis};
     gstin_colorize_combat;
     gstin_colorize_highlights;
+    gstin_colorize_attention;
     #if {$gstin[_spacelog] == 1} {
         #local {_slen} {0};
         #format {_slen} {%L} {$gstin[_story_line]};

@@ -1,0 +1,120 @@
+#nop =========================================================================;
+#nop  GSTinTin pipeline unit test
+#nop  Feeds known raw XML lines through gstin_strip_xml_colored +
+#nop  gstin_colorize_combat + gstin_colorize_highlights and writes the
+#nop  colorized output to /tmp/gstin_pipeline_test.log so regressions in
+#nop  bold/hostile/spell/death coloring are visible at a glance.
+#nop =========================================================================;
+
+#config {command echo} {off}
+#config {speedwalk} {off}
+#config {color patch} {off}
+
+#variable {gstin[config][theme]} {catlight}
+#variable {gstin[rawlog]} {0}
+#variable {gstin[_showing_story]} {0}
+#variable {gstin[_peer_active]} {0}
+#variable {gstin[hostiles]} {}
+#variable {gstin[hostile_nouns]} {}
+#variable {gstin[hostiles][ice troll]}     {1}
+#variable {gstin[hostiles][frost giant]}   {1}
+#variable {gstin[hostiles][cold guardian]} {1}
+#variable {gstin[hostile_nouns][troll]}    {1}
+#variable {gstin[hostile_nouns][giant]}    {1}
+#variable {gstin[hostile_nouns][guardian]} {1}
+#variable {gstin[custom_highlights]} {}
+#variable {gstin[user_gags]} {}
+
+#read {config/palette_catlight.tin}
+#read {config/colors.tin}
+
+#nop -- Only the strip/resolve aliases from layout.tin (avoid #split side-effects) --;
+#nop -- We extract just the two aliases by hand-copying; instead, load layout.tin --;
+#nop -- after stubbing #split. Stub #split to no-op first. --;
+#alias {gstin_request_render} {#nop}
+#alias {gstin_dirty_all}      {#nop}
+#variable {gstin[ui][user_left_w]} {0}
+#variable {gstin[config][chat_min_width]} {31}
+#variable {gstin[config][chat_max_width]} {0}
+
+#nop -- TinTin has no way to stub #split, but #split with valid args --;
+#nop -- just adjusts layout. In -H -G mode we have a tiny screen; it is --;
+#nop -- harmless because no #showme draws go through it. --;
+#read {ui/layout.tin}
+
+#read {features/gags.tin}
+#read {features/highlights.tin}
+#read {features/combat.tin}
+
+#nop -- Run one test: given a raw XML line, push it through the pipeline --;
+#nop -- and log input + output --;
+#alias {pt_run} {
+    #variable {gstin[_story_line]} {%1};
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #local {_vis} {%1};
+    #replace {_vis} {<{[^>]+}>} {};
+    #variable {gstin[_story_raw]} {$_vis};
+    gstin_colorize_combat;
+    gstin_colorize_highlights;
+    #line log {/tmp/gstin_pipeline_test.log} {INPUT : %1};
+    #line log {/tmp/gstin_pipeline_test.log} {OUTPUT: $gstin[_story_line]};
+    #line log {/tmp/gstin_pipeline_test.log} {};
+}
+
+#system {: > /tmp/gstin_pipeline_test.log}
+
+#nop -- Test cases: lines that SHOULD be bold start-to-finish --;
+pt_run {The <pushBold/><a exist="1" noun="guardian">cold guardian</a><popBold/> is stunned!}
+pt_run {The <pushBold/><a exist="1" noun="troll">ice troll</a><popBold/> is stunned!}
+pt_run {The <pushBold/><a exist="1" noun="giant">frost giant</a><popBold/> is stunned!}
+pt_run {The <pushBold/><a exist="1" noun="giant">frost giant</a><popBold/> cries out in cold agony one last time and dies.}
+pt_run {The <pushBold/><a exist="1" noun="troll">ice troll</a><popBold/> falls to the ground motionless.}
+pt_run {The <pushBold/><a exist="1" noun="guardian">cold guardian</a><popBold/> goes still.}
+
+#nop -- Control: lines without hostile markers should also be bold --;
+pt_run {You are stunned!}
+
+#nop -- Room title --;
+pt_run {[A Frostbitten Clearing]}
+
+#nop -- Leak check: a plain line after a bold line must NOT be bold. --;
+#nop -- The bold-off marker (\e[22m) should terminate the span so the --;
+#nop -- following line renders with default weight. --;
+pt_run {The air here is thick with mist.}
+
+#nop -- Assert: bold output must end with the bold-off marker \e[22m, and --;
+#nop -- a plain line processed right after must contain no \e[1m at all. --;
+#alias {pt_assert_bold_closed} {
+    #variable {gstin[_story_line]} {%1};
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #local {_vis} {%1};
+    #replace {_vis} {<{[^>]+}>} {};
+    #variable {gstin[_story_raw]} {$_vis};
+    gstin_colorize_combat;
+    gstin_colorize_highlights;
+    #local {_bold} {$gstin[_story_line]};
+    #local {_ends} {no};
+    #regexp {$_bold} {\e\[22m$} {#local {_ends} {YES}};
+
+    #nop -- Now process a plain control line and verify no bold leaks into it --;
+    #variable {gstin[_story_line]} {A plain followup line.};
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #variable {gstin[_story_raw]} {A plain followup line.};
+    gstin_colorize_combat;
+    gstin_colorize_highlights;
+    #local {_plain} {$gstin[_story_line]};
+    #local {_has_bold} {no};
+    #regexp {$_plain} {\e\[1m} {#local {_has_bold} {YES_LEAK}};
+
+    #line log {/tmp/gstin_pipeline_test.log} {ASSERT input=%1};
+    #line log {/tmp/gstin_pipeline_test.log} {   ends-with-\\e[22m=$_ends  followup-has-\\e[1m=$_has_bold};
+    #line log {/tmp/gstin_pipeline_test.log} {   followup=$_plain};
+    #line log {/tmp/gstin_pipeline_test.log} {};
+}
+
+pt_assert_bold_closed {The <pushBold/><a exist="1" noun="giant">frost giant</a><popBold/> is stunned!}
+pt_assert_bold_closed {The <pushBold/><a exist="1" noun="troll">ice troll</a><popBold/> falls to the ground motionless.}
+pt_assert_bold_closed {[A Frostbitten Clearing]}
+
+#system {echo "PIPELINE TEST DONE" >> /tmp/gstin_pipeline_test.log}
+#delay {quit} {#end} {1}

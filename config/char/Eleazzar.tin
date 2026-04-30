@@ -20,9 +20,9 @@
 #nop --   #variable {gstin[custom_highlights][enemies][color]}    {$gstin[palette][bright_red]}   --;
 #nop --   #variable {gstin[custom_highlights][enemies][patterns]} {Foe1,Foe2}                   --;
 
-#variable {gstin[custom_highlights][attention][color]}    {$gstin[palette][default_fg]}
-#variable {gstin[custom_highlights][attention][bg_color]}  {$gstin[palette][bg_bar_yellow]}
-#variable {gstin[custom_highlights][attention][patterns]} {Eleazzar}
+#nop -- Attention background (patterns default in core/state.tin — char name --;
+#nop -- and second-person phrases like "at you", "to you", "toward you"). --;
+#variable {gstin[attention][bg_color]} {$gstin[palette][bg_bar_yellow]}
 
 #variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][green]}
 #variable {gstin[custom_highlights][oel][bg_color]}  {$gstin[palette][bg_light_gray]}
@@ -30,6 +30,11 @@
 
 #variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
 #variable {gstin[custom_highlights][friends][patterns]} {Calphion;Malhander;Raelik;Nikolaii;Aerocus;Parwyn}
+
+#variable {gstin[custom_highlights][empaths][color]}    {$gstin[palette][default_fg]}
+#variable {gstin[custom_highlights][empaths][bg_color]}  {$gstin[palette][bg_bar_red]}
+#variable {gstin[custom_highlights][empaths][patterns]} {Moomfs}
+
 
 #nop -- Character-specific gags (replicate substitute.lic) --;
 gstin_gag {Your SIGN OF%*is no longer effective.}
