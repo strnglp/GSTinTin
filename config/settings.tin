@@ -23,6 +23,9 @@
 #nop -- Compact mode: 1 = no extra spacing, 0 = blank line between messages --;
 #variable {gstin[config][compact]} {0}
 
+#nop -- Attention bell: 1 = terminal BEL when attention pattern matches --;
+#variable {gstin[config][attention_bell]} {1}
+
 #nop -- Chat column width limits --;
 #nop -- Chat flexes with terminal width (cols/4) but clamps to this range --;
 #nop -- Hard minimum is 31 regardless of chat_min_width setting --;

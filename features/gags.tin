@@ -11,6 +11,9 @@
 #nop #gag {%* turns a vardite skeleton key}
 #nop #gag {%* drops %* into a portable silversteel bucket}
 
+#nop ---- Lich script chatter ----;
+gstin_gag {%* isn't hunting because: mana still below threshold.}
+
 #nop ---- MOTD asterisk banner (too wide for center scroll area) ----;
 #gag {~***********************************************************************************************************<pushBold/>}
 

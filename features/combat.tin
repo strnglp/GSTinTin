@@ -260,6 +260,15 @@
 #alias {gstin_colorize_attention} {
     #if {$gstin[_attn_skip] == 1} {#return};
     gstin_apply_attention {gstin[_story_line]};
+    #if {$gstin[config][attention_bell] == 1} {
+        #local {_raw} {$gstin[_story_raw]};
+        #foreach {$gstin[attention][patterns]} {_pat} {
+            #regexp {$_raw} {$_pat} {
+                #system {printf '\a'};
+                #break;
+            };
+        };
+    };
 }
 
 #class {gstin_combat} {close}
