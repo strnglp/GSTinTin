@@ -177,52 +177,52 @@
 
     #nop -- Row 1: eyes + nsys (mirrored: viewer's left = character's right) --;
     #local {_clr} {@gstin_injury_color{$gstin[injuries][rightEye]}};
-    gstin_status_at {$_br} {$_c} {${_clr}<099>};
+    gstin_status_at {$_br} {$_c} {\e[1m${_clr}<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][leftEye]}};
-    gstin_status_at {$_br} {$_c3} {${_clr}<099>};
+    gstin_status_at {$_br} {$_c3} {\e[1m${_clr}<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][nsys]}};
-    gstin_status_at {$_br} {$_tc} {${_clr}ns<099>};
+    gstin_status_at {$_br} {$_tc} {\e[1m${_clr}ns<099>\e[22m};
 
     #nop -- Row 2: head --;
     #math {_br} {$_br + 1};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][head]}};
-    gstin_status_at {$_br} {$_c2} {${_clr}O<099>};
+    gstin_status_at {$_br} {$_c2} {\e[1m${_clr}O<099>\e[22m};
 
     #nop -- Row 3: arms + chest + neck (mirrored) --;
     #math {_br} {$_br + 1};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][rightArm]}};
-    gstin_status_at {$_br} {$_c} {${_clr}/<099>};
+    gstin_status_at {$_br} {$_c} {\e[1m${_clr}/<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][chest]}};
-    gstin_status_at {$_br} {$_c2} {${_clr}|<099>};
+    gstin_status_at {$_br} {$_c2} {\e[1m${_clr}|<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][leftArm]}};
-    gstin_status_at {$_br} {$_c3} {${_clr}\\<099>};
+    gstin_status_at {$_br} {$_c3} {\e[1m${_clr}\\<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][neck]}};
-    gstin_status_at {$_br} {$_tc} {${_clr}nk<099>};
+    gstin_status_at {$_br} {$_tc} {\e[1m${_clr}nk<099>\e[22m};
 
     #nop -- Row 4: hands + abdomen (mirrored) --;
     #math {_br} {$_br + 1};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][rightHand]}};
-    gstin_status_at {$_br} {$_cL} {${_clr}o<099>};
+    gstin_status_at {$_br} {$_cL} {\e[1m${_clr}o<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][abdomen]}};
-    gstin_status_at {$_br} {$_c2} {${_clr}|<099>};
+    gstin_status_at {$_br} {$_c2} {\e[1m${_clr}|<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][leftHand]}};
-    gstin_status_at {$_br} {$_cR} {${_clr}o<099>};
+    gstin_status_at {$_br} {$_cR} {\e[1m${_clr}o<099>\e[22m};
 
     #nop -- Row 5: legs + back (mirrored) --;
     #math {_br} {$_br + 1};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][rightLeg]}};
-    gstin_status_at {$_br} {$_c} {${_clr}/<099>};
+    gstin_status_at {$_br} {$_c} {\e[1m${_clr}/<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][leftLeg]}};
-    gstin_status_at {$_br} {$_c3} {${_clr}\\<099>};
+    gstin_status_at {$_br} {$_c3} {\e[1m${_clr}\\<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][back]}};
-    gstin_status_at {$_br} {$_tc} {${_clr}bk<099>};
+    gstin_status_at {$_br} {$_tc} {\e[1m${_clr}bk<099>\e[22m};
 
     #nop -- Row 6: feet (mirrored) --;
     #math {_br} {$_br + 1};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][rightLeg]}};
-    gstin_status_at {$_br} {$_cL} {${_clr}o<099>};
+    gstin_status_at {$_br} {$_cL} {\e[1m${_clr}o<099>\e[22m};
     #local {_clr} {@gstin_injury_color{$gstin[injuries][leftLeg]}};
-    gstin_status_at {$_br} {$_cR} {${_clr}o<099>};
+    gstin_status_at {$_br} {$_cR} {\e[1m${_clr}o<099>\e[22m};
 }
 
 #nop -- Render 5 vitals bars vertically (rows 0-4 starting at given row) --;

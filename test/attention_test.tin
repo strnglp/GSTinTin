@@ -125,6 +125,8 @@ pt_attn {A bird flies to you.}
 pt_attn {Slash to your left leg hits high!}
 pt_attn {The spell lashes at your face!}
 pt_attn {Its claws rake toward yours but miss.}
+pt_attn {I could not find what you were referring to.}
+pt_attn {You step into your stance.}
 
 #nop -- Should NOT fire (inside speech/whisper/thought) --;
 pt_attn {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>}
@@ -147,6 +149,8 @@ pt_assert {A generic line without triggers.} {} {no}
 pt_assert {Slash to your left leg hits high!} {} {no}
 pt_assert {The spell lashes at your face!} {} {no}
 pt_assert {Its claws rake toward yours but miss.} {} {no}
+pt_assert {I could not find what you were referring to.} {} {no}
+pt_assert {You step into your stance.} {} {no}
 
 #system {echo "ATTENTION TEST DONE" >> /tmp/attn_test.log}
 #delay {quit} {#end} {1}

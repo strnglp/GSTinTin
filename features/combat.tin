@@ -248,8 +248,9 @@
     #local {_off} {\e[49m};
     #foreach {$gstin[attention][patterns]} {_pat} {
         #variable {gstin[_attn_pat]} {$_pat};
-        #nop -- Trailing word-boundary: dont match "to you" inside "to your" etc. --;
-        #replace {$_vn} {$gstin[_attn_pat]{(?![A-Za-z])}} {${_bg}$gstin[_attn_pat]${_off}};
+        #nop -- Word-boundary both sides: dont match "at you" inside "what you" --;
+        #nop -- or "to you" inside "into you"/"to your". --;
+        #replace {$_vn} {{(?<![A-Za-z])}$gstin[_attn_pat]{(?![A-Za-z])}} {${_bg}$gstin[_attn_pat]${_off}};
     };
 }
 
