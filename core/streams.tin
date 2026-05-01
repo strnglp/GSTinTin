@@ -44,7 +44,12 @@
     #replace {gstin[_launch_src]} {GSLTMARK}   {<};
     #replace {gstin[_launch_src]} {GSGTMARK}   {>};
     #local {_url} {https://www.play.net$gstin[_launch_src]};
-    #system {xdg-open "$_url" >/dev/null 2>&1 &};
+    #script {_os} {uname -s};
+    #if {"$_os[1]" == "Darwin"} {
+        #system {open "$_url" &};
+    } {
+        #system {xdg-open "$_url" >/dev/null 2>&1 &};
+    };
     #nop -- #line ignore blocks re-entry into RECEIVED LINE/#action so we --;
     #nop -- don't reprocess our own notification through the XML pipeline. --;
     #line ignore #showme {$gstin[colors][system][status]--- Opening: $_url<099>};
