@@ -37,25 +37,12 @@
     #highlight {(stunned)} {$gstin[colors][highlight][creature_status]};
 
     #nop ---- Item offers (partial-line) ----;
-    #nop -- Prepend \e[49m so any bg set by an earlier custom_highlights --;
-    #nop -- substitute (e.g. an empath bg) is cleared before the highlight --;
-    #nop -- fg takes over — otherwise the bg bleeds across the whole match. --;
-    #highlight {%*offers you %*Click ACCEPT%*} {\e[49m$gstin[colors][highlight][items_offers]};
-    #highlight {%*just gave you %* coin%*} {\e[49m$gstin[colors][highlight][items_offers]};
+    #highlight {%*offers you %*Click ACCEPT%*} {$gstin[colors][highlight][items_offers]};
+    #highlight {%*just gave you %* coin%*} {$gstin[colors][highlight][items_offers]};
 
-    #nop ---- Custom highlights (highest priority) ----;
-    #if {&gstin[custom_highlights][] > 0} {
-        #foreach {*gstin[custom_highlights][]} {_group} {
-            #local {_color} {$gstin[custom_highlights][$_group][color]};
-            #if {&gstin[custom_highlights][$_group][bg_color] > 0} {
-                #local {_color} {$gstin[custom_highlights][$_group][color]$gstin[custom_highlights][$_group][bg_color]};
-            };
-            #foreach {$gstin[custom_highlights][$_group][patterns]} {_pattern} {
-                #format {_cmd} {#substitute {%s} {%s%s<099>} {1}} {$_pattern} {$_color} {$_pattern};
-                $_cmd;
-            };
-        };
-    };
+    #nop ---- Custom highlights are applied in the color pipeline --;
+    #nop -- (gstin_apply_room_custom_highlights in layout.tin) so they --;
+    #nop -- can restore surrounding entity colors after the match. --;
 
     #class {gstin_highlights} {close};
 }

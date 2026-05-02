@@ -2,7 +2,8 @@
 #nop  GSTinTin - Attention Highlights
 #nop  Wraps configured patterns with bg color to mark text where something
 #nop  or someone directly interacts with the player. Action patterns
-#nop  (at you, to you, toward you) fire on non-speech lines. Speech
+#nop  (at you, to you, toward you, offers you) fire on all lines but skip
+#nop  text inside quoted dialog on speech/whisper/thought lines. Speech
 #nop  patterns (char name) fire only inside speech/whisper/thought.
 #nop  Optional terminal BEL on match (gstin[config][attention_bell]).
 #nop  Used by both the story pipeline and the room panel.
@@ -45,25 +46,65 @@
     };
 }
 
-#nop -- Story-pipeline wrapper: runs action patterns (at you, to you, etc.) --;
-#nop -- on non-speech lines, and speech_patterns (char name) on speech lines. --;
+#nop -- Strip quoted dialog from a variable for safe attention matching. --;
+#nop -- Replaces " with marker GXQT then strips GXQT...GXQT pairs. --;
+#nop -- Three passes handles up to three quoted sections per line. --;
+#alias {gstin_strip_quotes} {
+    #local {_vn} {%1};
+    #replace {$_vn} {"} {GXQT};
+    #replace {$_vn} {GXQT%*GXQT} {};
+    #replace {$_vn} {GXQT%*GXQT} {};
+    #replace {$_vn} {GXQT%*GXQT} {};
+    #replace {$_vn} {GXQT} {};
+}
+
+#nop -- Story-pipeline wrapper: runs action patterns on all lines, skipping --;
+#nop -- text inside quoted dialog on speech/whisper/thought lines. Speech --;
+#nop -- patterns (char name) additionally match anywhere on speech lines. --;
 #alias {gstin_colorize_attention} {
-    #if {$gstin[_attn_skip] == 0} {
+    #if {$gstin[_attn_skip] == 1} {
+        #nop -- Speech line: check action patterns against narrator text only --;
+        #nop -- (raw text with quoted dialog stripped). Patterns that match --;
+        #nop -- outside quotes get applied to the display line. --;
+        #local {_nq} {$gstin[_story_raw]};
+        gstin_strip_quotes {_nq};
+        #local {_bg} {$gstin[attention][bg_color]};
+        #local {_off} {\e[49m};
+        #foreach {$gstin[attention][patterns]} {_pat} {
+            #variable {gstin[_attn_pat]} {$_pat};
+            #regexp {$_nq} {{(?<![A-Za-z])}$gstin[_attn_pat]{(?![A-Za-z])}} {
+                #replace {gstin[_story_line]} {{(?<![A-Za-z])}$gstin[_attn_pat]{(?![A-Za-z])}} {${_bg}$gstin[_attn_pat]${_off}};
+            };
+        };
+        #if {&gstin[attention][speech_patterns] > 0} {
+            gstin_apply_attention_list {gstin[_story_line]} {$gstin[attention][speech_patterns]};
+        };
+    } {
         gstin_apply_attention {gstin[_story_line]};
-    };
-    #if {$gstin[_attn_skip] == 1 && &gstin[attention][speech_patterns] > 0} {
-        gstin_apply_attention_list {gstin[_story_line]} {$gstin[attention][speech_patterns]};
     };
     #if {$gstin[config][attention_bell] == 1} {
         #local {_raw} {$gstin[_story_raw]};
-        #local {_pats} {$gstin[attention][patterns]};
         #if {$gstin[_attn_skip] == 1} {
-            #local {_pats} {$gstin[attention][speech_patterns]};
+            gstin_strip_quotes {_raw};
         };
-        #foreach {$_pats} {_pat} {
-            #regexp {$_raw} {{(?<![A-Za-z])}$_pat{(?![A-Za-z])}} {
-                #system {printf '\a'};
-                #break;
+        #local {_rang} {0};
+        #foreach {$gstin[attention][patterns]} {_pat} {
+            #if {$_rang == 0} {
+                #regexp {$_raw} {{(?<![A-Za-z])}$_pat{(?![A-Za-z])}} {
+                    #system {printf '\a'};
+                    #local {_rang} {1};
+                };
+            };
+        };
+        #if {$_rang == 0 && $gstin[_attn_skip] == 1 && &gstin[attention][speech_patterns] > 0} {
+            #local {_raw} {$gstin[_story_raw]};
+            #foreach {$gstin[attention][speech_patterns]} {_pat} {
+                #if {$_rang == 0} {
+                    #regexp {$_raw} {{(?<![A-Za-z])}$_pat{(?![A-Za-z])}} {
+                        #system {printf '\a'};
+                        #local {_rang} {1};
+                    };
+                };
             };
         };
     };

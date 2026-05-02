@@ -120,6 +120,7 @@ pt_attn {A messenger glances at you and says, "Report in."}
 pt_attn {The enemy swings at you with a cleaver!}
 pt_attn {Something reaches toward you from the shadows.}
 pt_attn {A bird flies to you.}
+pt_attn {A merchant offers you a fine cloak.}
 
 #nop -- Char name outside speech should NOT fire (name only matches in speech) --;
 pt_attn {Eleazzar stands ready.}
@@ -137,6 +138,14 @@ pt_attn {<preset id='whisper'>Bar whispers, "Be careful, Eleazzar."</preset>}
 pt_attn {<preset id='thought'>You hear Eleazzar thinking out loud.</preset>}
 pt_attn {<preset id="speech">Baz says, "I saw Eleazzar at you yesterday."</preset>}
 
+#nop -- Action patterns outside quotes on speech lines SHOULD fire --;
+pt_attn {<preset id='speech'>Foo says to you, "Watch out!"</preset>}
+pt_attn {<preset id='speech'>A vendor offers you a discount.</preset>}
+
+#nop -- Action patterns inside quotes on speech lines should NOT fire --;
+pt_attn {<preset id='speech'>Foo says, "I gave it to you."</preset>}
+pt_attn {<preset id='speech'>Bar says, "Someone offers you a deal."</preset>}
+
 #nop -- No patterns match --;
 pt_attn {Generic narrative line with no special content.}
 
@@ -144,10 +153,15 @@ pt_attn {Generic narrative line with no special content.}
 
 pt_assert {A messenger glances at you.} {} {yes}
 pt_assert {Something reaches toward you.} {} {yes}
+pt_assert {A merchant offers you a fine cloak.} {} {yes}
 pt_assert {Eleazzar stands ready.} {} {no}
 pt_assert {<preset id='speech'>Foo says, "Hello, Eleazzar!"</preset>} {} {yes}
 pt_assert {<preset id='whisper'>Bar whispers, "Eleazzar, hi."</preset>} {} {yes}
 pt_assert {<preset id='thought'>You hear Eleazzar.</preset>} {} {yes}
+pt_assert {<preset id='speech'>Foo says to you, "Watch out!"</preset>} {} {yes}
+pt_assert {<preset id='speech'>A vendor offers you a discount.</preset>} {} {yes}
+pt_assert {<preset id='speech'>Foo says, "I gave it to you."</preset>} {} {no}
+pt_assert {<preset id='speech'>Bar says, "Someone offers you a deal."</preset>} {} {no}
 pt_assert {A generic line without triggers.} {} {no}
 pt_assert {Slash to your left leg hits high!} {} {no}
 pt_assert {The spell lashes at your face!} {} {no}

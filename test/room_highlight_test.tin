@@ -1,0 +1,233 @@
+#nop =========================================================================;
+#nop  Room panel + story scroll custom highlight test
+#nop  Verifies custom highlights apply correctly and don't destroy
+#nop  surrounding entity colors. Tests both room panel (placeholder path)
+#nop  and story scroll (gstin_strip_xml_colored path).
+#nop =========================================================================;
+
+#config {command echo} {off}
+#config {speedwalk} {off}
+#config {color patch} {off}
+
+#variable {gstin[config][theme]} {seoullight}
+#variable {gstin[config][char_name]} {Eleazzar}
+#variable {gstin[rawlog]} {0}
+#variable {gstin[_showing_story]} {0}
+#variable {gstin[_peer_active]} {0}
+#variable {gstin[hostiles]} {}
+#variable {gstin[hostile_nouns]} {}
+#variable {gstin[hostiles][ice troll]}     {1}
+#variable {gstin[hostile_nouns][troll]}    {1}
+#variable {gstin[custom_highlights]} {}
+#variable {gstin[user_gags]} {}
+
+#read {config/palette_seoullight.tin}
+#read {config/colors.tin}
+#read {core/state.tin}
+
+#alias {gstin_request_render} {#nop};
+#alias {gstin_dirty_all}      {#nop};
+#variable {gstin[ui][user_left_w]} {0};
+#variable {gstin[config][chat_min_width]} {31};
+#variable {gstin[config][chat_max_width]} {0};
+
+#read {ui/layout.tin};
+#read {features/gags.tin};
+#read {features/highlights.tin};
+#read {features/combat.tin};
+#read {features/attention.tin};
+
+#variable {gstin[attention][bg_color]} {<Bffff00>};
+
+#nop -- Custom highlight groups matching Eleazzar config --;
+#variable {gstin[custom_highlights][empaths][color]}    {$gstin[palette][default_fg]}
+#variable {gstin[custom_highlights][empaths][bg_color]} {$gstin[palette][bg_bar_red]}
+#variable {gstin[custom_highlights][empaths][patterns]} {Moomfs}
+
+#variable {gstin[custom_highlights][friends][color]}    {$gstin[palette][bright_green]}
+#variable {gstin[custom_highlights][friends][patterns]} {Calphion}
+
+#variable {gstin[custom_highlights][oel][color]}    {$gstin[palette][green]}
+#variable {gstin[custom_highlights][oel][bg_color]} {$gstin[palette][bg_light_gray]}
+#variable {gstin[custom_highlights][oel][patterns]} {Missoni;Bakarus}
+
+gstin_apply_highlights;
+
+#system {: > /tmp/room_highlight_test.log};
+
+#nop =====================================================================;
+#nop  ROOM PANEL PATH: strip_xml_placeholders -> custom_hl -> resolve
+#nop =====================================================================;
+
+#alias {pt_room} {
+    #variable {gstin[room][objects]} {%1};
+    gstin_strip_xml_placeholders {gstin[room][objects]};
+    #variable {gstin[_ri_objects]} {$gstin[room][objects]};
+    gstin_apply_room_custom_highlights {gstin[_ri_objects]};
+    #line log {/tmp/room_highlight_test.log} {ROOM_HL: $gstin[_ri_objects]};
+    gstin_resolve_placeholders {gstin[_ri_objects]};
+    #line log {/tmp/room_highlight_test.log} {ROOM_RS: $gstin[_ri_objects]};
+    #line log {/tmp/room_highlight_test.log} {};
+}
+
+#alias {pt_room_players} {
+    #variable {gstin[room][players]} {%1};
+    gstin_strip_xml_placeholders {gstin[room][players]};
+    #variable {gstin[_ri_players]} {$gstin[room][players]};
+    gstin_apply_room_custom_highlights {gstin[_ri_players]};
+    #line log {/tmp/room_highlight_test.log} {ROOM_HL: $gstin[_ri_players]};
+    gstin_resolve_placeholders {gstin[_ri_players]};
+    #line log {/tmp/room_highlight_test.log} {ROOM_RS: $gstin[_ri_players]};
+    #line log {/tmp/room_highlight_test.log} {};
+}
+
+#nop =====================================================================;
+#nop  STORY PATH: gstin_strip_xml_colored (strip -> custom_hl -> resolve)
+#nop =====================================================================;
+
+#alias {pt_story} {
+    #variable {gstin[_story_line]} {%1};
+    gstin_strip_xml_colored {gstin[_story_line]};
+    #line log {/tmp/room_highlight_test.log} {STORY: $gstin[_story_line]};
+    #line log {/tmp/room_highlight_test.log} {};
+}
+
+#nop =====================================================================;
+#nop  ASSERTIONS: check for marker presence/absence in resolved output
+#nop  %1=label %2=raw XML %3=marker %4=yes/no
+#nop =====================================================================;
+
+#alias {pt_assert_room} {
+    #local {_label} {%1};
+    #local {_raw} {%2};
+    #local {_marker} {%3};
+    #local {_should} {%4};
+
+    #variable {gstin[room][objects]} {$_raw};
+    gstin_strip_xml_placeholders {gstin[room][objects]};
+    #variable {gstin[_ri_objects]} {$gstin[room][objects]};
+    gstin_apply_room_custom_highlights {gstin[_ri_objects]};
+    gstin_resolve_placeholders {gstin[_ri_objects]};
+    gstin_apply_attention {gstin[_ri_objects]};
+
+    #local {_probe} {$gstin[_ri_objects]};
+    #local {_stripped} {$gstin[_ri_objects]};
+    #replace {_stripped} {$_marker} {};
+    #format {_l1} {%L} {$_probe};
+    #format {_l2} {%L} {$_stripped};
+    #local {_has} {no};
+    #if {$_l1 > $_l2} {#local {_has} {yes}};
+    #local {_v} {FAIL};
+    #if {"$_should" == "yes" && "$_has" == "yes"} {#local {_v} {OK}};
+    #if {"$_should" == "no"  && "$_has" == "no"}  {#local {_v} {OK}};
+    #line log {/tmp/room_highlight_test.log} {[$_v] $_label  want=$_should got=$_has};
+}
+
+#alias {pt_assert_story} {
+    #local {_label} {%1};
+    #local {_raw} {%2};
+    #local {_marker} {%3};
+    #local {_should} {%4};
+
+    #variable {gstin[_story_line]} {$_raw};
+    gstin_strip_xml_colored {gstin[_story_line]};
+
+    #local {_probe} {$gstin[_story_line]};
+    #local {_stripped} {$gstin[_story_line]};
+    #replace {_stripped} {$_marker} {};
+    #format {_l1} {%L} {$_probe};
+    #format {_l2} {%L} {$_stripped};
+    #local {_has} {no};
+    #if {$_l1 > $_l2} {#local {_has} {yes}};
+    #local {_v} {FAIL};
+    #if {"$_should" == "yes" && "$_has" == "yes"} {#local {_v} {OK}};
+    #if {"$_should" == "no"  && "$_has" == "no"}  {#local {_v} {OK}};
+    #line log {/tmp/room_highlight_test.log} {[$_v] $_label  want=$_should got=$_has};
+}
+
+#nop =====================================================================;
+#nop  VISUAL TRACES -- inspect the actual color codes in the log
+#nop =====================================================================;
+
+#line log {/tmp/room_highlight_test.log} {=== ROOM PANEL: OBJECTS ===};
+
+#nop -- 1. bg+fg group (empaths/Moomfs) inside plain <a> entity --;
+pt_room {the <a exist="1" noun="disk">Moomfs disk</a>}
+
+#nop -- 2. fg-only group (friends/Calphion) inside plain <a> entity --;
+pt_room {the <a exist="2" noun="disk">Calphion disk</a>}
+
+#nop -- 3. bg+fg group (oel/Missoni) inside plain <a> entity --;
+pt_room {the <a exist="3" noun="disk">Missoni disk</a>}
+
+#nop -- 4. No custom highlight match — entity color should be untouched --;
+pt_room {the <a exist="4" noun="disk">purple Eleazzar disk</a>}
+
+#nop -- 5. Match inside pushBold creature entity --;
+pt_room {<pushBold/>a <a exist="5" noun="cat">Moomfs cat</a><popBold/>}
+
+#nop -- 6. Multiple entities, one with match, one without --;
+pt_room {the <a exist="1" noun="disk">Moomfs disk</a>, the <a exist="4" noun="disk">purple Eleazzar disk</a>}
+
+#nop -- 7. Match inside hostile entity --;
+pt_room {<pushBold/>an <a exist="6" noun="troll">ice troll</a><popBold/>}
+
+#nop -- 8. Pattern appears twice in same line (two different entities) --;
+pt_room {the <a exist="7" noun="disk">Bakarus disk</a>, the <a exist="8" noun="disk">Missoni disk</a>}
+
+#line log {/tmp/room_highlight_test.log} {};
+#line log {/tmp/room_highlight_test.log} {=== ROOM PANEL: PLAYERS ===};
+
+#nop -- 9. Player name match with title prefix --;
+pt_room_players {Also here: Lady <a exist="-1" noun="Moomfs">Moomfs</a> (sitting)}
+
+#nop -- 10. Multiple players, mixed match/no-match --;
+pt_room_players {Also here: <a exist="-2" noun="Calphion">Calphion</a>, Lady <a exist="-1" noun="Moomfs">Moomfs</a> (sitting), <a exist="-3" noun="Zelaima">Zelaima</a>}
+
+#line log {/tmp/room_highlight_test.log} {};
+#line log {/tmp/room_highlight_test.log} {=== STORY SCROLL ===};
+
+#nop -- 11. Story: speech line with entity name (char config-like) --;
+pt_story {<preset id='speech'><a exist="-1" noun="Moomfs">Moomfs</a> says, "Hello there."</preset>}
+
+#nop -- 12. Story: non-speech line with entity --;
+pt_story {The <a exist="1" noun="disk">Moomfs disk</a> spins slowly.}
+
+#nop -- 13. Story: creature entity (pushBold) no match --;
+pt_story {<pushBold/>An <a exist="5" noun="troll">ice troll</a><popBold/> lunges at you!}
+
+#nop -- 14. Story: fg-only group --;
+pt_story {<a exist="-2" noun="Calphion">Calphion</a> just arrived.}
+
+#line log {/tmp/room_highlight_test.log} {};
+#line log {/tmp/room_highlight_test.log} {=== ASSERTIONS ===};
+
+#nop -- Use the empaths bg color as ANSI marker: [48;2;189;115;114m --;
+#nop -- Use player_name blue as ANSI marker: [38;2;0;135;175m --;
+#nop -- Use friends green as ANSI marker: varies by palette --;
+#nop -- Use [49m as bg-off marker --;
+
+#nop -- Room: empaths Moomfs gets red bg --;
+pt_assert_room {room:empaths_bg_on_match} {the <a exist="1" noun="disk">Moomfs disk</a>} {[48;2;189;115;114m} {yes}
+
+#nop -- Room: bg cleared after Moomfs (before disk) --;
+pt_assert_room {room:bg_off_after_match} {the <a exist="1" noun="disk">Moomfs disk</a>} {[49m} {yes}
+
+#nop -- Room: unmatched entity keeps player_name blue --;
+pt_assert_room {room:eleazzar_keeps_blue} {the <a exist="4" noun="disk">purple Eleazzar disk</a>} {[38;2;0;135;175m} {yes}
+
+#nop -- Room: no empaths bg on unmatched entity --;
+pt_assert_room {room:eleazzar_no_red_bg} {the <a exist="4" noun="disk">purple Eleazzar disk</a>} {[48;2;189;115;114m} {no}
+
+#nop -- Story: empaths bg on speech entity match --;
+pt_assert_story {story:empaths_bg_on_speech} {<preset id='speech'><a exist="-1" noun="Moomfs">Moomfs</a> says, "Hello there."</preset>} {[48;2;189;115;114m} {yes}
+
+#nop -- Story: empaths bg on non-speech entity match --;
+pt_assert_story {story:empaths_bg_on_nonspeech} {The <a exist="1" noun="disk">Moomfs disk</a> spins slowly.} {[48;2;189;115;114m} {yes}
+
+#nop -- Story: bg cleared after match --;
+pt_assert_story {story:bg_off_after_match} {The <a exist="1" noun="disk">Moomfs disk</a> spins slowly.} {[49m} {yes}
+
+#line log {/tmp/room_highlight_test.log} {};
+#system {echo "ROOM HIGHLIGHT TEST DONE" >> /tmp/room_highlight_test.log}
+#delay {quit} {#end} {1}

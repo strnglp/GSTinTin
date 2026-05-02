@@ -143,6 +143,28 @@ gstin_calc_status_layout;
     #showme {\e[0m${_txt}\e[0m} {${_row}} {2};
 }
 
+#nop -- Apply custom highlights to room panel text in placeholder form. --;
+#nop -- Runs BEFORE gstin_resolve_placeholders so the close can re-enter --;
+#nop -- the surrounding entity color. Matches inside GXNAM spans close --;
+#nop -- with GXNAM; matches inside GXCRS/GXHOS close with that marker. --;
+#nop -- Matches outside any entity span close with GXDFT. --;
+#alias {gstin_apply_room_custom_highlights} {
+    #local {_vn} {%1};
+    #if {&gstin[custom_highlights][] == 0} {#return};
+    #foreach {*gstin[custom_highlights][]} {_group} {
+        #local {_color} {$gstin[custom_highlights][$_group][color]};
+        #if {&gstin[custom_highlights][$_group][bg_color] > 0} {
+            #local {_color} {$gstin[custom_highlights][$_group][color]$gstin[custom_highlights][$_group][bg_color]};
+        };
+        #foreach {$gstin[custom_highlights][$_group][patterns]} {_pattern} {
+            #variable {gstin[_rch_pat]} {$_pattern};
+            #replace {$_vn} {GXNAM{[^G]*}$gstin[_rch_pat]} {GXNAM&1${_color}$gstin[_rch_pat]\e[49mGXNAM};
+            #replace {$_vn} {GXCRS{[^G]*}$gstin[_rch_pat]} {GXCRS&1${_color}$gstin[_rch_pat]\e[49mGXCRS};
+            #replace {$_vn} {GXHOS{[^G]*}$gstin[_rch_pat]} {GXHOS&1${_color}$gstin[_rch_pat]\e[49mGXHOS};
+        };
+    };
+}
+
 #nop -- Word-wrap text to a given visible width --;
 #nop -- Splits on spaces, stores wrapped lines in gstin[_wrap_result] as a list --;
 #nop -- Find the last color code in a string, store in gstin[_last_color] --;
@@ -455,6 +477,7 @@ gstin_calc_status_layout;
     #local {_vn} {%1};
     #local {_ctx} {%2};
     gstin_strip_xml_placeholders {$_vn};
+    gstin_apply_room_custom_highlights {$_vn};
     gstin_resolve_placeholders {$_vn} {$_ctx};
 }
 
@@ -593,6 +616,11 @@ gstin_calc_status_layout;
     #variable {gstin[_ri_exits]}   {$gstin[room][exits]};
     #variable {gstin[_ri_players]} {$gstin[room][players]};
     #variable {gstin[_ri_objects]} {$gstin[room][objects]};
+    #nop -- Custom highlights run on placeholder text so the close re-injects --;
+    #nop -- the surrounding GX marker, which resolves to the entity color. --;
+    gstin_apply_room_custom_highlights {gstin[_ri_players]};
+    gstin_apply_room_custom_highlights {gstin[_ri_objects]};
+
     gstin_resolve_placeholders {gstin[_ri_exits]} {exits};
     gstin_resolve_placeholders {gstin[_ri_players]};
     gstin_resolve_placeholders {gstin[_ri_objects]};
