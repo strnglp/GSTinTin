@@ -948,34 +948,36 @@
     };
 
     #nop -- Hands (parsed early: hand tags appear on lines with pushStream inv) --;
-    #nop -- Both exist= and plain tags run independently: server sends both on one line --;
-    #nop -- Plain tag (Empty) appears last and overwrites the exist= match --;
-    #regexp {$_line} {exist={[^>]+}>{[^<]+}</right>} {
+    #nop -- Server may send multiple <right>/<left> tags on one line (rapid stow) --;
+    #nop -- Final state is the LAST tag: greedy %* skips prior occurrences --;
+    #regexp {$_line} {%*>{[^<]+}</right>} {
         #if {"&2" != "$gstin[hands][right]"} {
             #variable {gstin[hands][right]} {&2};
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };
-    };
-    #regexp {$_line} {<right>{[^<]+}</right>} {
-        #if {"&1" != "$gstin[hands][right]"} {
-            #variable {gstin[hands][right]} {&1};
-            #variable {gstin[_dirty][status]} {1};
-            gstin_request_render;
+    } {
+        #regexp {$_line} {%*<right/>} {
+            #if {"Empty" != "$gstin[hands][right]"} {
+                #variable {gstin[hands][right]} {Empty};
+                #variable {gstin[_dirty][status]} {1};
+                gstin_request_render;
+            };
         };
     };
-    #regexp {$_line} {exist={[^>]+}>{[^<]+}</left>} {
+    #regexp {$_line} {%*>{[^<]+}</left>} {
         #if {"&2" != "$gstin[hands][left]"} {
             #variable {gstin[hands][left]} {&2};
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };
-    };
-    #regexp {$_line} {<left>{[^<]+}</left>} {
-        #if {"&1" != "$gstin[hands][left]"} {
-            #variable {gstin[hands][left]} {&1};
-            #variable {gstin[_dirty][status]} {1};
-            gstin_request_render;
+    } {
+        #regexp {$_line} {%*<left/>} {
+            #if {"Empty" != "$gstin[hands][left]"} {
+                #variable {gstin[hands][left]} {Empty};
+                #variable {gstin[_dirty][status]} {1};
+                gstin_request_render;
+            };
         };
     };
 
@@ -1582,6 +1584,9 @@
     #nop -- gstin_gag_xml strips with content in step 1 --;
     #variable {gstin[_xml_gag]} {0};
     #regexp {$_line} {</{component|right|left|inv|compass|spell}>} {#variable {gstin[_gag_line]} {$_line}; gstin_gag_xml; #variable {gstin[_xml_gag]} {1}};
+    #if {$gstin[_xml_gag] == 0} {
+        #regexp {$_line} {<{right|left}/>} {#variable {gstin[_xml_gag]} {1}};
+    };
     #if {$gstin[_xml_gag] == 1} {#line gag; #return};
 
     #nop -- Prompt: gag and capture prompt text for echo detection --;
