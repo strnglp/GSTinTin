@@ -1,0 +1,123 @@
+#nop =========================================================================;
+#nop  Hand-parsing test
+#nop  Exercises the <right>/<left> regex logic from core/streams.tin against
+#nop  all known server output permutations from gstin_raw.log.
+#nop =========================================================================;
+
+#config {command echo} {off}
+#config {speedwalk} {off}
+#config {color patch} {off}
+
+#variable {gstin[hands][left]}  {Empty}
+#variable {gstin[hands][right]} {Empty}
+#variable {gstin[_dirty][status]} {0}
+#alias {gstin_request_render} {#nop}
+
+#variable {_pass} {0}
+#variable {_fail} {0}
+
+#alias {pt_hands_parse} {
+    #local {_line} {%1};
+    #regexp {$_line} {<right exist={[^>]+}>{[^<]+}</right>} {
+        #if {"&2" != "$gstin[hands][right]"} {
+            #variable {gstin[hands][right]} {&2};
+        };
+    };
+    #regexp {$_line} {<right>{[^<]+}</right>} {
+        #if {"&1" != "$gstin[hands][right]"} {
+            #variable {gstin[hands][right]} {&1};
+        };
+    };
+    #regexp {$_line} {<left exist={[^>]+}>{[^<]+}</left>} {
+        #if {"&2" != "$gstin[hands][left]"} {
+            #variable {gstin[hands][left]} {&2};
+        };
+    };
+    #regexp {$_line} {<left>{[^<]+}</left>} {
+        #if {"&1" != "$gstin[hands][left]"} {
+            #variable {gstin[hands][left]} {&1};
+        };
+    };
+}
+
+#alias {pt_assert_hands} {
+    #local {_label} {%1};
+    #local {_exp_left} {%2};
+    #local {_exp_right} {%3};
+    #local {_verdict} {FAIL};
+    #if {"$gstin[hands][left]" == "$_exp_left" && "$gstin[hands][right]" == "$_exp_right"} {
+        #local {_verdict} {OK};
+        #math {_pass} {$_pass + 1};
+    } {
+        #math {_fail} {$_fail + 1};
+    };
+    #line log {/tmp/gstin_hands_test.log} {[$_verdict] $_label};
+    #if {"$_verdict" == "FAIL"} {
+        #line log {/tmp/gstin_hands_test.log} {   expected L=$_exp_left R=$_exp_right};
+        #line log {/tmp/gstin_hands_test.log} {   got      L=$gstin[hands][left] R=$gstin[hands][right]};
+    };
+}
+
+#alias {pt_reset_hands} {
+    #variable {gstin[hands][left]}  {Empty};
+    #variable {gstin[hands][right]} {Empty};
+}
+
+#system {: > /tmp/gstin_hands_test.log}
+
+#nop ---- Scenario 1: pick up item in left hand ----;
+pt_reset_hands;
+pt_hands_parse {<left exist="14676147" noun="wand">bone wand</left><component id='room objs'>  You also see the disk.</component>};
+pt_assert_hands {pick-up-left} {bone wand} {Empty};
+
+#nop ---- Scenario 2: stow from left (exist form + Empty on same line) ----;
+pt_reset_hands;
+#variable {gstin[hands][left]} {bone wand};
+pt_hands_parse {<left exist="14676147" noun="wand">bone wand</left><left>Empty</left><clearStream id='inv' ifClosed=''/><pushStream id='inv'/>Your worn items are:};
+pt_assert_hands {stow-left-empty} {Empty} {Empty};
+
+#nop ---- Scenario 3: pick up item in right hand ----;
+pt_reset_hands;
+pt_hands_parse {<right exist="14862969" noun="runestaff">lor runestaff</right>};
+pt_assert_hands {pick-up-right} {Empty} {lor runestaff};
+
+#nop ---- Scenario 4: login burst with both hands ----;
+pt_reset_hands;
+pt_hands_parse {<spell>None</spell><left>Empty</left><right exist="14862969" noun="runestaff">lor runestaff</right>};
+pt_assert_hands {login-both} {Empty} {lor runestaff};
+
+#nop ---- Scenario 5: status bar update (plain tags, no exist attr) ----;
+pt_reset_hands;
+pt_hands_parse {<right>lor runestaff</right><left>Empty</left><compass><dir value='e'/></compass>};
+pt_assert_hands {status-plain-tags} {Empty} {lor runestaff};
+
+#nop ---- Scenario 6: pick up then immediately stow (both on one line) ----;
+pt_reset_hands;
+pt_hands_parse {<dialogData id='encum'><progressBar id='encumlevel' value='0' text='None' top='5' left='-5' align='n' width='160' height='15'/><label id='encumblurb' value='You are not encumbered enough to notice.' top='10' left='0' align='n' width='160' height='50' justify='0' anchor_top='encumlevel'/></dialogData><left exist="18097190" noun="mithril-bloom">purple mithril-bloom</left><left>Empty</left><component id='room objs'>  You also see a helm.</component>};
+pt_assert_hands {stow-mithril-bloom} {Empty} {Empty};
+
+#nop ---- Scenario 7: rapid stow multiple items (many exist+Empty pairs) ----;
+pt_reset_hands;
+pt_hands_parse {<left exist="1352047" noun="ingot">gold ingot</left><left>Empty</left><left exist="1352045" noun="chunk">azurite chunk</left><left>Empty</left><left exist="1352044" noun="wand">glaes wand</left><left>Empty</left><left exist="1352043" noun="mithril-bloom">purple mithril-bloom</left><left>Empty</left><left exist="1352042" noun="peridot">winter peridot</left><left>Empty</left><component id='room objs'>  You also see a spirit.</component>};
+pt_assert_hands {rapid-stow-multi} {Empty} {Empty};
+
+#nop ---- Scenario 8: two items stowed on same line (interleaved) ----;
+pt_reset_hands;
+pt_hands_parse {<dialogData id='encum'><progressBar id='encumlevel' value='20' text='Somewhat' top='5' left='-5' align='n' width='160' height='15'/></dialogData><left exist="10155327" noun="flask">white flask</left><left>Empty</left><dialogData id='encum'><progressBar id='encumlevel' value='20' text='Somewhat' top='5' left='-5' align='n' width='160' height='15'/></dialogData><left exist="10155326" noun="mithril-bloom">grey mithril-bloom</left><left>Empty</left><component id='room objs'>  You also see the disk.</component>};
+pt_assert_hands {two-stow-interleaved} {Empty} {Empty};
+
+#nop ---- Scenario 9: right hand item only, left stays empty ----;
+pt_reset_hands;
+pt_hands_parse {<right exist="113967643" noun="mithril-bloom">purple mithril-bloom</right><right>Empty</right><component id='room objs'>  You also see a giant.</component>};
+pt_assert_hands {right-stow} {Empty} {Empty};
+
+#nop ---- Scenario 10: item remains in hand (no Empty follow-up) ----;
+pt_reset_hands;
+pt_hands_parse {<left exist="14676154" noun="ingot">gold ingot</left><component id='room objs'>  You also see the disk.</component>};
+pt_assert_hands {item-stays-in-hand} {gold ingot} {Empty};
+
+#nop ---- Summary ----;
+#line log {/tmp/gstin_hands_test.log} {};
+#line log {/tmp/gstin_hands_test.log} {PASSED: $_pass  FAILED: $_fail};
+#system {echo "HANDS TEST DONE" >> /tmp/gstin_hands_test.log}
+#delay {quit} {#end} {1}
