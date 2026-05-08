@@ -16,12 +16,14 @@
 #variable {gstin[_peer_active]} {0}
 #variable {gstin[hostiles]} {}
 #variable {gstin[hostile_nouns]} {}
-#variable {gstin[hostiles][ice troll]}     {1}
-#variable {gstin[hostiles][frost giant]}   {1}
-#variable {gstin[hostiles][cold guardian]} {1}
-#variable {gstin[hostile_nouns][troll]}    {1}
-#variable {gstin[hostile_nouns][giant]}    {1}
-#variable {gstin[hostile_nouns][guardian]} {1}
+#variable {gstin[hostiles][ice troll]}        {1}
+#variable {gstin[hostiles][frost giant]}      {1}
+#variable {gstin[hostiles][cold guardian]}    {1}
+#variable {gstin[hostiles][troll barbarian]} {1}
+#variable {gstin[hostile_nouns][troll]}      {1}
+#variable {gstin[hostile_nouns][giant]}      {1}
+#variable {gstin[hostile_nouns][guardian]}   {1}
+#variable {gstin[hostile_nouns][barbarian]} {1}
 #variable {gstin[custom_highlights]} {}
 #variable {gstin[user_gags]} {}
 
@@ -70,6 +72,8 @@ pt_run {The <pushBold/><a exist="1" noun="giant">frost giant</a><popBold/> is st
 pt_run {The <pushBold/><a exist="1" noun="giant">frost giant</a><popBold/> cries out in cold agony one last time and dies.}
 pt_run {The <pushBold/><a exist="1" noun="troll">ice troll</a><popBold/> falls to the ground motionless.}
 pt_run {The <pushBold/><a exist="1" noun="guardian">cold guardian</a><popBold/> goes still.}
+pt_run {A <pushBold/><a exist="3" noun="barbarian">Grimswarm troll barbarian</a><popBold/> swings a handaxe at you!}
+pt_run {<pushBold/>A <a exist="3" noun="barbarian">Grimswarm troll barbarian's</a><popBold/> flesh wounds regenerate slowly.}
 
 #nop -- Control: lines without hostile markers should also be bold --;
 pt_run {You are stunned!}

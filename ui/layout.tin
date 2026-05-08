@@ -383,25 +383,28 @@ gstin_calc_status_layout;
     #replace {$_vn} {GXRSTGXCRE} {GXCRE};
 
     #nop -- Hostile creature override: swap creature markers for hostile markers --;
-    #nop -- After creature overrides, spans look like: GXCRSarticle GXCRSnameGXCRE --;
-    #nop -- Replace inner name span (prefix-tolerant for adjectives like "luminous ice troll") --;
-    #nop -- Then convert preceding article GXCRS --;
+    #nop -- Temp-swap GXCRS/GXCRE to ~C~/~E~ so [^~] can match names with G --;
+    #nop -- (dDBTarget sends short names like "troll barbarian" but display text --;
+    #nop -- has a prefix like "Grimswarm" that contains G, breaking [^G] captures) --;
     #if {&gstin[hostiles][] > 0} {
+        #replace {$_vn} {GXCRS} {~C~};
+        #replace {$_vn} {GXCRE} {~E~};
         #foreach {*gstin[hostiles][%*]} {_hkey} {
             #variable {gstin[_hk]} {$_hkey};
-            #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]{[^G]*}GXCRE} {GXHOS&1$gstin[_hk]&2GXHOE};
+            #replace {$_vn} {~C~{[^~]*}$gstin[_hk]{[^~]*}~E~} {~H~&1$gstin[_hk]&2~HE~};
         };
-        #nop -- Possessive forms: server sends "troll's" or "giant's" using --;
-        #nop -- just the base noun. Match noun + 's specifically to avoid --;
-        #nop -- false positives like "giant" matching "giantman". --;
         #if {&gstin[hostile_nouns][] > 0} {
             #foreach {*gstin[hostile_nouns][%*]} {_nkey} {
                 #variable {gstin[_hk]} {$_nkey};
-                #replace {$_vn} {GXCRS{[^G]*}$gstin[_hk]'sGXCRE} {GXHOS&1$gstin[_hk]'sGXHOE};
-                #replace {$_vn} {GXCRS$gstin[_hk]'sGXCRE} {GXHOS$gstin[_hk]'sGXHOE};
+                #replace {$_vn} {~C~{[^~]*}$gstin[_hk]'s{[^~]*}~E~} {~H~&1$gstin[_hk]'s&2~HE~};
+                #replace {$_vn} {~C~$gstin[_hk]'s{[^~]*}~E~} {~H~$gstin[_hk]'s&1~HE~};
             };
         };
-        #replace {$_vn} {GXCRS{[^G]*}GXHOS} {GXHOS&1GXHOS};
+        #replace {$_vn} {~C~{[^~]*}~H~} {~H~&1~H~};
+        #replace {$_vn} {~C~} {GXCRS};
+        #replace {$_vn} {~E~} {GXCRE};
+        #replace {$_vn} {~H~} {GXHOS};
+        #replace {$_vn} {~HE~} {GXHOE};
     };
 
     #nop -- Preset base color: GXRST resets to preset color, not default --;
@@ -1056,6 +1059,7 @@ gstin_calc_status_layout;
         #nop -- Resolve placeholders against current theme, then bind <099> to --;
         #nop -- stream color so mid-line resets return to channel tint (preserves --;
         #nop -- the prior GXDFT->channel-color behavior without baking it in). --;
+        gstin_apply_room_custom_highlights {gstin[_chat_text]};
         gstin_resolve_placeholders {gstin[_chat_text]};
         #replace {gstin[_chat_text]} {<099>} {$gstin[_chat_rcolor]};
 
@@ -1130,6 +1134,7 @@ gstin_calc_status_layout;
         #local {_stream} {$gstin[_fam_stream]};
         #variable {gstin[_fam_rcolor]} {$gstin[colors][stream][$_stream]};
         #local {_color} {$gstin[_fam_rcolor]};
+        gstin_apply_room_custom_highlights {gstin[_fam_text]};
         gstin_resolve_placeholders {gstin[_fam_text]};
         #replace {gstin[_fam_text]} {<099>} {$gstin[_fam_rcolor]};
 
