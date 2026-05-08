@@ -104,6 +104,8 @@
     #replace {_stripped} {<container{[^>]*}>} {};
     #replace {_stripped} {<clearContainer{[^>]*}>} {};
     #replace {_stripped} {<nav{[^>]*}>} {};
+    #replace {_stripped} {<left/>} {};
+    #replace {_stripped} {<right/>} {};
     #format {_stripped} {%p} {$_stripped};
     #local {_slen} {0};
     #format {_slen} {%L} {$_stripped};
@@ -974,6 +976,20 @@
     #regexp {$_line} {<left>{[^<]+}</left>} {
         #if {"&1" != "$gstin[hands][left]"} {
             #variable {gstin[hands][left]} {&1};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
+    };
+    #regexp {$_line} {<right/>} {
+        #if {"Empty" != "$gstin[hands][right]"} {
+            #variable {gstin[hands][right]} {Empty};
+            #variable {gstin[_dirty][status]} {1};
+            gstin_request_render;
+        };
+    };
+    #regexp {$_line} {<left/>} {
+        #if {"Empty" != "$gstin[hands][left]"} {
+            #variable {gstin[hands][left]} {Empty};
             #variable {gstin[_dirty][status]} {1};
             gstin_request_render;
         };

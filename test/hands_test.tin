@@ -116,6 +116,13 @@ pt_reset_hands;
 pt_hands_parse {<left exist="14676154" noun="ingot">gold ingot</left><component id='room objs'>  You also see the disk.</component>};
 pt_assert_hands {item-stays-in-hand} {gold ingot} {Empty};
 
+
+#nop ---- Scenario 11: self-closing tags clear hands ----;
+#nop -- NOTE: self-closing tags (<left/> <right/>) cannot be tested here --;
+#nop -- because TinTin++ interprets < > at parse time. The handlers in --;
+#nop -- core/streams.tin work on raw RECEIVED LINE data which bypasses --;
+#nop -- the parser. Enable rawlog and stow an item to verify live. --;
+
 #nop ---- Summary ----;
 #line log {/tmp/gstin_hands_test.log} {};
 #line log {/tmp/gstin_hands_test.log} {PASSED: $_pass  FAILED: $_fail};
