@@ -52,7 +52,7 @@
 
     #nop Set terminal title + tmux/screen window name (pins tab name);
     #if {"$gstin[config][char_name]" != ""} {
-        #system {printf '\033]0;GS4 - $gstin[config][char_name]\007\033kGS4 - $gstin[config][char_name]\033\\'};
+        #system {printf '\033]0;GS4 - %s\007\033kGS4 - %s\033\\' "$gstin[config][char_name]" "$gstin[config][char_name]"};
     } {
         #system {printf '\033]0;GS4\007\033kGS4\033\\'};
     };
@@ -116,7 +116,7 @@
         #if {"$gstin[room][title]" != ""} {
             #local {_t} {GS4 - $gstin[config][char_name] - $gstin[room][title]};
         };
-        #system {printf '\033]0;%s\007\033kGS4 - %s\033\\' '$_t' '$gstin[config][char_name]'};
+        #system {printf '\033]0;%s\007\033kGS4 - %s\033\\' "$_t" "$gstin[config][char_name]"};
     };
 }
 
