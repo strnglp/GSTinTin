@@ -70,107 +70,6 @@
     #variable {gstin[_rl]} {$_edtmp};
 }
 
-#nop -- Show a story line with background-safe wrapping. If the line is --;
-#nop -- wider than the scroll area, word-wrap it and reset background at --;
-#nop -- each break so bg colors don't bleed across terminal line wraps. --;
-#alias {gstin_story_showme} {
-    #local {_sw} {0};
-    #math {_sw} {$gstin[ui][cols] - $gstin[ui][left_w] - $gstin[ui][right_w]};
-    #local {_vlen} {0};
-    #format {_vlen} {%L} {$gstin[_story_line]};
-    #if {$_vlen <= $_sw} {
-        #showme {$gstin[_story_line]\e[49m};
-    } {
-        gstin_story_wrap {$_sw};
-        #local {_i} {0};
-        #local {_sz} {0};
-        #list {gstin[_wrap_result]} {size} {_sz};
-        #while {$_i < $_sz} {
-            #math {_i} {$_i + 1};
-            #showme {$gstin[_wrap_result][$_i]};
-        };
-    };
-}
-
-#nop -- Word-wrap gstin[_story_line] to %1 columns, resetting background --;
-#nop -- at each break. Tracks active fg (<F>/<abc>) and bg (<B>) state --;
-#nop -- across segments so colors carry correctly but bg is always closed. --;
-#alias {gstin_story_wrap} {
-    #local {_width} {%1};
-    #variable {gstin[_wrap_result]} {};
-    #local {_words} {$gstin[_story_line]};
-    #replace {_words} { } {;};
-    #local {_line} {};
-    #local {_line_len} {0};
-    #local {_carry_fg} {};
-    #local {_carry_bg} {};
-    #foreach {$_words} {_word} {
-        #local {_wlen} {0};
-        #format {_wlen} {%L} {$_word};
-        #if {$_line_len == 0} {
-            #local {_line} {${_carry_fg}${_carry_bg}$_word};
-            #local {_line_len} {$_wlen};
-        } {
-            #local {_new_len} {0};
-            #math {_new_len} {$_line_len + 1 + $_wlen};
-            #if {$_new_len > $_width} {
-                #list {gstin[_wrap_result]} {add} {$_line\e[49m};
-                gstin_find_last_fg {$_line};
-                #local {_carry_fg} {$gstin[_last_fg]};
-                gstin_find_last_bg {$_line};
-                #local {_carry_bg} {$gstin[_last_bg]};
-                #local {_line} {${_carry_fg}${_carry_bg}$_word};
-                #local {_line_len} {$_wlen};
-            } {
-                #local {_line} {$_line $_word};
-                #local {_line_len} {$_new_len};
-            };
-        };
-    };
-    #if {$_line_len > 0} {
-        #list {gstin[_wrap_result]} {add} {$_line};
-    };
-}
-
-#nop -- Find last foreground color in a string (ignoring bg and resets) --;
-#alias {gstin_find_last_fg} {
-    #local {_str} {%1};
-    #variable {gstin[_last_fg]} {};
-    #local {_scan} {$_str};
-    #replace {_scan} {<{F[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}>} {;GXFC&1;};
-    #replace {_scan} {<099>} {;GXRST;};
-    #replace {_scan} {<{[a-z0-9][a-z0-9][a-z0-9]}>} {;GXSC&1;};
-    #foreach {$_scan} {_part} {
-        #regexp {$_part} {GXFC{F[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}} {
-            #variable {gstin[_last_fg]} {<&1>};
-        };
-        #regexp {$_part} {GXSC{[a-z0-9][a-z0-9][a-z0-9]}} {
-            #variable {gstin[_last_fg]} {<&1>};
-        };
-        #regexp {$_part} {GXRST} {
-            #variable {gstin[_last_fg]} {};
-        };
-    };
-}
-
-#nop -- Find last background state: either a <B> tag or empty (if \e[49m seen after) --;
-#alias {gstin_find_last_bg} {
-    #local {_str} {%1};
-    #variable {gstin[_last_bg]} {};
-    #local {_scan} {$_str};
-    #replace {_scan} {<{B[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}>} {;GXBG&1;};
-    #replace {_scan} {\e\[49m} {;GXBGOFF;};
-    #replace {_scan} {<099>} {;GXBGOFF;};
-    #foreach {$_scan} {_part} {
-        #regexp {$_part} {GXBG{B[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]}} {
-            #variable {gstin[_last_bg]} {<&1>};
-        };
-        #regexp {$_part} {GXBGOFF} {
-            #variable {gstin[_last_bg]} {};
-        };
-    };
-}
-
 #nop -- Generic XML gag helper: strip tags, show remaining text, gag line --;
 #nop -- Call from #regexp body as gstin_gag_xml then #return --;
 #nop -- Reads gstin[_gag_line] which must be set to $_line before gag section --;
@@ -229,7 +128,7 @@
         gstin_check_user_gag {$gstin[_story_line]};
         #if {$gstin[_gag_match] == 0} {
             #variable {gstin[_showing_story]} {1};
-            gstin_story_showme;
+            #showme {$gstin[_story_line]};
             #variable {gstin[_showing_story]} {0};
             #nop -- Only mark content when we actually emitted a line --;
             #variable {gstin[_prompt_space]} {0};
@@ -1787,7 +1686,7 @@
         #variable {gstin[_story_line]} {$gstin[colors][highlight][remote]$gstin[_story_line]};
     };
     #variable {gstin[_showing_story]} {1};
-    gstin_story_showme;
+    #showme {$gstin[_story_line]};
     #variable {gstin[_showing_story]} {0};
     #line gag;
 
